@@ -48,7 +48,7 @@ VIDEODECODER_GEN_SRC += ${AIDL_GEN_DIR}/cpp/com/rdk/hal/videodecoder/Property.cp
 VIDEODECODER_GEN_SRC += ${AIDL_GEN_DIR}/cpp/com/rdk/hal/videodecoder/ScanType.cpp
 VIDEODECODER_GEN_SRC += ${AIDL_GEN_DIR}/cpp/com/rdk/hal/videodecoder/PropertyKVPair.cpp
 
-VIDEOSINK_LIB_SRC += $(MOCK_SERVICE_DIR)/VideoSink.cpp
+MOCK_SERVICE_BIN_SRC += $(MOCK_SERVICE_DIR)/VideoSink.cpp
 MOCK_SERVICE_BIN_SRC += $(MOCK_SERVICE_DIR)/VideoSinkService.cpp
 
 
@@ -83,11 +83,7 @@ $(MOCK_SERVICE_BIN): $(MOCK_SERVICE_BIN_SRC:%.cpp=%.o)
 	g++ $(MOCK_SERVICE_LDFLAGS) \
 		$(MOCK_SERVICE_BIN_SRC:%.cpp=%.o) -o $@ \
 		$(MOCK_SERVICE_LD_LIBS) -l$(VIDEOSINK_SONAME)
-	        
-	install $(MOCK_SERVICE_BIN) install $(BUILD_DIR)/usr/lib
-
-$(MOCK_SERVICE_BIN_SRC:%.cpp=%.o):$(MOCK_SERVICE_BIN_SRC)
-	g++ $(MOCK_SERVICE_CFLAGS) $(MOCK_SERVICE_INC_FLAGS) -c $< -o $@
+	install $(MOCK_SERVICE_BIN) $(BUILD_DIR)/usr/lib
 
 # do not clash with `ut-core` by chaning the object file name to .o.1
 %.o: %.cpp
