@@ -45,7 +45,6 @@
 #include <optional>
 #include <algorithm>
 #include <unordered_set>
-#include "yaml_utils.h"
 
 
 #include "com/rdk/hal/videosink/IVideoSinkManager.h"
@@ -1946,47 +1945,103 @@ TEST_F(L1VideoSinkStartTest, test_l1_videosink_negative_2_discardFramesUntil)
     EXPECT_FALSE(status.isOk());
 }
 
+std::vector<std::string> splitPath(const std::string& path, char delimiter) {
+        std::vector<std::string> segments;
+        size_t start = 0;
+        size_t end = path.find(delimiter);
+
+        while (end != std::string::npos) {
+                segments.push_back(path.substr(start, end - start));
+                start = end + 1;
+                end = path.find(delimiter, start);
+        }
+
+        segments.push_back(path.substr(start));
+        return segments;
+}
+
+
+int createComponentMap( ut_kvp_instance_t * p_instance, std::map<std::string, int> &l_compMap){
+
+        char result_kvp[UT_KVP_MAX_ELEMENT_SIZE];
+        std::string key;
+        int total_componentes = ut_kvp_getListCount(p_instance ,"components");
+        if(total_componentes == 0){
+                std::cerr << "components node not found or not a list." << std::endl;
+                return -1;
+        }
+        for(int i = 0; i < total_componentes;i++){
+                key.clear();
+                key = "components/"+ std::to_string(i) + "/name";
+                if(0 == ut_kvp_getStringField(p_instance, key.c_str(), result_kvp, UT_KVP_MAX_ELEMENT_SIZE)){
+                        l_compMap.insert({std::string(result_kvp),i});
+                }
+        }
+        return 0;
+}
+
+int updatedPath(std::string &path, const std::map<std::string, int> &l_compMap){
+
+        std::vector<std::string> segments = splitPath(path, '.');
+        // Check if we have enough segments to perform the update
+        if (segments.size() < 2) {
+                std::cerr << "Error: Path has insufficient segments for update." << std::endl;
+                return -1;
+        }
+        // Check if the componentMap contains the second segment
+        auto it = l_compMap.find(segments[1]);
+        if (it == l_compMap.end()) {
+                std::cerr << "Error: Component " << segments[1] << " not found in component map." << std::endl;
+                return -1;
+        }
+
+        std::string rtn;
+        segments[1] = std::to_string(l_compMap.at(segments[1]));
+        rtn += segments[0];
+        for(int j = 1;j< segments.size();j++){
+                rtn += "/"+ segments[j];
+        }
+        path.clear();
+        path = rtn;
+        return 0;
+}
+
+
 int main(int argc, char **argv) 
 {
-    std::string yaml_file;
-    int opt;
     int result1;
     int result2;
     int number_of_videosink;
     int number_of_videodecoders;
-
+    std::map<std::string , int> componentMap;
+    
     std::string videosinkpath = "components.IVideoSinkManager.IVideoSink";
     std::string videodecoderpath = "components.IVideoDecoderManager.IVideoDecoder";
 
-//    ::testing::InitGoogleTest(&argc, argv);
+   
    UT_init(argc, argv);
-    if(getService() == -1)
+   ut_kvp_instance_t *config = ut_kvp_profile_getInstance();
+   
+   if (config != nullptr) 
     {
-        return -1;
-    }
+    	
+            if(-1 == createComponentMap(config, componentMap)){
+                return -1;
+            }
+            
+ 	   if(-1 == updatedPath(videodecoderpath, componentMap)){
+                std::cerr << "Error: yaml not have videodecoder config\n";
+                return -1;
+            }
+            updatedPath(videosinkpath, componentMap);   
+	    
+	   if(getService() == -1)
+    	    {
+        	return -1;
+    	    }    
 
- optind = 1;
 
-    while ((opt = getopt(argc, argv, "p:")) != -1) 
-    {
-        switch (opt) 
-        {
-            case 'p':
-                yaml_file = optarg;
-                break;
-            default:
-                std::cerr << "Usage: " << argv[0] << " -p <yaml_file>" << std::endl;
-                return 1;
-        }
-    }
-
-    if (!yaml_file.empty()) 
-    {
-        try 
-        {
-            YAML::Node config = YAML::LoadFile(yaml_file.c_str());
-
-            number_of_videodecoders = get_list_Count_from_profile(config, videodecoderpath);
+            number_of_videodecoders = ut_kvp_getListCount(config, videodecoderpath.c_str());
             if(number_of_videodecoders <= 0)
             {
                 std::cout<< " No videodecoders find in the profile" <<std::endl;
@@ -1996,8 +2051,8 @@ int main(int argc, char **argv)
 
             for(int i=0; i<number_of_videodecoders; ++i)
             {
-                std::string videodecoderidpath = videodecoderpath+"."+std::to_string(i) + ".id";
-                int decoder_id = get_integer_value_from_profile(config,videodecoderidpath);
+                std::string videodecoderidpath = videodecoderpath+"/"+std::to_string(i) + "/id";
+                int decoder_id = ut_kvp_getUInt32Field(config,videodecoderidpath.c_str());
                 _videodecoder_ids_from_profile.push_back(decoder_id);
             }
 
@@ -2007,7 +2062,7 @@ int main(int argc, char **argv)
             }
 
 
-            number_of_videosink = get_list_Count_from_profile(config, videosinkpath);
+            number_of_videosink = ut_kvp_getListCount(config, videosinkpath.c_str());
             if(number_of_videosink <= 0)
             {
                 std::cout<< " No videosink find in the profile" <<std::endl;
@@ -2017,8 +2072,8 @@ int main(int argc, char **argv)
 
             for(int i=0; i<number_of_videosink; ++i)
             {
-                std::string videosinkidpath = videosinkpath+"."+std::to_string(i) + ".id";
-                int id = get_integer_value_from_profile(config,videosinkidpath);
+                std::string videosinkidpath = videosinkpath+"/"+std::to_string(i) + "/id";
+                int id = ut_kvp_getUInt32Field(config,videosinkidpath.c_str());
                 _videosink_ids_from_profile.push_back(id);
             }
 
@@ -2032,28 +2087,7 @@ int main(int argc, char **argv)
             ::testing::GTEST_FLAG(filter) = "L1VideoSinkManagerTest.*";
             result2 = RUN_ALL_TESTS();
             return (result1 || result2);
-        }
-        catch (const YAML::BadFile& e) 
-        {
-            std::cerr << "Error: Could not open YAML file. " << e.what() << std::endl;
-            return -1;
-        } 
-        catch (const YAML::BadConversion& e) 
-        {
-            std::cerr << "Error: Bad type conversion in YAML. " << e.what() << std::endl;
-            return -1;
-        }
-        catch (const std::runtime_error& e) 
-        {
-            std::cerr << "Runtime Error: " << e.what() << std::endl;
-            return -1;
-        } 
-        catch (const std::exception& e) 
-        {
-            std::cerr << "Error: " << e.what() << std::endl;
-            return -1;
-        }
-    }
+   }
     else
     {
         std::cout << "USAGE : ./VideoSinkClient -p <config_file>" <<std::endl;
