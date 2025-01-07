@@ -18,17 +18,19 @@ Using the following directory structure:
     ├── build.sh
     ├── Makefile
     ├── profiles
-    │   └── hfp-videosink.yaml
+    │   └── hfp-videosink.yaml
     ├── README.md
-    ├── run.sh
     ├── src
-    │   └── l1_videosinkClient_gtest.cpp
+    │   ├── VideoSinkClient.cpp
+    │   ├── yaml_utils.cpp
+    │   └── yaml_utils.h
     └── vcomponent
-        ├── Makefile
-        └── src
-            ├── VideoSink.cpp
-            ├── VideoSink.h
-            └── VideoSinkService.cpp
+    ├── Makefile
+    └── src
+        ├── VideoSink.cpp
+        ├── VideoSink.h
+        └── VideoSinkService.cpp
+
 cd rdk-halif-binder-test-videosink
 
 bash ./build.sh
