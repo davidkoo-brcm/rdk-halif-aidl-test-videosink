@@ -41,7 +41,7 @@ install_linux_binder()
 
 generate_videosink_hal()
 {
-    declare -r HAL_BUILD_DIR=${BUILD_DIR}/aidl
+    declare -r HAL_BUILD_DIR=${BUILD_DIR}/videosink_hal
     declare -r VERSION=current
     declare -r AIDL_GEN_DIR="${BUILD_DIR}/videosink_gen/$VERSION"
     declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
