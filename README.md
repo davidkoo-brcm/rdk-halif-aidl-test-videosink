@@ -1,5 +1,9 @@
-L1 Testing Suite For HAL Video Sink
-Build Steps
+# NOTE: This release is intended for internal development and has not undergone testing or compilation
+
+## L1 Testing Suite For HAL Video Sink
+
+### Build Steps
+
 1. Build linux binder
 For detail build instruction, please refer to https://github.com/rdk-e/linux_binder_idl/tree/main
 
@@ -7,7 +11,7 @@ Here outline the simplest steps are
 
 git clone -b develop 'ssh://git@github.com/rdk-e/linux_binder_idl.git'
 
-cde linux_binder_idl
+cd linux_binder_idl
 
 ./build-linux-binder-aidl.sh 64
 2. Build this test
