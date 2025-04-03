@@ -1,4 +1,0 @@
-IVideoSink:
-  Properties:
-    - AV_SOURCE
-    - RENDER_FIRST_FRAME
