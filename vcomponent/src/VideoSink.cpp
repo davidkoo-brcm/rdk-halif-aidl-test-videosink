@@ -63,6 +63,10 @@ namespace com {
 
                 android::binder::Status VideoSinkManager::getVideoSinkIds(std::vector<IVideoSink::Id>* _aidl_return)
                 {
+                    if(_aidl_return == nullptr)
+                    {
+                        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
+                    }
                     for (int32_t i = 0;i<NUM_VIDEO_SINK;i++)
                     {
                         videosink::IVideoSink::Id sinkId;
@@ -109,6 +113,10 @@ namespace com {
                 android::binder::Status VideoSink::getCapabilities(videosink::Capabilities* _aidl_return)
                 {
                     videosink::Capabilities capabilities;
+                    if(_aidl_return == nullptr)
+                    {
+                        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
+                    }
                     //TBD
                     *_aidl_return = capabilities;
                     return android::binder::Status::ok();
@@ -161,13 +169,17 @@ namespace com {
                     *_aidl_return = value;
                     return android::binder::Status::ok();
                 }
-                
+
                 android::binder::Status VideoSink::getState(State* _aidl_return)
                 {
+                    if(_aidl_return == nullptr)
+                    {
+                        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
+                    }
                     *_aidl_return = g_videosink_state[this->id.value];
                     return android::binder::Status::ok();
                 }
-                
+
                 android::binder::Status VideoSink::open(const android::sp<videosink::IVideoSinkControllerListener>& videoSinkControllerListener, android::sp<videosink::IVideoSinkController>* _aidl_return)
                 {
                     if(videoSinkControllerListener == nullptr)
@@ -190,7 +202,10 @@ namespace com {
                         //average wait time to simulate transitory state change
                         std::this_thread::sleep_for(std::chrono::milliseconds(5));
                         std::cout << "[SERVICE]::Calling onStateChanged for OPENING...\n";
-                        this->eventListener->onStateChanged(State::CLOSED, State::OPENING);
+                        if(this->event_listener == true)
+                        {
+                            this->eventListener->onStateChanged(State::CLOSED, State::OPENING);
+                        }
                         state_cv.notify_all();
                     }
                     {
@@ -203,14 +218,18 @@ namespace com {
                         //average wait time to simulate target state change
                         std::this_thread::sleep_for(std::chrono::milliseconds(250));
                         std::cout << "[SERVICE]::Calling onStateChanged for READY...\n";
-                        this->eventListener->onStateChanged(State::OPENING, State::READY);
+                        if(this->event_listener == true)
+                        {
+                            this->eventListener->onStateChanged(State::OPENING, State::READY);
+                        }
                         state_cv.notify_all();
                     }
                     *_aidl_return = new VideoSinkController(this->id);
-                    _videoSinkEventListener = this->eventListener;
+                    if(this->event_listener == true)
+                        _videoSinkEventListener = this->eventListener;
                     return android::binder::Status::ok();
                 }
-                
+
                 android::binder::Status VideoSink::close(const android::sp<videosink::IVideoSinkController>& videoSinkController, bool* _aidl_return)
                 {
                     if(g_videosink_state[this->id.value] != State::READY)
@@ -227,7 +246,10 @@ namespace com {
                         //average wait time to simulate transitory state change
                         std::this_thread::sleep_for(std::chrono::milliseconds(5));
                         std::cout << "[SERVICE]::Calling onStateChanged for CLOSING...\n";
-                        this->eventListener->onStateChanged(State::READY, State::CLOSING);
+                        if(this->event_listener == true)
+                        {
+                            this->eventListener->onStateChanged(State::READY, State::CLOSING);
+                        }
                         state_cv.notify_all();
                     }
                     {
@@ -239,15 +261,23 @@ namespace com {
                         //average wait time to simulate target state change
                         std::this_thread::sleep_for(std::chrono::milliseconds(250));
                         std::cout << "[SERVICE]::Calling onStateChanged for CLOSED...\n";
-                        this->eventListener->onStateChanged(State::CLOSING, State::CLOSED);
+                        if(this->event_listener == true)
+                        {
+                            this->eventListener->onStateChanged(State::CLOSING, State::CLOSED);
+                        }
                         state_cv.notify_all();
                     }
                     * _aidl_return = true;
                     return android::binder::Status::ok();
                 }
-                
+
                 android::binder::Status VideoSink::registerEventListener(const android::sp<videosink::IVideoSinkEventListener>& videoSinkEventListener, bool* _aidl_return)
                 {
+                    if (!videoSinkEventListener) {
+                        std::cout << "[SERVICE]::eventListener provided is null for ID: " <<this->id.value<<" ...exiting...\n";//added
+                        *_aidl_return = false;
+                        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
+                    }
                     if(this->event_listener == true)
                     {
                         std::cout << "[SERVICE]::eventListener for ID : " <<this->id.value<<" is already registered ...exiting...\n";//added
@@ -261,9 +291,14 @@ namespace com {
                     std::cout << "[SERVICE]::eventListener for ID : " <<this->id.value<<" is registered successfully :: eventListener value : " << this->event_listener<<"\n";//added
                     return android::binder::Status::ok();
                 }
-                
+
                 android::binder::Status VideoSink::unregisterEventListener(const android::sp<videosink::IVideoSinkEventListener>& videoSinkEventListener, bool* _aidl_return)
                 {
+                    if (!videoSinkEventListener) {
+                        std::cout << "[SERVICE]::eventLRtener provided is null for ID: " <<this->id.value<<" ...exiting...\n";//added
+                        *_aidl_return = false;
+                        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
+                    }
                     if(this->event_listener ==false)
                     {
                         std::cout << "[SERVICE]::eventListener for ID : " <<this->id.value<<" is already unregistered ...exiting...\n";//added
@@ -283,7 +318,7 @@ namespace com {
                     printf("VideoSinkController service initialized\n");
                 }
 
-                VideoSinkController::~VideoSinkController() 
+                VideoSinkController::~VideoSinkController()
                 {
                     printf("VideoSinkController service destroyed\n");
                 }
@@ -295,7 +330,6 @@ namespace com {
                         return android::binder::Status::fromExceptionCode(
                                 android::binder::Status::EX_ILLEGAL_ARGUMENT);
                     }
-                    *_aidl_return = true;
                     switch (property) {
 
                         case videosink::Property::AV_SOURCE: {
@@ -335,6 +369,8 @@ namespace com {
                                     android::binder::Status::EX_ILLEGAL_ARGUMENT);
                     }
 
+                    *_aidl_return = true;
+
                     return android::binder::Status::ok();
                 }
 
@@ -344,6 +380,12 @@ namespace com {
                     {
                         *_aidl_return = false;
                         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_STATE);
+                    }
+                    if(videoDecoderId.value < 0 )
+                    {
+                        *_aidl_return = false;
+                        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_ARGUMENT);
+
                     }
 
                     g_videodecoder_id[this->id.value] = videoDecoderId;
@@ -392,12 +434,16 @@ namespace com {
                         //average wait time to simulate target state change
                         std::this_thread::sleep_for(std::chrono::milliseconds(250));
                         std::cout << "[SERVICE]::Calling onStateChanged for STARTED...\n";
-                        _videoSinkEventListener->onStateChanged(State::STARTING, State::STARTED);
+                        if (_videoSinkEventListener) {
+                            _videoSinkEventListener->onStateChanged(State::STARTING, State::STARTED);
+                        } else {
+                            std::cout << "[SERVICE]::Error: _videoSinkEventListener is null!\n";
+                        }
                         state_cv.notify_all();
                     }
                     return android::binder::Status::ok();
                 }
-    
+
                 android::binder::Status VideoSinkController::stop()
                 {
                     if(g_videosink_state[this->id.value] != State::STARTED)
@@ -414,7 +460,11 @@ namespace com {
                         //average wait time to simulate transitory state change
                         std::this_thread::sleep_for(std::chrono::milliseconds(5));
                         std::cout << "[SERVICE]::Calling onStateChanged for STOPPING...\n";
-                        _videoSinkEventListener->onStateChanged(State::STARTED, State::STOPPING);
+                        if (_videoSinkEventListener) {
+                            _videoSinkEventListener->onStateChanged(State::STARTED, State::STOPPING);
+                        } else {
+                            std::cout << "[SERVICE]::Error: _videoSinkEventListener is null!\n";
+                        }
                         state_cv.notify_all();
                     }
                     {
@@ -426,18 +476,32 @@ namespace com {
                         //average wait time to simulate target state change
                         std::this_thread::sleep_for(std::chrono::milliseconds(250));
                         std::cout << "[SERVICE]::Calling onStateChanged for READY...\n";
-                        _videoSinkEventListener->onStateChanged(State::STOPPING, State::READY);
+                        if (_videoSinkEventListener) {
+                            _videoSinkEventListener->onStateChanged(State::STOPPING, State::READY);
+                        } else {
+                            std::cout << "[SERVICE]::Error: _videoSinkEventListener is null!\n";
+                        }
                         state_cv.notify_all();
                     }
                     return android::binder::Status::ok();
                 }
-    
+
                 android::binder::Status VideoSinkController::queueVideoFrame(int64_t nsPresentationTime, int64_t frameBufferHandle, const ::com::rdk::hal::videodecoder::FrameMetadata& metadata, bool* _aidl_return)
                 {
                     if(g_videosink_state[this->id.value] != State::STARTED)
                     {
                         *_aidl_return = false;
                         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_STATE);
+                    }
+                    if(nsPresentationTime <= 0)
+                    {
+                        *_aidl_return = false;
+                        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_ARGUMENT);
+                    }
+                    if(frameBufferHandle<=0)
+                    {
+                        *_aidl_return = false;
+                        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_ARGUMENT);
                     }
                     //TODO
                     *_aidl_return = true;
@@ -459,7 +523,11 @@ namespace com {
                         //average wait time to simulate transitory state change
                         std::this_thread::sleep_for(std::chrono::milliseconds(5));
                         std::cout << "[SERVICE]::Calling onStateChanged for FLUSHING...\n";
-                        _videoSinkEventListener->onStateChanged(State::STARTED, State::FLUSHING);
+                        if (_videoSinkEventListener) {
+                            _videoSinkEventListener->onStateChanged(State::STARTED, State::FLUSHING);
+                        } else {
+                            std::cout << "[SERVICE]::Error: _videoSinkEventListener is null!\n";
+                        }
                         state_cv.notify_all();
                     }
                     {
@@ -471,7 +539,11 @@ namespace com {
                         //average wait time to simulate target state change
                         std::this_thread::sleep_for(std::chrono::milliseconds(250));
                         std::cout << "[SERVICE]::Calling onStateChanged for STARTED...\n";
-                        _videoSinkEventListener->onStateChanged(State::FLUSHING, State::STARTED);
+                        if (_videoSinkEventListener) {
+                            _videoSinkEventListener->onStateChanged(State::FLUSHING, State::STARTED);
+                        } else {
+                            std::cout << "[SERVICE]::Error: _videoSinkEventListener is null!\n";
+                        }
                         state_cv.notify_all();
                     }
                     if(holdLastFrame)
@@ -479,7 +551,7 @@ namespace com {
                         //TODO
                     }
                 }
-        
+
                 android::binder::Status VideoSinkController::discardFramesUntil(int64_t nsPresentationTime)
                 {
                     if(g_videosink_state[this->id.value] != State::STARTED)

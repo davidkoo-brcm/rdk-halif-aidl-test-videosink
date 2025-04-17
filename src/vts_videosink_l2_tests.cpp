@@ -54,7 +54,7 @@ using namespace com::rdk::hal::videodecoder;
 static std::vector<IVideoSink::Id> mSinkIds;
 static std::vector<sp<IVideoSink>> mVideoSinks;
 static std::vector<sp<IVideoSinkController>> mControllers;
-static android::sp<IVideoSinkManager> gVideoSinkManagerService = nullptr;
+static android::sp<IVideoSinkManager> gVideoSinkManager = nullptr;
 
 static constexpr int MAX_TRANSITORY_STATE_WAIT_MS = 10;
 static constexpr int MAX_FINAL_STATE_WAIT_MS = 500;
@@ -87,13 +87,13 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 
 int getService()
 {
-    gVideoSinkManagerService =
+    gVideoSinkManager =
         android::interface_cast<::com::rdk::hal::videosink::IVideoSinkManager>(
             android::defaultServiceManager()->getService(
                 android::String16(::com::rdk::hal::videosink::IVideoSinkManager::serviceName().c_str())
             )
         );
-    if (gVideoSinkManagerService == nullptr)
+    if (gVideoSinkManager == nullptr)
     {
         printf("Service not available\n");
         return -1;
@@ -103,7 +103,7 @@ int getService()
 
 class VideoSinkEventListenerImpl : public BnVideoSinkEventListener {
 public:
-    
+
     VideoSinkEventListenerImpl() {};
     virtual ~VideoSinkEventListenerImpl() = default;
 
@@ -139,7 +139,7 @@ class VideoSinkControllerListenerImpl : public BnVideoSinkControllerListener {
 public:
     VideoSinkControllerListenerImpl() {};
     virtual ~VideoSinkControllerListenerImpl() = default;
-   
+
     Status onStateChanged(State oldState, State newState) override {return Status::ok();}
     Status onFirstFrameRendered(int64_t) override { return Status::ok(); }
     Status onEndOfStream(int64_t) override { return Status::ok(); }
@@ -159,7 +159,7 @@ protected:
     void TearDown() override {
         UTCore::TearDown();
 
-        gVideoSinkManagerService.clear();
+        gVideoSinkManager.clear();
     }
 };
 
@@ -168,12 +168,12 @@ std::vector<sp<VideoSinkEventListenerImpl>> mSinkEventListener;
 class VideoSinkBaseTest : public VideoSinkManagerBaseTest {
     public:
         void SetUp() override {
-            
+
             VideoSinkManagerBaseTest::SetUp();
             if (mSinkIds.empty()) {
                 std::vector<IVideoSink::Id> ids;
                 UT_LOG_INFO("Calling getVideoSinkIds(OUT:ids:[])");
-                Status status = gVideoSinkManagerService->getVideoSinkIds(&ids);
+                Status status = gVideoSinkManager->getVideoSinkIds(&ids);
                 UT_LOG_INFO("Result getVideoSinkIds(OUT:ids:[size:%d]), status:[isOK:%s, exception:%s]",
                             ids.size(),
                             UT_Control_GetMapString(bool_mapTable, status.isOk()),
@@ -182,13 +182,13 @@ class VideoSinkBaseTest : public VideoSinkManagerBaseTest {
                 mSinkIds = ids;
                 UT_ASSERT_FALSE(mSinkIds.empty());
             }
-    
+
             if (mVideoSinks.empty()) {
                 for (auto& sinkId : mSinkIds) {
                     sp<VideoSinkEventListenerImpl> listener = new VideoSinkEventListenerImpl();
                     sp<IVideoSink> sink;
                     UT_LOG_INFO("Calling getVideoSink(IN:sinkId:[%d], OUT:sink[])", sinkId.value);
-                    Status status = gVideoSinkManagerService->getVideoSink(sinkId, &sink);
+                    Status status = gVideoSinkManager->getVideoSink(sinkId, &sink);
                     UT_LOG_INFO("Result getVideoSink(IN:sinkId:[%d], OUT:sink:[0x%X]), status:[isOK:%s, exception:%s]",
                                 sinkId.value, sink.get(),
                                 UT_Control_GetMapString(bool_mapTable, status.isOk()),
@@ -209,9 +209,9 @@ class VideoSinkBaseTest : public VideoSinkManagerBaseTest {
                 }
             }
         }
-    
+
         void TearDown() override {
-    
+
             for (size_t i = 0; i < mVideoSinks.size(); ++i) {
                 bool unregistered = false;
                 UT_LOG_INFO("Calling unregisterEventListener(IN:listener:[0x%X], OUT:unregistered[])", mSinkEventListener[i].get());
@@ -234,9 +234,9 @@ std::vector<sp<VideoSinkControllerListenerImpl>> mControllerListener;
 class VideoSinkControllerBaseTest : public VideoSinkBaseTest {
     protected:
         void SetUp() override {
-    
+
             VideoSinkBaseTest::SetUp();
-            if (mControllers.empty() && !mVideoSinks.empty()) {    
+            if (mControllers.empty() && !mVideoSinks.empty()) {
                 for (auto& sink : mVideoSinks) {
                     sp<IVideoSinkController> controller;
                     sp<VideoSinkControllerListenerImpl> controllerListener = new VideoSinkControllerListenerImpl();
@@ -254,9 +254,9 @@ class VideoSinkControllerBaseTest : public VideoSinkBaseTest {
                 }
             }
         }
-    
+
         void TearDown() override {
-    
+
             UT_ASSERT_EQUAL(mControllers.size(), mVideoSinks.size());
             for (size_t i = 0; i < mVideoSinks.size(); ++i) {
                 bool closed = false;
@@ -274,7 +274,7 @@ class VideoSinkControllerBaseTest : public VideoSinkBaseTest {
             VideoSinkBaseTest::TearDown();
         }
     };
-    
+
 /**
  * @brief Test the setting and getting of properties in VideoSink
  *
@@ -304,8 +304,8 @@ UT_ADD_TEST(VideoSinkControllerBaseTest, TestSetAndGetProperty) {
         for (const auto& testCase : testCases) {
             PropertyValue setValue;
             setValue.value = PropertyValue::Value::make<PropertyValue::Value::Tag::intValue>(testCase.testValue);
-            
-            bool setResult = false;						 
+
+            bool setResult = false;
             UT_LOG_INFO("Calling setProperty(IN:property:[%s], IN:setValue:[%d])",testCase.propertyName, testCase.testValue);
             Status setStatus = mControllers[i]->setProperty(testCase.property, setValue, &setResult);
             UT_LOG_INFO("Result setProperty(IN:property:[%s], IN:setValue:[%d]), status:[isOK:%s, exception:%s]",
@@ -314,7 +314,7 @@ UT_ADD_TEST(VideoSinkControllerBaseTest, TestSetAndGetProperty) {
                         UT_Control_GetMapString(statusException_mapTable, setStatus.exceptionCode()));
             UT_ASSERT_TRUE(setStatus.isOk());
             UT_ASSERT_TRUE(setResult);
-		 
+
             std::optional<PropertyValue> getPropertyValue;
             UT_LOG_INFO("Calling getProperty(IN:property:[%s], OUT:getPropertyValue[])", testCase.propertyName);
             Status getStatus = sink->getProperty(testCase.property, &getPropertyValue);
@@ -347,8 +347,8 @@ UT_ADD_TEST(VideoSinkBaseTest, TestStateTransitions) {
         sp<VideoSinkEventListenerImpl> listener = mSinkEventListener[i];
         sp<VideoSinkControllerListenerImpl> controllerListener = new VideoSinkControllerListenerImpl();
         sp<IVideoSinkController> controller;
-        
-		// Transition to READY state							
+
+		// Transition to READY state
         UT_LOG_INFO("Calling open(IN:controllerListener:[0x%X], OUT:controller[])", controllerListener.get());
         Status openStatus = mVideoSinks[i]->open(controllerListener, &controller);
         UT_LOG_INFO("Result open(IN:controllerListener:[0x%X], OUT:controller:[0x%X]), status:[isOK:%s, exception:%s]",
@@ -358,13 +358,13 @@ UT_ADD_TEST(VideoSinkBaseTest, TestStateTransitions) {
         UT_ASSERT_TRUE(openStatus.isOk());
         UT_ASSERT_NOT_EQUAL(controller, nullptr);
 
-		// Verify state transition to OPENING									 
+		// Verify state transition to OPENING
         UT_ASSERT_TRUE(listener->waitForState(State::CLOSED, State::OPENING, MAX_TRANSITORY_STATE_WAIT_MS));
 
-		// Verify state transition to READY								   
+		// Verify state transition to READY
         UT_ASSERT_TRUE(listener->waitForState(State::OPENING, State::READY, MAX_FINAL_STATE_WAIT_MS));
 
-		// Verify READY state					 
+		// Verify READY state
         State currentState;
         UT_LOG_INFO("Calling getState(OUT:currentState[])");
         Status getStateStatus = mVideoSinks[i]->getState(&currentState);
@@ -375,22 +375,22 @@ UT_ADD_TEST(VideoSinkBaseTest, TestStateTransitions) {
         UT_ASSERT_TRUE(getStateStatus.isOk());
         UT_ASSERT_EQUAL(currentState, State::READY);
 
-		// Transition to STARTED state							  
+		// Transition to STARTED state
         UT_LOG_INFO("Calling start()");
         Status startStatus = controller->start();
         UT_LOG_INFO("Result start(), status:[isOK:%s, exception:%s]",
                     UT_Control_GetMapString(bool_mapTable, startStatus.isOk()),
                     UT_Control_GetMapString(statusException_mapTable, startStatus.exceptionCode()));
         UT_ASSERT_TRUE(startStatus.isOk());
-		
-											  																				
+
+
         // Verify state transition to STARTING
         UT_ASSERT_TRUE(listener->waitForState(State::READY, State::STARTING, MAX_TRANSITORY_STATE_WAIT_MS));
-        
+
 		// Verify state transition to STARTED
 		UT_ASSERT_TRUE(listener->waitForState(State::STARTING, State::STARTED, MAX_FINAL_STATE_WAIT_MS));
 
-		// Verify STARTED state		
+		// Verify STARTED state
         UT_LOG_INFO("Calling getState(OUT:currentState[])");
         getStateStatus = mVideoSinks[i]->getState(&currentState);
         UT_LOG_INFO("Result getState(OUT:currentState:[%s]), status:[isOK:%s, exception:%s]",
@@ -400,7 +400,7 @@ UT_ADD_TEST(VideoSinkBaseTest, TestStateTransitions) {
         UT_ASSERT_TRUE(getStateStatus.isOk());
         UT_ASSERT_EQUAL(currentState, State::STARTED);
 
-		// Transition to FLUSHING state							   
+		// Transition to FLUSHING state
         UT_LOG_INFO("Calling flush(IN:holdLastFrame:[false])");
         Status flushStatus = controller->flush(false);
         UT_LOG_INFO("Result flush(IN:holdLastFrame:[false]), status:[isOK:%s, exception:%s]",
@@ -408,13 +408,13 @@ UT_ADD_TEST(VideoSinkBaseTest, TestStateTransitions) {
                     UT_Control_GetMapString(statusException_mapTable, flushStatus.exceptionCode()));
         UT_ASSERT_TRUE(flushStatus.isOk());
 
-		// Verify state transition to FLUSHING									  
+		// Verify state transition to FLUSHING
         UT_ASSERT_TRUE(listener->waitForState(State::STARTED, State::FLUSHING, MAX_TRANSITORY_STATE_WAIT_MS));
 
-		// Verify state transition to STARTED									 
+		// Verify state transition to STARTED
         UT_ASSERT_TRUE(listener->waitForState(State::FLUSHING, State::STARTED, MAX_FINAL_STATE_WAIT_MS));
 
-		// Verify STARTED state 										  
+		// Verify STARTED state
         UT_LOG_INFO("Calling getState(OUT:currentState[])");
         getStateStatus = mVideoSinks[i]->getState(&currentState);
         UT_LOG_INFO("Result getState(OUT:currentState:[%s]), status:[isOK:%s, exception:%s]",
@@ -424,7 +424,7 @@ UT_ADD_TEST(VideoSinkBaseTest, TestStateTransitions) {
         UT_ASSERT_TRUE(getStateStatus.isOk());
         UT_ASSERT_EQUAL(currentState, State::STARTED);
 
-		// Transition to READY state						
+		// Transition to READY state
         UT_LOG_INFO("Calling stop()");
         startStatus = controller->stop();
         UT_LOG_INFO("Result stop(), status:[isOK:%s, exception:%s]",
@@ -432,10 +432,10 @@ UT_ADD_TEST(VideoSinkBaseTest, TestStateTransitions) {
                     UT_Control_GetMapString(statusException_mapTable, startStatus.exceptionCode()));
         UT_ASSERT_TRUE(startStatus.isOk());
 
-		// Verify state transition to STOPPING									  
+		// Verify state transition to STOPPING
         UT_ASSERT_TRUE(listener->waitForState(State::STARTED, State::STOPPING, MAX_TRANSITORY_STATE_WAIT_MS));
 
-		// Verify state transition to READY								   
+		// Verify state transition to READY
         UT_ASSERT_TRUE(listener->waitForState(State::STOPPING, State::READY, MAX_FINAL_STATE_WAIT_MS));
 
         UT_LOG_INFO("Calling getState(OUT:currentState[])");
@@ -447,7 +447,7 @@ UT_ADD_TEST(VideoSinkBaseTest, TestStateTransitions) {
         UT_ASSERT_TRUE(statestatus.isOk());
         UT_ASSERT_EQUAL(currentState, State::READY);
 
-		// Transition to CLOSED state							 
+		// Transition to CLOSED state
         UT_LOG_INFO("Calling close(IN:controller:[0x%X], OUT:closed[])", controller.get());
         bool closed = false;
         Status closeStatus = mVideoSinks[i]->close(controller, &closed);
@@ -457,14 +457,14 @@ UT_ADD_TEST(VideoSinkBaseTest, TestStateTransitions) {
                     UT_Control_GetMapString(statusException_mapTable, closeStatus.exceptionCode()));
         UT_ASSERT_TRUE(closeStatus.isOk());
         UT_ASSERT_TRUE(closed);
-		
-		// Verify state transition to CLOSING									 																								   
+
+		// Verify state transition to CLOSING
         UT_ASSERT_TRUE(listener->waitForState(State::READY, State::CLOSING, MAX_TRANSITORY_STATE_WAIT_MS));
-        
+
 		// Verify state transition to CLOSED
 		UT_ASSERT_TRUE(listener->waitForState(State::CLOSING, State::CLOSED, MAX_FINAL_STATE_WAIT_MS));
 
-		// Verify CLOSED state					  
+		// Verify CLOSED state
         UT_LOG_INFO("Calling getState(OUT:currentState[])");
         getStateStatus = mVideoSinks[i]->getState(&currentState);
         UT_LOG_INFO("Result getState(OUT:currentState:[%s]), status:[isOK:%s, exception:%s]",
@@ -475,15 +475,15 @@ UT_ADD_TEST(VideoSinkBaseTest, TestStateTransitions) {
         UT_ASSERT_EQUAL(currentState, State::CLOSED);
     }
 }
-
+#if 0
 int main(int argc, char **argv)
-{ 
+{
     android::ProcessState::self()->startThreadPool();
     UT_status_t result;
     UT_init(argc, argv);
     result = UT_run_tests();
     return result;
 }
-
+#endif
 
 

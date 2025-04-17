@@ -23,7 +23,7 @@ VideoSinkService_pid=$!
 sleep 2
 
 echo "Eexecute [hal_test]"
-${RUN_DIR}/hal_test -p profiles/hfp-videosink.yaml
+${RUN_DIR}/vts-videosink -p profiles/hfp-videosink.yaml
 
 # cleanup
 kill -9 $servicemanager_pid $VideoSinkService_pid
