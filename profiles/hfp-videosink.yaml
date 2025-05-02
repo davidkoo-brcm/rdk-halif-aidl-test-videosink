@@ -5,3 +5,6 @@ IVideoSinkManager:          # Component object begins
   IVideoSink:               # Resource list
     - 0
     - 1
+  IVideoDecoder:               # Resource list
+    - 0
+    - 1
