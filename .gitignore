@@ -1,0 +1,8 @@
+*.sw*
+*.o
+*/ut/build
+*/ut/rdk-halif-aidl
+*/ut/ut-core/
+ut
+build
+rdk-halif-aidl
