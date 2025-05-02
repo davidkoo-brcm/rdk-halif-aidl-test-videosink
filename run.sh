@@ -61,28 +61,28 @@ else
     sleep 2
 fi
 
-# Check if either EmulateVideoDecoderService or RDKVideoDecoderService is running
-if check_process "EmulateVideoDecoderService" || check_process "RDKVideoDecoderService"; then
+# Check if either EmulateVideoSinkService or RDKVideoSinkService is running
+if check_process "EmulateVideoSinkService" || check_process "RDKVideoSinkService"; then
     echo "Video decoder service is already running"
-    if check_process "EmulateVideoDecoderService"; then
-        VideoDecoderService_pid=$(pgrep -f "EmulateVideoDecoderService")
+    if check_process "EmulateVideoSinkService"; then
+        VideoSinkService_pid=$(pgrep -f "EmulateVideoSinkService")
     else
-        VideoDecoderService_pid=$(pgrep -f "RDKVideoDecoderService")
+        VideoSinkService_pid=$(pgrep -f "RDKVideoSinkService")
     fi
 else
-    # Prompt user to start EmulateVideoDecoderService
-    if prompt_yes_no "Do you want to start EmulateVideoDecoderService?"; then
-        echo "Execute [EmulateVideoDecoderService]"
-        ${RUN_DIR}/EmulateVideoDecoderService &
-        VideoDecoderService_pid=$!
+    # Prompt user to start EmulateVideoSinkService
+    if prompt_yes_no "Do you want to start EmulateVideoSinkService?"; then
+        echo "Execute [EmulateVideoSinkService]"
+        ${RUN_DIR}/EmulateVideoSinkService &
+        VideoSinkService_pid=$!
         # Wait for service to be ready
         sleep 2
     else
-        # Prompt user to start RDKVideoDecoderService
-        if prompt_yes_no "Do you want to start RDKVideoDecoderService instead?"; then
-            echo "Execute [RDKVideoDecoderService]"
-            RDKVideoDecoderService &
-            VideoDecoderService_pid=$!
+        # Prompt user to start RDKVideoSinkService
+        if prompt_yes_no "Do you want to start RDKVideoSinkService instead?"; then
+            echo "Execute [RDKVideoSinkService]"
+            RDKVideoSinkService &
+            VideoSinkService_pid=$!
             # Wait for service to be ready
             sleep 2
         else
@@ -97,5 +97,5 @@ else
 fi
 
 echo "Eexecute [vts-videosink]"
-${RUN_DIR}/vts-videosink -p profiles/hfp-videosink.yaml
+${RUN_DIR}/vts-videosink $@
 
