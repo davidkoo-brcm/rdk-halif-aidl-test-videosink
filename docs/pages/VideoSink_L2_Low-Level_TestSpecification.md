@@ -1,48 +1,41 @@
 # VIDEOSINK L2 Low Level Test Specification and Procedure Documentation
 
 ## Table of Contents
-
-    -[VIDEOSINK L2 Low Level Test Specification and Procedure Documentation](#videosink-l2-low-level-test-specification-and-procedure-documentation)
-
-    -[Table of Contents](#table-of-contents)
-         - [Overview](#overview)
-           - [Acronyms, Terms and Abbreviations](#acronyms-terms-and-abbreviations)
-           - [Definitions](#definitions)
-           - [References](#references)
-         - [Level 2 Test Procedure](#level-2-test-procedure)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Acronyms, Terms and Abbreviations](#acronyms-terms-and-abbreviations)
+  - [Definitions](#definitions)
+  - [References](#references)
+  - [Level 2 Test Procedure](#level-2-test-procedure)
 
 ## Overview
-
-    This document describes the level 2 testing suite for the VIDEOSINK module.
+This document describes the level 2 testing suite for the VIDEOSINK module.
 
 ### Acronyms, Terms and Abbreviations
 
-    -`HAL` \- Hardware Abstraction Layer, may include some common components
-       - `UT`  \- Unit Test(s)
-       - `OEM`  \- Original Equipment Manufacture
-       - `SoC`  \- System on a Chip
+- `HAL` - Hardware Abstraction Layer, may include some common components
+- `UT`  - Unit Test(s)
+- `OEM` - Original Equipment Manufacture
+- `SoC` - System on a Chip
 
 ### Definitions
-
-    -`ut-core` \- Common Testing Framework [https://github.com/rdkcentral/ut-core](https://github.com/rdkcentral/ut-core), which wraps a open-source framework that can be expanded to the requirements for future framework.
+`ut-core` \- Common Testing Framework [https://github.com/rdkcentral/ut-core](https://github.com/rdkcentral/ut-core), which wraps a open-source framework that can be expanded to the requirements for future framework.
 
 ### References
-
-- `High Level Test Specification` - [viedoSink_High-Level_TestSpecification.md](viedoSink_High-Level_TestSpecification.md)
+`High Level Test Specification` - [viedoSink_High-Level_TestSpecification.md](viedoSink_High-Level_TestSpecification.md)
 
 ## Level 2 Test Procedure
-
-    The following functions are expecting to test the module operates correctly.
+The following functions are expecting to test the module operates correctly.
 
 ### Test 1
 
-| Title         | Details                                                                                                                                                                                                                          |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Function Name | `testsetandgetproperty`                                                                                                                                                                                                        |
-| Description   | Read available Video Sinks using IVideoSinkManager class. Loop through available video sinks. Use the setProperty method to set all the properties. Get the property value using getProperty of IVideoSink and verify the value. |
-| Test Group    | Module : 02                                                                                                                                                                                                                      |
-| Test Case ID  | 001                                                                                                                                                                                                                              |
-| Priority      | High                                                                                                                                                                                                                             |
+|Title|Details|
+|-----|------ |
+|Test Name|`testsetandgetproperty`|
+| Description   | <li>Read available Video Sinks using IVideoSinkManager class.</li><li> Loop through available video sinks.</li> <li> Use the setProperty method to set all the properties.</li><li> Get the property value using getProperty of IVideoSink and verify the value.</li>|
+| Test Group | Module : L2|
+| Test Case ID | 001|
+| Priority |High |
 
 **Pre-Conditions :**
 None
@@ -55,25 +48,27 @@ If user chose to run the test in interactive mode, then the test case has to be 
 
 #### Test Procedure :
 
-| Variation / Steps | Description                                                                                     | Test Data                                                    | Expected Result                      | Notes                |
-| ----------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------ | -------------------- |
-| 01                | Initialize the test by setting up the VideoSinkControllerBaseTest environment                   | None                                                         | None                                 | Should be successful |
-| 02                | Loop through each available video sink and create a controller for it using the `open` method | controllerlistener = valid object, controller = valid object | Status is OK, controller is not null | Should be successful |
-| 03                | For each video sink, set the property using `setProperty` method                              | property = AV_SOURCE, setValue = 2                           | Status is OK, setResult is true      | Should be successful |
-| 04                | Verify the property value using `getProperty` method                                          | property = AV_SOURCE                                         | Status is OK, getPropertyValue is 2  | Should be successful |
-| 05                | Set another property using `setProperty` method                                               | property = RENDER_FIRST_FRAME, setValue = 1                  | Status is OK, setResult is true      | Should be successful |
-| 06                | Verify the second property value using `getProperty` method                                   | property = RENDER_FIRST_FRAME                                | Status is OK, getPropertyValue is 1  | Should be successful |
-| 07                | Clean up by closing each controller and clearing the environment                                | None                                                         | None                                 | Should be successful |
+|Variation / Steps |Description |Test Data |Expected Result |Notes |
+|----------------- |------------|----------|----------------|------|
+| 01 | Initialize the test by setting up the VTS_L2_VideoSink Class object |None | None | Should be successful |
+| 02 | Get all available sibk Ids using `getVideoSinkIds` of VideoSinkManager Object | None |List of Sink Ids|Should be successful|
+| 03 | Loop through each Sink Ids and get the Video Sink objects using `getVideoSink`| Sink Ids| Video Sink Object |Should be successful |
+| 04 | Open the Video sink using `open` | Video Sink Object, Listener Object, Controller Oject|Status is OK, Listenre assigened with new object| Should be successful |
+| 05 | For each video sink, set the property using `setProperty` method | property = AV_SOURCE, setValue = 2 | Status is OK, setResult is true | Should be successful |
+| 06 | Verify the property value using `getProperty` method | property = AV_SOURCE | Status is OK, getPropertyValue is 2 | Should be successful |
+| 07 | Set another property using `setProperty` method | property = RENDER_FIRST_FRAME, setValue = 1 | Status is OK, setResult is true | Should be successful |
+| 08 | Verify the second property value using `getProperty` method |property = RENDER_FIRST_FRAME | Status is OK, getPropertyValue is 1 | Should be successful |
+| 09 | Clean up by closing each controller and clearing the environment | None | None | Should be successful |
 
 ### Test 2
 
-| Title         | Details                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Function Name | `TestStateTransitions`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Title |Details |
+| ----- |------- |
+| Test  Name | `TestStateTransitions` |
 | Description   | Read supported video sinks using IVideoSinkManager class calling getVideoSinkIds. Loop through supported video sinks, register event listeners using registerEventListener. Ensure state transitions (opening-> Ready-> Starting-> started -> Flushing-> stopping -> closing -> Closed). Call open in IVideoSinkController to transition to the state Ready. Observe the OnStateChangeEvent in the IVideoSinkEventListener to get OPENING and READY states. Once in READY state query the Sink state using getState and verify. Call start in IVideoSinkController to transition to the state STARTED. Observe the OnStateChangeEvent in the IVideoSinkEventListener to get STARTING and STARTED states. Once in STARTED state query the Sink state using getState and verify. Call flush in IVideoSinkController to go through transitioning state FLUSHING. Observe the OnStateChangeEvent in the IVideoSinkEventListener to get FLUSHING and STARTED states. Once in STARTED state query the Sink state using getState and verify. Call close in IVideoSinkController to transition to the state CLOSED. Observe the OnStateChangeEvent in the IVideoSinkEventListener to get STOPPING, CLOSING and CLOSED states. Once in CLOSED state query the Sink state using getState and verify. |
-| Test Group    | Module : 02                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Test Case ID  | 002                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Priority      | High                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Test Group    | Module : 02 |
+| Test Case ID  | 002 |
+| Priority      | High|
 
 **Pre-Conditions :**
 None
@@ -86,12 +81,12 @@ If user chose to run the test in interactive mode, then the test case has to be 
 
 #### Test Procedure :
 
-| Variation / Steps | Description                                                      | Test Data                                                                        | Expected Result                                             | Notes                |
-| ----------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- | -------------------- |
-| 01                | Get video sink IDs using `getVideoSinkIds`                     | ids = empty vector                                                               | status.isOk() = true                                        | Should be successful |
-| 02                | Register event listener using `registerEventListener`          | listener = new VideoSinkEventListenerImpl(), registered = false                  | regStatus.isOk() = true, registered = true                  | Should be successful |
-| 03                | Open video sink using `open`                                   | controllerListener = new VideoSinkControllerListenerImpl(), controller = nullptr | openStatus.isOk() = true, controller != nullptr             | Should be successful |
-| 04                | Wait for state transition from CLOSED to OPENING                 | listener->waitForState(State::CLOSED, State::OPENING)                            | waitForState() = true                                       | Should be successful |
+| Variation / Steps | Description | Test Data | Expected Result | Notes |
+| ----------------- | ----------- | --------- | --------------- | ------|
+| 01 | Get video sink IDs using `getVideoSinkIds`| ids = empty vector | status.isOk() = true | Should be successful |
+| 02 | Register event listener using `registerEventListener`| listener = new VideoSinkEventListenerImpl(), registered = false  | regStatus.isOk() = true, registered = true | Should be successful |
+| 03 | Open video sink using `open`| controllerListener = new VideoSinkControllerListenerImpl(), controller = nullptr | openStatus.isOk() = true, controller != nullptr | Should be successful |
+| 04 | Wait for state transition from CLOSED to OPENING | listener->waitForState(State::CLOSED, State::OPENING) | waitForState() = true | Should be successful |
 | 05                | Wait for state transition from OPENING to READY                  | listener->waitForState(State::OPENING, State::READY)                             | waitForState() = true                                       | Should be successful |
 | 06                | Get current state using `getState`                             | currentState = State::READY                                                      | getStateStatus.isOk() = true, currentState = State::READY   | Should be successful |
 | 07                | Start video sink using `start`                                 | startStatus = controller->start()                                                | startStatus.isOk() = true                                   | Should be successful |

@@ -717,12 +717,14 @@ class VideoSinkEventListener : public BnVideoSinkEventListener
          * @param timeout      How long to wait, e.g. std::chrono::milliseconds(500).
          * @return true if the state was reached; false if we timed out waiting.
          */
-        bool waitForState(State desiredState, std::chrono::milliseconds timeout)
+        bool waitForState(State currentState, State desiredState, std::chrono::milliseconds timeout)
         {
             std::unique_lock<std::mutex> lock(mMutex);
             // Wait until mCurrentState == desiredState or until timeout
-            return mCV.wait_for(lock, timeout, [this, desiredState]() {
-                return (mCurrentState == desiredState);
+            return mCV.wait_for(lock, timeout, []() {
+                for (const auto& p : mStateChanges) {
+                    if (p.first == currentState && p.second == desiredState) return true;
+                }
             });
         }
         // Accessors for test verifications if desired
