@@ -46,7 +46,7 @@ fi
 # whiling running the script
 declare -r AIDL_BIN=`realpath ${AIDL_BIN}`
 declare -r LINUX_BINDER_OUT_DIR=`realpath ${LINUX_BINDER_OUT_DIR}`
-: {$RDK_HAL_VERSION:="develop"}
+: {$RDK_HAL_VERSION:="main"}
 
 install_linux_binder()
 {
