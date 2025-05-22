@@ -68,7 +68,7 @@ generate_videosink_hal()
     # Clone the repository if not already present
     if [ ! -d "$RDK_HAL_DIR" ]; then
         echo "Checking out HAL version: " $RDK_HAL_VERSION
-        git clone -b $RDK_HAL_VERSION 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
+        git clone -b $RDK_HAL_VERSION 'git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
     fi
 
     for m in videosink  videodecoder; do
