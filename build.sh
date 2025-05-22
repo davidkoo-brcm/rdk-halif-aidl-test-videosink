@@ -1,4 +1,22 @@
-#!/bin/bash
+#* ******************************************************************************
+#*  If not stated otherwise in this file or this component's LICENSE
+#*  file the following copyright and licenses apply:
+#*
+#*  Copyright 2025 RDK Management
+#*
+#*  Licensed under the Apache License, Version 2.0 (the License);
+#*  you may not use this file except in compliance with the License.
+#*  You may obtain a copy of the License at
+#*
+#*  http://www.apache.org/licenses/LICENSE-2.0
+#*
+#*  Unless required by applicable law or agreed to in writing, software
+#*  distributed under the License is distributed on an AS IS BASIS,
+#*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#*  See the License for the specific language governing permissions and
+#*  limitations under the License.
+#*
+#* ******************************************************************************
 
 # Define the directory where the repository will be cloned
 declare -r TOP=`dirname $(realpath $0)`
@@ -28,6 +46,7 @@ fi
 # whiling running the script
 declare -r AIDL_BIN=`realpath ${AIDL_BIN}`
 declare -r LINUX_BINDER_OUT_DIR=`realpath ${LINUX_BINDER_OUT_DIR}`
+: {$RDK_HAL_VERSION:="main"}
 
 install_linux_binder()
 {
@@ -48,7 +67,8 @@ generate_videosink_hal()
 
     # Clone the repository if not already present
     if [ ! -d "$RDK_HAL_DIR" ]; then
-        git clone -b develop 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
+        echo "Checking out HAL version: " $RDK_HAL_VERSION
+        git clone -b $RDK_HAL_VERSION 'git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
     fi
 
     for m in videosink  videodecoder; do
