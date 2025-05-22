@@ -5,4 +5,7 @@ IVideoSinkManager:          # Component object begins
   IVideoSink:               # Resource list
     - 0
     - 1
-include: https://github.com/rdkcentral/rdk-halif-binder-test-videodecoder/blob/main/profiles/hfp-videodecoder.yaml
+  IVideoDecoder:               # Resource list
+    - 0
+    - 1
+
