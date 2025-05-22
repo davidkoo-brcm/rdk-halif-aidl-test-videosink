@@ -110,7 +110,7 @@ public:
 
     void TearDown() override
     {
-         for (const auto& [sink, controlListener, eventListener] : mVideoSinkList)
+        for (const auto& [sink, controlListener, eventListener] : mVideoSinkList)
         {
             /* Un-register the events */
             VIDEOSINK_UNREGISTER_EVENT_SUCCESS(sink, eventListener);
