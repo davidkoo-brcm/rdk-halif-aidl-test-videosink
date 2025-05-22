@@ -152,7 +152,7 @@ std::vector<PropertyTestCase> testCases = {
  * **Test Case ID:** 001@n
  *
  * **Test Procedure:**
- * Refer to UT specification documentation [viedoSink_High-Level_TestSpecification.md](../../docs/pages/viedoSink_High-Level_TestSpecification.md)
+ * Refer to UT specification documentation [VideoSink_L2_Low-Level_TestSpecification.md](../../docs/pages/VideoSink_L2_Low-Level_TestSpecification.md)
  */
 UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty) {
 
@@ -188,7 +188,7 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty) {
  * **Test Case ID:** 001@n
  *
  * **Test Procedure:**
- * Refer to UT specification documentation [viedoSink_High-Level_TestSpecification.md](../../docs/pages/viedoSink_High-Level_TestSpecification.md)
+ * Refer to UT specification documentation [VideoSink_L2_Low-Level_TestSpecification.md](../../docs/pages/VideoSink_L2_Low-Level_TestSpecification.md)
  */
 UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty_multipleInstance) {
     std::vector<sp<IVideoSinkController>> videoSinkControllersList;
@@ -230,7 +230,7 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty_multipleInstance) {
 * **Test Case ID:** 002@n
 *
 * **Test Procedure:**
-* Refer to UT specification documentation [viedoSink_High-Level_TestSpecification.md](../../docs/pages/viedoSink_High-Level_TestSpecification.md)
+* Refer to UT specification documentation [VideoSink_L2_Low-Level_TestSpecification.md](../../docs/pages/VideoSink_L2_Low-Level_TestSpecification.md)
 */
 UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions) {
 
@@ -271,7 +271,7 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions) {
 * **Test Case ID:** 002@n
 *
 * **Test Procedure:**
-* Refer to UT specification documentation [viedoSink_High-Level_TestSpecification.md](../../docs/pages/viedoSink_High-Level_TestSpecification.md)
+* Refer to UT specification documentation [VideoSink_L2_Low-Level_TestSpecification.md](../../docs/pages/VideoSink_L2_Low-Level_TestSpecification.md)
 */
 UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions_multipleInstance) {
     std::vector<sp<IVideoSinkController>> videoSinkControllersList;
