@@ -8,3 +8,4 @@ IVideoSinkManager:          # Component object begins
   IVideoDecoder:               # Resource list
     - 0
     - 1
+

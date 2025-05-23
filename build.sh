@@ -46,6 +46,7 @@ fi
 # whiling running the script
 declare -r AIDL_BIN=`realpath ${AIDL_BIN}`
 declare -r LINUX_BINDER_OUT_DIR=`realpath ${LINUX_BINDER_OUT_DIR}`
+RDK_HAL_VERSION="${RDK_HAL_VERSION="main"}"
 
 install_linux_binder()
 {
@@ -66,7 +67,8 @@ generate_videosink_hal()
 
     # Clone the repository if not already present
     if [ ! -d "$RDK_HAL_DIR" ]; then
-        git clone -b develop 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
+        echo "Checking out HAL version: " $RDK_HAL_VERSION
+        git clone -b $RDK_HAL_VERSION 'http://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
     fi
 
     for m in videosink  videodecoder; do

@@ -62,12 +62,12 @@ else
 fi
 
 # Check if either EmulateVideoSinkService or RDKVideoSinkService is running
-if check_process "EmulateVideoSinkService" || check_process "RDKVideoSinkService"; then
+if check_process "EmulateVideoSinkService" || check_process "RDKVideoSinkAndPCService"; then
     echo "Video decoder service is already running"
     if check_process "EmulateVideoSinkService"; then
         VideoSinkService_pid=$(pgrep -f "EmulateVideoSinkService")
     else
-        VideoSinkService_pid=$(pgrep -f "RDKVideoSinkService")
+        VideoSinkService_pid=$(pgrep -f "RDKVideoSinkAndPCService")
     fi
 else
     # Prompt user to start EmulateVideoSinkService
@@ -86,7 +86,7 @@ else
             # Wait for service to be ready
             sleep 2
         else
-            echo "Cannot proceed without a video decoder service"
+            echo "Cannot proceed without a video sin service"
             # Clean up servicemanager
             if [ ! -z "$servicemanager_pid" ]; then
                 kill -9 $servicemanager_pid
