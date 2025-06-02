@@ -161,13 +161,13 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
         UT_ASSERT_TRUE(videoSink.get() == nullptr); \
     } while (0)
 
-#define VIDEOSINK_CONTROLLER_SETVIDEODECODER_SUCCESS(videoSinkController,videodecoderID) \
+#define VIDEOSINK_CONTROLLER_SETVIDEODECODER_SUCCESS(videoSinkController,videodecoderId) \
     do { \
         ::android::binder::Status status; \
         bool aidl_return = false;\
-        UT_LOG_INFO("Calling setVideosink(IN:videodecoderId:[%d], OUT:aidl_return)", videodecoderId.value);\
+        UT_LOG_INFO("Calling setVideoDecoder(IN:videodecoderId:[%d], OUT:aidl_return)", videodecoderId.value);\
         status = videoSinkController->setVideoDecoder(videodecoderId, &aidl_return);\
-        UT_LOG_INFO("Result setVideosink(IN:videosinkId:[%d], OUT:aidl_return:[%s]), status:[isOK:%s, exception:%s]",\
+        UT_LOG_INFO("Result setVideoDecoder(IN:videosinkId:[%d], OUT:aidl_return:[%s]), status:[isOK:%s, exception:%s]",\
                     videodecoderId.value, aidl_return ? "true" : "false",\
                     UT_Control_GetMapString(bool_mapTable, status.isOk()),\
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));\
@@ -180,9 +180,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool aidl_return = false;\
-        UT_LOG_INFO("Calling setVideosink(IN:videodecoderId:[%d], OUT:_aidl_return)", videodecoderID.value);\
+        UT_LOG_INFO("Calling setVideoDecoder(IN:videodecoderId:[%d], OUT:_aidl_return)", videodecoderID.value);\
         status = videoSinkController->setVideoDecoder(videodecoderID, &aidl_return);\
-        UT_LOG_INFO("Result setVideosink(IN:videodecoderId:[%d], OUT:_aidl_return:[%d]), status:[isOK:%s, exception:%s]",\
+        UT_LOG_INFO("Result setVideoDecoder(IN:videodecoderId:[%d], OUT:_aidl_return:[%d]), status:[isOK:%s, exception:%s]",\
                     videodecoderID.value, aidl_return, UT_Control_GetMapString(bool_mapTable, status.isOk()),\
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));\
         UT_ASSERT_FALSE(aidl_return);\
@@ -195,7 +195,7 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
         ::android::binder::Status status; \
         UT_LOG_INFO("Calling getVideoDecoder(OUT:videoDecoderId:[%d], OUT:aidl_return)", videodecoderId.value);\
         status = videoSinkController->getVideoDecoder(&videodecoderId);\
-        UT_LOG_INFO("Result getVideosink(OUT:videodecoderId:[%d]), status:[isOK:%s, exception:%s]",\
+        UT_LOG_INFO("Result getVideoDecoder(OUT:videodecoderId:[%d]), status:[isOK:%s, exception:%s]",\
                     videodecoderId.value,\
                     UT_Control_GetMapString(bool_mapTable, status.isOk()),\
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));\
@@ -206,9 +206,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_CONTROLLER_GETVIDEODECODER_FAILURE(videoSinkController,videodecoderID,exception) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getVideosink(OUT:videodecoderId)");\
+        UT_LOG_INFO("Calling getVideoDecoder(OUT:videodecoderId)");\
         status = videoSinkController->getVideoDecoder(videodecoderID);\
-        UT_LOG_INFO("Result getVideosink(out:videodecoderId:[]), status:[isOK:%s, exception:%s]",\
+        UT_LOG_INFO("Result getVideoDecoder(out:videodecoderId:[]), status:[isOK:%s, exception:%s]",\
                     UT_Control_GetMapString(bool_mapTable, status.isOk()),\
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));\
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
