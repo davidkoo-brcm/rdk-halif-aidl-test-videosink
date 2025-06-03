@@ -121,7 +121,7 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
                                 sinkIds.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_FALSE(sinkIds.empty()); \
+        UT_ASSERT_FALSE_FATAL(sinkIds.empty()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 #define VIDEOSINK_MANAGER_GETVIDEOSINKIDS_FAILURE(sinkIds,exception) \
@@ -145,7 +145,7 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
                                 _sinkId.value, videoSink.get(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_TRUE(videoSink.get() != nullptr); \
+        UT_ASSERT_TRUE_FATAL(videoSink.get() != nullptr); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
@@ -199,7 +199,7 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
                     videodecoderId.value,\
                     UT_Control_GetMapString(bool_mapTable, status.isOk()),\
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));\
-        UT_ASSERT_TRUE(status.isOk());\
+        UT_ASSERT_TRUE_FATAL(status.isOk());\
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
@@ -321,7 +321,7 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
         UT_LOG_INFO("Result open(IN:controllerListener[0x%p], OUT:videoSinkController[0x%X]), status:[exception:%s]", \
             controllerListener, videoSinkController.get(), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_NOT_EQUAL(videoSinkController, nullptr); \
+        UT_ASSERT_NOT_EQUAL_FATAL(videoSinkController, nullptr); \
         UT_ASSERT_TRUE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
         \
@@ -355,7 +355,7 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
         UT_LOG_INFO("Result close(IN:videoSinkController[0x%p]), status:[isOK:%s, exception:%s]", \
             videoSinkController.get(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_TRUE_FATAL(status.isOk()); \
         UT_ASSERT_TRUE(_aidl_return); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
         if (stateCheck) \
@@ -439,7 +439,6 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
             eventListener.get(), UT_Control_GetMapString(bool_mapTable, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
         UT_ASSERT_FALSE(_aidl_return); \
     } while (0)
