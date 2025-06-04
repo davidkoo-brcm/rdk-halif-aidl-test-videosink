@@ -296,7 +296,7 @@ android::binder::Status VideoSink::open(const android::sp<videosink::IVideoSinkC
      if (eventListener) {
          LOG_ERROR("registerEventListener: listener already registered for ID %d", id.value);
          *_aidl_return = false;
-         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_STATE);
+         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NONE);
      }
      eventListener = videoSinkEventListener;
      *_aidl_return = true;
@@ -318,7 +318,7 @@ android::binder::Status VideoSink::open(const android::sp<videosink::IVideoSinkC
      if (!eventListener) {
          LOG_ERROR("unregisterEventListener: no listener registered for ID %d", id.value);
          *_aidl_return = false;
-         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_STATE);
+         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NONE);
      }
      eventListener = nullptr;
      *_aidl_return = true;
