@@ -96,6 +96,6 @@ else
     fi
 fi
 
-echo "Eexecute [vts-videosink]"
-${RUN_DIR}/vts-videosink $@
+echo "Eexecute [vts_videosink]"
+${RUN_DIR}/vts_videosink $@
 
