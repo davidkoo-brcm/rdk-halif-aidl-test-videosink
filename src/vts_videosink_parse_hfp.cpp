@@ -61,7 +61,7 @@
  * @file vts_vidosink_parse_hfp.cpp
  *
  */
-
+#include "ut_kvp_profile.h"
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
 

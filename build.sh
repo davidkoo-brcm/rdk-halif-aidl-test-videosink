@@ -57,6 +57,28 @@ install_linux_binder()
 	cp -apr ${LINUX_BINDER_OUT_DIR}/include/* ${BUILD_INSTALL_PREFIX}/include/
 }
 
+generate_avbuffer_hal()
+{
+    declare -r HAL_BUILD_DIR=${BUILD_DIR}/avbuffer_hal
+    declare -r VERSION=current
+    declare -r AIDL_GEN_DIR="${BUILD_DIR}/avbuffer_gen/$VERSION"
+    declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
+
+    # Clone the repository if not already present
+    if [ ! -d "$RDK_HAL_DIR" ]; then
+        git clone -b $RDK_HAL_VERSION 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
+    fi
+
+    for m in avbuffer; do
+        cmake \
+        -DAIDL_BIN=$AIDL_BIN \
+        -DAIDL_GEN_DIR=$AIDL_GEN_DIR \
+        -DAIDL_SRC_VERSION=$VERSION \
+        -DAIDL_TARGET=$m  \
+        -B ${HAL_BUILD_DIR} \
+        $RDK_HAL_DIR
+    done
+}
 
 generate_videosink_hal()
 {
@@ -83,6 +105,23 @@ generate_videosink_hal()
 
 }
 
+generate_avbufferhelper_skeleton()
+{
+    declare -r AVBUFFER_HELPER_DIR=${TOP}/vcomponent/avbufferhelper
+
+    mkdir -p $AVBUFFER_HELPER_DIR/build
+
+    cd $AVBUFFER_HELPER_DIR/build
+
+    cmake ..
+    make
+
+    cp libavbufferhelper.so ${BUILD_DIR}/usr/lib/
+
+    cd -
+
+    rm -rf $AVBUFFER_HELPER_DIR/build
+}
 
 build_vcomponent()
 {
@@ -129,7 +168,10 @@ install_test()
 	cp -r ${TOP}/profiles/ ${INSTALL_PATH}
 }
 
+generate_avbufferhelper_skeleton
+
 install_linux_binder
+generate_avbuffer_hal
 generate_videosink_hal
 build_vcomponent
 build_ut_core

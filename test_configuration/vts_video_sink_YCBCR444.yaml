@@ -1,0 +1,8 @@
+VideoStreams:
+  YCBCR444_0:
+    input: YCBCR444
+    pixel_format: 2          # YCBCR444
+    width: 1920
+    height: 1080
+    color_depth: 8           # bits per channel
+    buffer_size: 6220800     # width * height * 3 bytes per pixel

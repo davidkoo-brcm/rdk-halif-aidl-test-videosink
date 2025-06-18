@@ -74,6 +74,9 @@ int main(int argc, char **argv)
     result = VTS_VideoSink_init();
 
     result = UT_run_tests();
+
+    VTS_VideoSink_destroy();
+
     return result;
 }
 

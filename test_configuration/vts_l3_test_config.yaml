@@ -1,0 +1,30 @@
+include_0: test_configuration/vts_video_sink_YCBCR422.yaml
+include_1: test_configuration/vts_video_sink_YCBCR444.yaml
+include_2: test_configuration/vts_video_sink_mpeg.yaml
+include_3: test_configuration/vts_video_sink_h264.yaml
+
+IVideoSinkManager:
+  stream_download_path: "http://<>/streams" #`URL` path to download the audio test streams
+  input_streams_path: "assets/streams/input" #Target path where input streams are stored
+  reference_streams_path: "assets/streams/reference/" #Target path for reference PCM streams
+  L3: #Test Level
+    Render_Video_First_Frame_Non_Tunnel: #Test Name
+      Controls:
+        repeatPerFrame: 3
+        flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
+        flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
+        eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
+      Inputs:
+        Streams:
+          - Name: YCBCR422_0 #Stream name
+            PTS: #List of Presentation Time Stamps (per frame) in nanoseconds
+              - 0
+              - 21333333
+              - 42666666
+              - 63999999
+              - 85333332
+              - 106666665
+              - 127999998
+              - 149333331
+              - 170666664
+              - 191999997

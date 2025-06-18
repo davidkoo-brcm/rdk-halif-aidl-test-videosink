@@ -46,8 +46,7 @@ if [ ! -w $DEV_BINDER ]; then
 	exit 1
 fi
 
-export LD_LIBRARY_PATH=$RUN_DIR:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/usr/lib:/lib:/home/root:./
+export LD_LIBRARY_PATH=/usr/lib:/lib:/home/root:./:$RUN_DIR
 
 # Check and start servicemanager (must run if not running)
 if check_process "servicemanager"; then
@@ -97,5 +96,7 @@ else
 fi
 
 echo "Eexecute [vts-videosink]"
-${RUN_DIR}/vts-videosink $@
+pushd "$(dirname "$0")" > /dev/null
+./vts-videosink $@
+popd > /dev/null
 

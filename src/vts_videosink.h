@@ -73,6 +73,9 @@
 #include "com/rdk/hal/videosink/BnVideoSinkControllerListener.h"
 #include "com/rdk/hal/videosink/BnVideoSinkEventListener.h"
 
+#include "com/rdk/hal/avbuffer/IAVBuffer.h"
+#include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
+
 using android::sp;
 using android::String16;
 using android::defaultServiceManager;
@@ -81,6 +84,10 @@ using android::binder::Status;
 using namespace com::rdk::hal;
 using namespace com::rdk::hal::videosink;
 using namespace com::rdk::hal::videodecoder;
+using namespace com::rdk::hal::avbuffer;
+
+extern sp<IVideoSinkManager> gVideoSinkManager;
+extern void *gTestConfiguration;
 
 /* Status::Exception */
 const static ut_control_keyStringMapping_t statusException_mapTable[] =
@@ -648,6 +655,31 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
         } \
     } while (0)
 
+#define VIDEOSINK_QUEUEVIDEOFRAME_SUCCESS(videoSinkController, nsPresentationTime, frameBufferHandle, metadata, expectedReturn) \
+    do { \
+        ::android::binder::Status status; \
+        bool _aidl_return = false; \
+        UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime[%ld], IN:frameBufferHandle[0x%lX], IN:metadata{width:%d, height:%d, format:%d}, OUT:_aidl_return[])", \
+            nsPresentationTime, frameBufferHandle, metadata.width, metadata.height, metadata.format); \
+        status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
+        UT_LOG_INFO("Result queueVideoFrame(..., OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
+            UT_Control_GetMapString(bool_mapTable, _aidl_return), \
+            UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+        UT_ASSERT_EQUAL(_aidl_return, expectedReturn); \
+    } while (0)
+
+struct VideoSinkData
+{
+
+};
+
+struct DecodedVideoFrame
+{
+
+};
 
 class VideoSinkControllerListener : public BnVideoSinkControllerListener
 {
@@ -656,9 +688,34 @@ class VideoSinkControllerListener : public BnVideoSinkControllerListener
         VideoSinkControllerListener() = default;
         virtual ~VideoSinkControllerListener() = default;
 
-        Status onFirstFrameRendered(int64_t nsPresentationTime) override {
-            return ::android::binder::Status::ok();
+        Status onFirstFrameRendered(int64_t nsPresentationTime) override
+        {
+                {
+                    std::lock_guard<std::mutex> lock(mMutex);
+                    if (!mFirstFrameRendered) {
+                        mFirstPTS = nsPresentationTime;
+                        mFirstFrameRendered = true;
+                    }
+                }
+                mCV.notify_all();
+                return ::android::binder::Status::ok();
         }
+        // Other callbacks remain unchanged...
+
+        // Wait for the first frame rendered event to happen with timeout
+        bool waitForFirstFrame(std::chrono::milliseconds timeout)
+        {
+            std::unique_lock<std::mutex> lock(mMutex);
+            return mCV.wait_for(lock, timeout, [this]() { return mFirstFrameRendered; });
+        }
+
+        // Get the first frame PTS safely
+        int64_t getFirstPTS() const
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            return mFirstPTS;
+        }
+
         Status onEndOfStream(int64_t nsPresentationTime) override {
             return ::android::binder::Status::ok();
         }
@@ -674,6 +731,13 @@ class VideoSinkControllerListener : public BnVideoSinkControllerListener
         Status onStateChanged(State oldState, State newState) override {
             return ::android::binder::Status::ok();
         }
+
+private:
+    mutable std::mutex mMutex;
+    std::condition_variable mCV;
+    bool mFirstFrameRendered = false;
+    int64_t mFirstPTS = -1;
+
 };
 
 class VideoSinkEventListener : public BnVideoSinkEventListener
