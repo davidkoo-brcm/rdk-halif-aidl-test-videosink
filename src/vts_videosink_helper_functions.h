@@ -95,7 +95,7 @@ UT_status_t vts_videosink_getVideoSinkService();
 bool vts_videosink_helper_validatePropertyValue(int decoder_id, const std::optional<PropertyValue>& propertyValue, const Property property);
 bool vts_videosink_helper_areElementsUnique(const std::vector<int>& values);
 void vts_videosink_helper_validateCapabilities(int decoder_id, const Capabilities& capabilities);
-
+com::rdk::hal::videodecoder::Codec vts_videodecoder_helper_StringTocodec(const std::string& format);
 #endif //__VTS_VIDEOSINK_HELPER_H__
 
 /** @} */ // End of VIDEO_SINK_HALTEST_HELPER_HEADER

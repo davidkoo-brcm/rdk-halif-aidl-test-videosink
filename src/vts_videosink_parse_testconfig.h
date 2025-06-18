@@ -76,28 +76,36 @@
 #define STREAM_INPUT_PATH "IVideoSinkManager.input_streams_path"
 #define STREAM_REF_PATH "IVideoSinkManager.reference_streams_path"
 
-struct videoFrame_t {
-    uint32_t size;
-    int64_t pts;
-    bool errorFrame;
-};
-
 struct frameMetadata_t {
     std::string name;
-    uint32_t pixelFormat;
-    uint32_t width;
-    uint32_t height;
-    uint32_t colorDepth;
-    uint32_t bufferSize;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t frameRate = 0;
+    std::vector<uint32_t> frameSizes;
+
+    std::string input;
+    uint32_t pixelFormat = 0;
+    uint32_t colorDepth = 0;
+    uint32_t bufferSize = 0;
+};
+
+struct videoFrame_t {
+    uint32_t size = 0;
+    int64_t pts = 0;
+    bool errorFrame = false;
 };
 
 struct videoTestConfiguration_t {
+    std::string input;
+    com::rdk::hal::videodecoder::Codec codec;
     frameMetadata_t frameMetadata;
     std::vector<videoFrame_t> frames;
-    uint64_t signalDiscontinuityPts;
-    uint64_t flushPts;
-    uint64_t flushResetPts;
-    uint64_t eosPts;
+
+    uint64_t signalDiscontinuityPts = 0;
+    uint64_t flushPts = 0;
+    uint64_t flushResetPts = 0;
+    uint64_t eosPts = 0;
+    uint32_t repeatPerFrame = 0;
 };
 
 void* vts_kvp_create_instance(char *fileName);

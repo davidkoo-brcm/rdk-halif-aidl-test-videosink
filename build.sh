@@ -34,12 +34,12 @@ LINUX_BINDER_OUT_DIR=${LINUX_BINDER_OUT_DIR:-${DEF_LINUX_BINDER}/local}
 mkdir -p $BUILD_DIR
 
 if [ ! -x $AIDL_BIN ]; then
-	echo "AIDL_BIN: path does not exists, consdier building the linux_binder_idl in $DEF_LINUX_BINDER"
-	exit 1
+    echo "AIDL_BIN: path does not exists, consdier building the linux_binder_idl in $DEF_LINUX_BINDER"
+    exit 1
 fi
 if [ ! -d $LINUX_BINDER_OUT_DIR ]; then
-	echo "LINUX_BINDER_OUT_DIR: path does not exists, consider building the linux_binder_idl in $DEF_LINUX_BINDER"
-	exit 1
+    echo "LINUX_BINDER_OUT_DIR: path does not exists, consider building the linux_binder_idl in $DEF_LINUX_BINDER"
+    exit 1
 fi
 
 # Turning them into absolute path because we may calling change current working directory
@@ -50,11 +50,33 @@ RDK_HAL_VERSION="${RDK_HAL_VERSION="main"}"
 
 install_linux_binder()
 {
-	echo "Install linux-binder \`service manager, headers and libraries'"
-	install -d ${BUILD_INSTALL_PREFIX}/bin ${BUILD_INSTALL_PREFIX}/lib ${BUILD_INSTALL_PREFIX}/include
-	install -t ${BUILD_INSTALL_PREFIX}/bin ${LINUX_BINDER_OUT_DIR}/bin/*
-	install -t ${BUILD_INSTALL_PREFIX}/lib ${LINUX_BINDER_OUT_DIR}/lib/*
-	cp -apr ${LINUX_BINDER_OUT_DIR}/include/* ${BUILD_INSTALL_PREFIX}/include/
+    echo "Install linux-binder \`service manager, headers and libraries'"
+    install -d ${BUILD_INSTALL_PREFIX}/bin ${BUILD_INSTALL_PREFIX}/lib ${BUILD_INSTALL_PREFIX}/include
+    install -t ${BUILD_INSTALL_PREFIX}/bin ${LINUX_BINDER_OUT_DIR}/bin/*
+    install -t ${BUILD_INSTALL_PREFIX}/lib ${LINUX_BINDER_OUT_DIR}/lib/*
+    cp -apr ${LINUX_BINDER_OUT_DIR}/include/* ${BUILD_INSTALL_PREFIX}/include/
+}
+
+generate_audiodecoder_hal()
+{
+    declare -r HAL_BUILD_DIR=${BUILD_DIR}/audiodecoder_aidl
+    declare -r AUDIODECODER_VERSION=current
+    declare -r AIDL_GEN_DIR="${BUILD_DIR}/audiodecoder_gen/$AUDIODECODER_VERSION"
+    declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
+
+    # Clone the repository if not already present
+    if [ ! -d "$RDK_HAL_DIR" ]; then
+        git clone -b $RDK_HAL_VERSION 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
+    fi
+
+    # Prepare cmake build directories and configuration for each module
+    cmake \
+        -DAIDL_BIN=$AIDL_BIN \
+        -DAIDL_GEN_DIR=$AIDL_GEN_DIR \
+        -DAIDL_SRC_VERSION=$AUDIODECODER_VERSION \
+        -DAIDL_TARGET=audiodecoder \
+        -B ${HAL_BUILD_DIR}  \
+        $RDK_HAL_DIR
 }
 
 generate_avbuffer_hal()
@@ -80,6 +102,28 @@ generate_avbuffer_hal()
     done
 }
 
+generate_videodecoder_hal()
+{
+    declare -r HAL_BUILD_DIR=${BUILD_DIR}/videodecoder_aidl
+    declare -r VIDEODECODER_VERSION=current
+    declare -r AIDL_GEN_DIR="${BUILD_DIR}/videodecoder_gen/$VIDEODECODER_VERSION"
+    declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
+
+    # Clone the repository if not already present
+    if [ ! -d "$RDK_HAL_DIR" ]; then
+        git clone -b $RDK_HAL_VERSION 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
+    fi
+
+    cmake \
+        -DAIDL_BIN=$AIDL_BIN \
+        -DAIDL_GEN_DIR=$AIDL_GEN_DIR \
+        -DAIDL_SRC_VERSION=$VIDEODECODER_VERSION \
+        -DAIDL_TARGET=videodecoder \
+        -B ${HAL_BUILD_DIR} \
+        $RDK_HAL_DIR
+
+}
+
 generate_videosink_hal()
 {
     declare -r HAL_BUILD_DIR=${BUILD_DIR}/videosink_hal
@@ -93,16 +137,14 @@ generate_videosink_hal()
         git clone -b $RDK_HAL_VERSION 'http://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
     fi
 
-    for m in videosink  videodecoder; do
-        cmake \
+    # Build only videosink
+    cmake \
         -DAIDL_BIN=$AIDL_BIN \
         -DAIDL_GEN_DIR=$AIDL_GEN_DIR \
         -DAIDL_SRC_VERSION=$VERSION \
-        -DAIDL_TARGET=$m  \
-	-B ${HAL_BUILD_DIR}/gen/build/${m}_test \
+        -DAIDL_TARGET=videosink  \
+        -B ${HAL_BUILD_DIR} \
         $RDK_HAL_DIR
-    done
-
 }
 
 generate_avbufferhelper_skeleton()
@@ -126,36 +168,36 @@ generate_avbufferhelper_skeleton()
 build_vcomponent()
 {
     make -j`nproc` \
-		-C ${TOP}/vcomponent
+        -C ${TOP}/vcomponent
 }
 
 build_ut_core()
 {
-	if [ ! -d ${UT_CORE_DIR} ]; then
-		git clone https://github.com/rdkcentral/ut-core.git ${UT_CORE_DIR}
-		if [ $? -ne 0 ]; then
-			echo "Failed to clone the repository. Exiting."
-			exit 1
-		fi
-	fi
+    if [ ! -d ${UT_CORE_DIR} ]; then
+        git clone https://github.com/rdkcentral/ut-core.git ${UT_CORE_DIR}
+        if [ $? -ne 0 ]; then
+            echo "Failed to clone the repository. Exiting."
+            exit 1
+        fi
+    fi
 
-	pushd ${UT_CORE_DIR}
+    pushd ${UT_CORE_DIR}
 
-	git fetch -q -t origin
-	# get the latest version of ut-core
-	if [ -z "$UT_CORE_VERSION" ]; then
-		UT_CORE_VERSION=`git tag | sort -Vr | head -n1`
-	fi
-	git checkout $UT_CORE_VERSION
+    git fetch -q -t origin
+    # get the latest version of ut-core
+    if [ -z "$UT_CORE_VERSION" ]; then
+        UT_CORE_VERSION=`git tag | sort -Vr | head -n1`
+    fi
+    git checkout $UT_CORE_VERSION
 
-	./build.sh TARGET=linux VARIANT=CPP
-	if [ $? -ne 0 ]; then
-		echo "Build script failed. Exiting."
-		exit 1
-	fi
+    ./build.sh TARGET=linux VARIANT=CPP
+    if [ $? -ne 0 ]; then
+        echo "Build script failed. Exiting."
+        exit 1
+    fi
 
-	echo "Build completed successfully."
-	popd
+    echo "Build completed successfully."
+    popd
 }
 
 install_test()
@@ -166,12 +208,19 @@ install_test()
 	install -t ${INSTALL_PATH} ${BUILD_INSTALL_PREFIX}/lib/*
 	install -t ${INSTALL_PATH} run.sh
 	cp -r ${TOP}/profiles/ ${INSTALL_PATH}
+    cp -rf ${TOP}/test_configuration ${INSTALL_PATH}
+    cp -rf ${TOP}/stream_configuration ${INSTALL_PATH}
+    mkdir -p ${INSTALL_PATH}/assets/streams/input
+    mkdir -p ${INSTALL_PATH}/assets/streams/reference
+    rm -rf ${INSTALL_PATH}/libavbufferhelper.so
 }
 
 generate_avbufferhelper_skeleton
 
 install_linux_binder
 generate_avbuffer_hal
+generate_audiodecoder_hal
+generate_videodecoder_hal
 generate_videosink_hal
 build_vcomponent
 build_ut_core

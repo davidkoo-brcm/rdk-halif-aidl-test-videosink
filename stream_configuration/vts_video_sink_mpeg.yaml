@@ -1,0 +1,19 @@
+VideoStreams:
+  MPEG_0:
+    input: MPEG.es        # ES file name for MPEG video
+    codec: MPEG           # Video codec (from your enum)
+    width: 1920           # Frame width in pixels
+    height: 1080          # Frame height in pixels
+    framerate: 30         # Frames per second
+    num_of_frames: 10     # Total number of frames in the stream
+    frame_size:           # Byte size for each video frame, listed in order
+      - 15000
+      - 14800
+      - 15200
+      - 14950
+      - 15120
+      - 15010
+      - 14890
+      - 14980
+      - 15050
+      - 14900

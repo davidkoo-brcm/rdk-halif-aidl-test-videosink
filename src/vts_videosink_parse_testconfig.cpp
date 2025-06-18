@@ -130,24 +130,56 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
         videoTestConfiguration_t testDetails;
         string streamNameKey = streamList + "." + to_string(i) + ".Name";
         ut_kvp_getStringField(kvpTestInstance, streamNameKey.c_str(), resultKVP, UT_KVP_MAX_ELEMENT_SIZE);
-        string streamKey = string("VideoStreams.") + resultKVP;
+        string streamName = string(resultKVP);
 
-        // Try to access a required field; if missing, assume failure
+        // === Parse VideoStreams section ===
+        string videoStreamKey = string("VideoStreams.") + streamName;
+
+        // Required input field check
         char testFieldCheck[UT_KVP_MAX_ELEMENT_SIZE] = {0};
-        status = ut_kvp_getStringField(kvpTestInstance, (streamKey + ".input").c_str(), testFieldCheck, UT_KVP_MAX_ELEMENT_SIZE);
+        status = ut_kvp_getStringField(kvpTestInstance, (videoStreamKey + ".input").c_str(), testFieldCheck, UT_KVP_MAX_ELEMENT_SIZE);
         if (status != UT_KVP_STATUS_SUCCESS) {
             return UT_STATUS_FAILURE;
         }
+        testDetails.input = testFieldCheck; // Save input from VideoStreams
 
-        // Populate frame metadata
-        testDetails.frameMetadata.name = resultKVP;
-        testDetails.frameMetadata.pixelFormat = ut_kvp_getUInt32Field(kvpTestInstance, (streamKey + ".pixel_format").c_str());
-        testDetails.frameMetadata.width = ut_kvp_getUInt32Field(kvpTestInstance, (streamKey + ".width").c_str());
-        testDetails.frameMetadata.height = ut_kvp_getUInt32Field(kvpTestInstance, (streamKey + ".height").c_str());
-        testDetails.frameMetadata.colorDepth = ut_kvp_getUInt32Field(kvpTestInstance, (streamKey + ".color_depth").c_str());
-        testDetails.frameMetadata.bufferSize = ut_kvp_getUInt32Field(kvpTestInstance, (streamKey + ".buffer_size").c_str());
+        // Codec string and convert
+        ut_kvp_getStringField(kvpTestInstance, (videoStreamKey + ".codec").c_str(), resultKVP, UT_KVP_MAX_ELEMENT_SIZE);
+        testDetails.codec = vts_videodecoder_helper_StringTocodec(std::string(resultKVP));
 
-        // Get PTS list
+        // Store basic frame metadata from VideoStreams
+        testDetails.frameMetadata.name = streamName;
+        testDetails.frameMetadata.width = ut_kvp_getUInt32Field(kvpTestInstance, (videoStreamKey + ".width").c_str());
+        testDetails.frameMetadata.height = ut_kvp_getUInt32Field(kvpTestInstance, (videoStreamKey + ".height").c_str());
+        testDetails.frameMetadata.frameRate = ut_kvp_getUInt32Field(kvpTestInstance, (videoStreamKey + ".framerate").c_str());
+
+        // Store frame_size list into frameMetadata.frameSizes
+        int32_t frameSizeCount = ut_kvp_getListCount(kvpTestInstance, (videoStreamKey + ".frame_size").c_str());
+        testDetails.frameMetadata.frameSizes.clear();
+        for (int32_t j = 0; j < frameSizeCount; ++j) {
+            string frameSizeKey = videoStreamKey + ".frame_size." + to_string(j);
+            uint32_t size = ut_kvp_getUInt32Field(kvpTestInstance, frameSizeKey.c_str());
+            testDetails.frameMetadata.frameSizes.push_back(size);
+        }
+
+        // === Parse VideoFrame section (optional override) ===
+        string videoFrameKey = string("VideoFrame.") + streamName;
+        char optionalCheck[UT_KVP_MAX_ELEMENT_SIZE] = {0};
+        status = ut_kvp_getStringField(kvpTestInstance, (videoFrameKey + ".input").c_str(), optionalCheck, UT_KVP_MAX_ELEMENT_SIZE);
+        if (status == UT_KVP_STATUS_SUCCESS) {
+            testDetails.frameMetadata.input = optionalCheck;
+            testDetails.frameMetadata.pixelFormat = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".pixel_format").c_str());
+            testDetails.frameMetadata.colorDepth = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".color_depth").c_str());
+            testDetails.frameMetadata.bufferSize = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".buffer_size").c_str());
+
+            // Optional override of width/height
+            uint32_t vfWidth = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".width").c_str());
+            if (vfWidth != 0) testDetails.frameMetadata.width = vfWidth;
+            uint32_t vfHeight = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".height").c_str());
+            if (vfHeight != 0) testDetails.frameMetadata.height = vfHeight;
+        }
+
+        // === Parse PTS list and generate frames ===
         string ptsListKey = streamList + "." + to_string(i) + ".PTS";
         int32_t ptsCount = ut_kvp_getListCount(kvpTestInstance, ptsListKey.c_str());
         for (int32_t k = 0; k < ptsCount; ++k)
@@ -156,17 +188,26 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
             int64_t PTS = ut_kvp_getUInt64Field(kvpTestInstance, eachPTS.c_str());
 
             videoFrame_t frame;
-            frame.size = testDetails.frameMetadata.bufferSize;
             frame.pts = PTS;
+
+            if (testDetails.frameMetadata.bufferSize != 0) {
+                frame.size = testDetails.frameMetadata.bufferSize;
+            } else if (!testDetails.frameMetadata.frameSizes.empty()) {
+                frame.size = testDetails.frameMetadata.frameSizes[min(k, static_cast<int32_t>(testDetails.frameMetadata.frameSizes.size() - 1))];
+            } else {
+                frame.size = 0;
+            }
+
             frame.errorFrame = false;
             testDetails.frames.push_back(frame);
         }
 
-        // Read control parameters
+        // === Parse Control Parameters ===
         testDetails.signalDiscontinuityPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".signal_discontinuity_pts").c_str());
         testDetails.flushPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".flush_pts").c_str());
         testDetails.flushResetPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".flush_reset_pts").c_str());
         testDetails.eosPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".eos_pts").c_str());
+        testDetails.repeatPerFrame = ut_kvp_getUInt32Field(kvpTestInstance, (controlList + ".repeatPerFrame").c_str());
 
         testConfigurations.push_back(testDetails);
     }
@@ -175,7 +216,8 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
 }
 
 
- /** @} */ // End of VIDEO_SINK_HALTEST_PARSE_TESTCONFIG
+
+/** @} */ // End of VIDEO_SINK_HALTEST_PARSE_TESTCONFIG
 /** @} */ // End of VIDEO_SINK_HALTEST
 /** @} */ // End of VIDEO_SINK
 /** @} */ // End of HPK

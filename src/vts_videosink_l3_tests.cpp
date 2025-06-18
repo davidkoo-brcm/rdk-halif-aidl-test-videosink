@@ -83,6 +83,11 @@
 #include "com/rdk/hal/videodecoder/BnVideoDecoderControllerListener.h"
 #include "com/rdk/hal/videodecoder/BnVideoDecoderEventListener.h"
 
+#include "com/rdk/hal/avbuffer/IAVBuffer.h"
+#include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
+#include "com/rdk/hal/PropertyValue.h"
+
+
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
 #include "vts_videosink_parse_testconfig.h"
@@ -97,6 +102,19 @@ UT_ADD_TEST_TO_GROUP(VTS_L3_VideoSink, UT_TESTS_L3)
 static const char *gModuleName = "IVideoSinkManager";
 static const char *gTestGroup = "L3";
 
+sp<IVideoDecoderManager> gVideoDecoderManager;
+
+UT_status_t getVideoDecoderService() {
+    gVideoDecoderManager = android::interface_cast<IVideoDecoderManager>(
+       defaultServiceManager()->getService(String16(IVideoDecoderManager::serviceName().c_str())));
+   if (gVideoDecoderManager == nullptr) {
+       printf("Service not available\n");
+       return UT_STATUS_FAILURE;
+   }
+   return UT_STATUS_OK;
+}
+
+>>>>>>> 030df10 (gh #25 develop L3 test cases)
 sp<IAVBuffer> vts_avbuffer_getService()
 {
     return
@@ -107,18 +125,119 @@ sp<IAVBuffer> vts_avbuffer_getService()
         );
 }
 
-#define AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(avBufferManager, secureHeap, audioDecoderId, listener, audioPool) \
-    do { \
-        UT_LOG_INFO("Calling createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool)", \
-                    secureHeap, audioDecoderId.value, listener.get()); \
-        Status status = avBufferManager->createAudioPool(secureHeap, audioDecoderId, listener, &audioPool); \
-        UT_LOG_INFO("Result createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
-                    secureHeap, audioDecoderId.value, listener.get(), audioPool.handle, \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_NOT_EQUAL(audioPool.handle, Pool::INVALID); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-    } while (0)
+class VideoDecoderControllerListener : public BnVideoDecoderControllerListener {
+public:
+    VideoDecoderControllerListener() = default;
+    virtual ~VideoDecoderControllerListener() = default;
+
+    android::binder::Status onFrameOutput(
+        int64_t nsPresentationTime,
+        int64_t frameBufferHandle,
+        const std::optional<com::rdk::hal::videodecoder::FrameMetadata>& metadata) override
+    {
+        UT_LOG_INFO("onFrameOutput: PTS = %x, FrameBufferHandle = %x", nsPresentationTime, frameBufferHandle);
+
+        if (metadata.has_value()) {
+            const auto& meta = metadata.value();
+            UT_LOG_INFO("Metadata: width=%d, height=%d, format=%d",
+                        meta.activeWidth, meta.activeHeight, static_cast<int>(meta.pixelFormat));
+        } else {
+            UT_LOG_ERROR("onFrameOutput: No metadata provided.");
+        }
+
+        return android::binder::Status::ok();
+    }
+
+    android::binder::Status onUserDataOutput(
+        int64_t nsPresentationTime,
+        const std::vector<uint8_t>& userData) override
+    {
+        UT_LOG_INFO("onUserDataOutput: PTS = %x, UserDataSize = %zu", nsPresentationTime, userData.size());
+
+        // Optionally print or parse user data
+        if (!userData.empty()) {
+            UT_LOG_INFO("First byte of user data: 0x%02X", userData[0]);
+        }
+
+        return android::binder::Status::ok();
+    }
+};
+
+class VideoDecoderEventListener : public BnVideoDecoderEventListener {
+    public:
+    VideoDecoderEventListener() {};
+    virtual ~VideoDecoderEventListener() = default;
+
+    Status onDecodeError(ErrorCode errorCode, int32_t vendorErrorCode) override {
+        return Status::ok();
+    }
+    Status onStateChanged(State oldState,State newState) override
+        {
+            UT_LOG("State Change received: %s -> %s", com::rdk::hal::toString(oldState).c_str(), com::rdk::hal::toString(newState).c_str());
+            {
+                std::lock_guard<std::mutex> lock(mMutex);
+                mStateChanges.emplace_back(oldState, newState);
+                mCurrentState = newState;
+            }
+            mCV.notify_all(); // Unblock any waiting test code
+            return Status::ok();
+        }
+        /**
+         * Wait for the sink to reach a particular State within a given timeout.
+         *
+         * @param desiredState The state we want to observe.
+         * @param timeout      How long to wait, e.g. std::chrono::milliseconds(500).
+         * @return true if the state was reached; false if we timed out waiting.
+         */
+        bool waitForState(State desiredState, std::chrono::milliseconds timeout)
+        {
+            std::unique_lock<std::mutex> lock(mMutex);
+            // Wait until mCurrentState == desiredState or until timeout
+            return mCV.wait_for(lock, timeout, [this, desiredState]() {
+                return (mCurrentState == desiredState);
+            });
+        }
+        // Accessors for test verifications if desired
+        std::vector<std::pair<State, State>> getStateChanges() const
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            return mStateChanges;
+        }
+
+        void resetStateChanges()
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            mStateChanges.clear();
+        }
+
+        bool checkStateTransistion(State expOldState, State expNewState)
+        {
+            bool foundClosedToOpening = false;
+            for (const auto &[oldState, newState] : mStateChanges)
+            {
+                if (oldState == expOldState && newState == expNewState)
+                {
+                    foundClosedToOpening = true;
+                    break;
+                }
+            }
+            return foundClosedToOpening;
+        }
+
+        std::vector<int32_t> getErrors() const
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            return mErrors;
+        }
+    private:
+        mutable std::mutex mMutex;
+        std::condition_variable mCV;
+
+        State mCurrentState;
+        std::vector<std::pair<State, State>> mStateChanges;
+        std::vector<int32_t> mErrors;
+};
+
 
 #define AVBUFFER_DESTROY_POOL_SUCCESS(avBufferManager, pool) \
     do { \
@@ -175,6 +294,53 @@ sp<IAVBuffer> vts_avbuffer_getService()
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
+#define AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(avBufferManager, secureHeap, videoDecoderId, listener, videoPool) \
+do { \
+    UT_LOG_INFO("Calling createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool)", \
+                 secureHeap, videoDecoderId.value, listener.get()); \
+    Status status = avBufferManager->createVideoPool(secureHeap, videoDecoderId, listener, &videoPool); \
+    UT_LOG_INFO("Result createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
+                 secureHeap, videoDecoderId.value, listener.get(), videoPool.handle, \
+                 UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+    UT_ASSERT_TRUE(status.isOk()); \
+    UT_ASSERT_NOT_EQUAL(videoPool.handle, Pool::INVALID); \
+    UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+} while (0)
+
+#define VIDEODECODER_GETSTATE(videoDecoder, state) \
+    do { \
+        Status status; \
+        UT_LOG_INFO("Calling getState(OUT:_aidl_return:[state])"); \
+        status = (videoDecoder)->getState(&state); \
+        UT_LOG_INFO("Result getState(OUT:_aidl_return:[state:%d]), status:[isOK:%s, exception:%s]", \
+                    static_cast<int32_t>(state), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()) << "getState binder call failed"; \
+        UT_ASSERT_TRUE((state) == State::UNKNOWN || \
+                       (state) == State::CLOSED || \
+                       (state) == State::OPENING || \
+                       (state) == State::READY || \
+                       (state) == State::STARTING || \
+                       (state) == State::STARTED || \
+                       (state) == State::FLUSHING || \
+                       (state) == State::STOPPING || \
+                       (state) == State::CLOSING) \
+            << "Invalid state returned: " << static_cast<int32_t>(state); \
+    } while (0)
+
+#define VIDEODECODER_WAIT_FOR_STATE(videoDecoder, targetState, lastState) \
+    do { \
+        int32_t sleep_time = 0; \
+        do \
+        { \
+            std::this_thread::sleep_for(std::chrono::milliseconds(MAX_TRANSITORY_STATE_WAIT_MS)); \
+            sleep_time += MAX_TRANSITORY_STATE_WAIT_MS; \
+            /* Check the state of the decoder */ \
+            VIDEODECODER_GETSTATE(videoDecoder, lastState); \
+        } while (sleep_time < MAX_FINAL_STATE_WAIT_MS && lastState != targetState); \
     } while (0)
 
 #define VIDEODECODER_MANAGER_GETVIDEODECODERIDS(decoderIds) \
@@ -287,12 +453,15 @@ sp<IAVBuffer> vts_avbuffer_getService()
     } while (0)
 
 #define VIDEODECODER_DECODEBUFFER_SUCCESS(videoDecoderHandle, nsPresentationTime, bufferHandle) \
+=======
+#define VIDEODECODER_DECODEBUFFER_SUCCESS(videoDecoderController, nsPresentationTime, bufferHandle) \
+>>>>>>> 030df10 (gh #25 develop L3 test cases)
     do { \
         ::android::binder::Status status; \
         bool _aidl_return; \
         UT_LOG_INFO("Calling decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[])", \
             nsPresentationTime, bufferHandle); \
-        status = videoDecoderHandle->decodeBuffer(nsPresentationTime, bufferHandle, &_aidl_return); \
+        status = videoDecoderController->decodeBuffer(nsPresentationTime, bufferHandle, &_aidl_return); \
         UT_LOG_INFO("Result decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
             nsPresentationTime, bufferHandle, \
             UT_Control_GetMapString(bool_mapTable, _aidl_return), \
@@ -302,13 +471,13 @@ sp<IAVBuffer> vts_avbuffer_getService()
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
-#define VIDEODECODER_DECODEBUFFER_FAILURE(videoDecoderHandle, nsPresentationTime, bufferHandle, exception) \
+#define VIDEODECODER_DECODEBUFFER_FAILURE(videoDecoderController, nsPresentationTime, bufferHandle, exception) \
     do { \
         ::android::binder::Status status; \
         bool _aidl_return; \
         UT_LOG_INFO("Calling decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[])", \
             nsPresentationTime, bufferHandle); \
-        status = videoDecoderHandle->decodeBuffer(nsPresentationTime, bufferHandle, &_aidl_return); \
+        status = videoDecoderController->decodeBuffer(nsPresentationTime, bufferHandle, &_aidl_return); \
         UT_LOG_INFO("Result decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
             nsPresentationTime, bufferHandle, \
             UT_Control_GetMapString(bool_mapTable, _aidl_return), \
@@ -364,7 +533,7 @@ public:
     }
 };
 
-class SinkTest()
+class SinkTest
 {
 public:
     SinkTest(IVideoSink::Id sinkId, sp<IVideoSink> sinkHandle,
@@ -374,10 +543,9 @@ public:
             IVideoDecoder::Id decoderId,
             sp<IVideoDecoderControllerListener> decoderControllerListener,
             sp<IVideoDecoderEventListener> decoderEventListener,
-            videodecoder::Capabilities* decoderCapabilities,
             sp<IAVBuffer> AVBufferManager,
             bool secure,
-            testConfiguration& config)
+            videoTestConfiguration_t& config)
     {
         mSinkId = sinkId;
         mSinkHandle = sinkHandle;
@@ -387,9 +555,8 @@ public:
         mDecoderId = decoderId;
         mDecoderControllerListener = decoderControllerListener;
         mDecoderEventListener = decoderEventListener;
-        mDecoderCapabilities = decoderCapabilities;
         mAVBufferManager = AVBufferManager;
-        msecure = secure;
+        mSecure = secure;
         mTestConfiguration = config;
     }
 
@@ -406,87 +573,69 @@ public:
         }
     }
 
-    bool getSinkMetrics(
-        sp<IVideoSink>& sinkHandle,
-        int32_t &metricUnderflow,
-        int32_t &sinkQueueDepth,
-        int32_t &framesReceived,
-        int32_t &framesPresented,
-        int32_t &framesDroppedLate,
-        int32_t &framesDroppedFRC,
-        int32_t &framesRepeatedFRC,
-        int32_t &framesRepeatedMissing)
+    bool getSinkMetrics(int32_t& sinkQueueDepth, int32_t &framesReceived, int32_t &framesDroppedLate, int32_t &framesDroppedFrc, int32_t &framesRepeatedFrc,
+                        int32_t& framesMissingFrame)
     {
-        optional<PropertyValue> propertyValue;
+        std::optional<com::rdk::hal::PropertyValue> propertyValue;
 
-        framesSink = sinkErrors = metricUnderflow = -1;
-        sinkQueueDepth = framesReceived = framesPresented = -1;
-        framesDroppedLate = framesDroppedFRC = -1;
-        framesRepeatedFRC = framesRepeatedMissing = -1;
+        sinkQueueDepth = framesReceived = framesDroppedLate = framesDroppedFrc = framesRepeatedFrc = framesMissingFrame = -1;
 
-        // METRIC_UNDERFLOWED
-        VIDEOSINK_GET_PROPERTY_SUCCESS(sinkHandle, property::METRIC_UNDERFLOWED, propertyValue);
-        if (!propertyValue.has_value())
+        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::SINK_QUEUE_DEPTH, propertyValue);
+         if (!propertyValue.has_value() || !propertyValue->value.has_value())
         {
             return false;
         }
-        metricUnderflow = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        // SINK_QUEUE_DEPTH
-        VIDEOSINK_GET_PROPERTY_SUCCESS(sinkHandle, property::SINK_QUEUE_DEPTH, propertyValue);
-        if (!propertyValue.has_value())
-        {
-            return false;
-        }
         sinkQueueDepth = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        // METRIC_FRAMES_RECEIVED
-        VIDEOSINK_GET_PROPERTY_SUCCESS(sinkHandle, property::METRIC_FRAMES_RECEIVED, propertyValue);
-        if (!propertyValue.has_value())
+        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_RECEIVED, propertyValue);
+         if (!propertyValue.has_value() || !propertyValue->value.has_value())
         {
             return false;
         }
+
         framesReceived = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        // METRIC_FRAMES_PRESENTED
-        VIDEOSINK_GET_PROPERTY_SUCCESS(sinkHandle, property::METRIC_FRAMES_PRESENTED, propertyValue);
-        if (!propertyValue.has_value())
+        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_DROPPED_LATE, propertyValue);
+         if (!propertyValue.has_value() || !propertyValue->value.has_value())
         {
             return false;
         }
-        framesPresented = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        // METRIC_FRAMES_DROPPED_LATE
-        VIDEOSINK_GET_PROPERTY_SUCCESS(sinkHandle, property::METRIC_FRAMES_DROPPED_LATE, propertyValue);
-        if (!propertyValue.has_value())
-        {
-            return false;
-        }
         framesDroppedLate = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        // METRIC_FRAMES_DROPPED_FRC
-        VIDEOSINK_GET_PROPERTY_SUCCESS(sinkHandle, property::METRIC_FRAMES_DROPPED_FRC, propertyValue);
-        if (!propertyValue.has_value())
-        {
-            return false;
-        }
-        framesDroppedFRC = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        // METRIC_FRAMES_REPEATED_FRC
-        VIDEOSINK_GET_PROPERTY_SUCCESS(sinkHandle, property::METRIC_FRAMES_REPEATED_FRC, propertyValue);
-        if (!propertyValue.has_value())
+        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_DROPPED_FRC, propertyValue);
+        if (!propertyValue.has_value() || !propertyValue->value.has_value())
         {
             return false;
         }
-        framesRepeatedFRC = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        // METRIC_FRAMES_REPEATED_MISSING_FRAME
-        VIDEOSINK_GET_PROPERTY_SUCCESS(sinkHandle, property::METRIC_FRAMES_REPEATED_MISSING_FRAME, propertyValue);
-        if (!propertyValue.has_value())
+        framesDroppedFrc = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
+
+        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_REPEATED_FRC, propertyValue);
+        if (!propertyValue.has_value() || !propertyValue->value.has_value())
         {
             return false;
         }
-        framesRepeatedMissing = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
+
+        framesRepeatedFrc = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
+
+        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_REPEATED_FRC, propertyValue);
+        if (!propertyValue.has_value() || !propertyValue->value.has_value())
+        {
+            return false;
+        }
+
+        framesRepeatedFrc = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
+
+        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME, propertyValue);
+        if (!propertyValue.has_value() || !propertyValue->value.has_value())
+        {
+            return false;
+        }
+
+        framesMissingFrame = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
         return true;
     }
@@ -508,7 +657,6 @@ private:
 
     void videoSinkNonTunnelMode()
     {
-        SinkState stateCheck;
         sp<IVideoSinkController> controller;
         sp<IAVBufferSpaceListener> bufferListener = new AVBufferSpaceListener();
 
@@ -523,6 +671,14 @@ private:
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(mAVBufferManager, mSecure, mDecoderId, mDecoderHandle, bufferListener, mVideoPool);
 
         std::vector<uint8_t> dummyFrame(mTestConfiguration.videoFrame.bufferSize, 0x80);
+        VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
+
+        // Start Sink
+        VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
+
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(mAVBufferManager, mSecure, mDecoderId, bufferListener, mVideoPool);
+
+        std::vector<uint8_t> dummyFrame(mTestConfiguration.frameMetadata.bufferSize, 0x80);
 
         /*Copy the dummy frame using mmap of avbuffer helper*/
         /*TODO Yet to implement the copying of the buffer*/
@@ -538,50 +694,47 @@ private:
                 int64_t bufferHandle;
                 AVBUFFER_ALLOC_SUCCESS(mAVBufferManager, mVideoPool, frame.size, bufferHandle);
 
-                // Frame Metadata (same as before)
                 FrameMetadata metadata;
                 metadata.parX = 1;
                 metadata.parY = 1;
                 metadata.sarX = 16;
                 metadata.sarY = 9;
-                metadata.codedWidth  = mTestConfiguration.videoFrame.width;
-                metadata.codedHeight = mTestConfiguration.videoFrame.height;
+                metadata.codedWidth  = mTestConfiguration.frameMetadata.width;
+                metadata.codedHeight = mTestConfiguration.frameMetadata.height;
                 metadata.activeX = 0;
                 metadata.activeY = 0;
-                metadata.activeWidth  = mTestConfiguration.videoFrame.width;
-                metadata.activeHeight = mTestConfiguration.videoFrame.height;
-                metadata.colorDepth   = mTestConfiguration.videoFrame.colorDepth;
-                metadata.pixelFormat  = static_cast<PixelFormat>(mTestConfiguration.videoFrame.pixelFormat);
+                metadata.activeWidth  = mTestConfiguration.frameMetadata.width;
+                metadata.activeHeight = mTestConfiguration.frameMetadata.height;
+                metadata.colorDepth   = mTestConfiguration.frameMetadata.colorDepth;
+                metadata.pixelFormat  = static_cast<PixelFormat>(mTestConfiguration.frameMetadata.pixelFormat);
                 metadata.dynamicRange = DynamicRange::SDR;
                 metadata.scanType     = ScanType::PROGRESSIVE_FRAME;
                 metadata.afd = 0;
                 metadata.frameRateNumerator = 24;
                 metadata.frameRateDenominator = 1;
-                metadata.endOfStream = (mTestConfiguration.eosPts != -1 && pts == mTestConfiguration.eosPts && repeat == repeatCount - 1);
-                metadata.discontinuity = (mTestConfiguration.signalDiscontinuityPts != -1 && pts == mTestConfiguration.signalDiscontinuityPts && repeat == 0);
+                metadata.endOfStream = (mTestConfiguration.eosPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.eosPts && repeat == repeatCount - 1);
+                metadata.discontinuity = (mTestConfiguration.signalDiscontinuityPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.signalDiscontinuityPts && repeat == 0);
                 metadata.lowLatency = false;
                 metadata.source = AVSource::HDMI_1;
                 metadata.sha1 = {0x12, 0x34, 0x56, static_cast<uint8_t>((pts + repeat) % 256)};
 
                 uint64_t presentedTime = 0;
                 VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, presentedTime, bufferHandle, metadata);
-                assert(presentedTime == pts);
 
-                // Flush/Discontinuity handling only on first repeat
                 if (repeat == 0)
                 {
-                    if (mTestConfiguration.flushPts != -1 && pts == mTestConfiguration.flushPts)
+                    if (mTestConfiguration.flushPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushPts)
                         VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
 
-                    if (mTestConfiguration.flushResetPts != -1 && pts == mTestConfiguration.flushResetPts)
+                    if (mTestConfiguration.flushResetPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushResetPts)
                     {
                         VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, true);
-                        VIDEOSINK_START_SUCCESS(mSinkHandle, controller, stateCheck);
+                        VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
                     }
 
                     if (frame.errorFrame)
                     {
-                        UT_LOG_WARN("Injected error frame at PTS: %ld", pts);
+                        UT_LOG_ERROR("Injected error frame at PTS: %ld", pts);
                     }
                 }
 
@@ -590,53 +743,46 @@ private:
             }
         }
 
-
         // Stop & Cleanup
-        VIDEOSINK_STOP_SUCCESS(mSinkHandle, controller, stateCheck);
-        assert(stateCheck == SinkState::READY);
+        VIDEOSINK_STOP_SUCCESS(mSinkHandle, controller, true);
 
-        mSinkHandle->close();
-        assert(VIDEOSINK_GET_STATE(mSinkHandle, stateCheck) == SinkState::CLOSED);
+        VIDEOSINK_CLOSE_SUCCESS(mSinkHandle, controller, true);
 
         AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, mVideoPool);
     }
 
+
     void videoSinkTunnelMode()
     {
-
-        SinkState stateCheck;
         sp<IVideoSinkController> controller;
         sp<IVideoDecoderController> videoDecoderController;
         sp<IAVBufferSpaceListener> bufferListener = new AVBufferSpaceListener();
 
         // Open Sink
-        VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, stateCheck);
-        assert(stateCheck == SinkState::READY);
+        VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
 
         // Start Sink
-        VIDEOSINK_START_SUCCESS(mSinkHandle, controller, stateCheck);
-        assert(stateCheck == SinkState::STARTED);
+        VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
 
-        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(mAVBufferManager, mSecure, mDecoderId, mDecoderHandle, bufferListener, mVideoPool);
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(mAVBufferManager, mSecure, mDecoderId, bufferListener, mVideoPool);
 
-        ifstream inputFile(mTestConfiguration.input, ios::binary);
+        std::ifstream inputFile(mTestConfiguration.input, std::ios::binary);
         if (!inputFile)
         {
             UT_LOG_ERROR("Failed to open file: %s", mTestConfiguration.input.c_str());
             return;
         }
 
-        /* Open the Decoder */
+        // Open Decoder
         VIDEODECODER_OPEN_SUCCESS(mDecoderHandle, mTestConfiguration.codec, mSecure, mDecoderControllerListener, videoDecoderController, true);
 
+        // Set OPERATIONAL_MODE to TUNNELLED
         PropertyValue propertyValue;
-
-        /* Set OPERATIONAL_MODE to TUNNELLED */
         propertyValue.value = PropertyValue::Value::make<PropertyValue::Value::Tag::intValue>(
-        static_cast<int32_t>(OperationalMode::TUNNELLED));
-        VIDEODECODER_SETPROPERTY_SUCCESS(videoDecoderController, Property::OPERATIONAL_MODE, propertyValue);
+            static_cast<int32_t>(OperationalMode::TUNNELLED));
+        VIDEODECODER_SETPROPERTY_SUCCESS(videoDecoderController, com::rdk::hal::videodecoder::Property::OPERATIONAL_MODE, propertyValue);
 
-        /* Start the decoder */
+        // Start Decoder
         VIDEODECODER_START_SUCCESS(mDecoderHandle, videoDecoderController, true);
 
         for (const auto& frame : mTestConfiguration.frames)
@@ -647,55 +793,41 @@ private:
 
             int64_t videoBufferHandle = -1;
 
-            // Allocate video buffer
             AVBUFFER_ALLOC_SUCCESS(mAVBufferManager, mVideoPool, frameSize, videoBufferHandle);
 
-            // For tunneled mode, no need to fill buffer explicitly (sink gets it through decodeBuffer)
+            //map the buffer
 
-            // Track the frame (for any post-checks like metrics comparison)
-            InputVideoFrame_t inputFrame;
-            inputFrame.pts = pts;
-            inputFrame.isErrorFrame = isErrorFrame;
-            inputFrame.sendTime = chrono::steady_clock::now();
+            // Handle control signals
+            if (mTestConfiguration.flushPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushPts)
             {
-                lock_guard<mutex> lock(mDecodeMutex);
-                mInputFrame.push_back(inputFrame);
+                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, mVideoSinkController, false);
             }
 
-            // Check control signals
-            if (mTestConfiguration.flushPts == pts)
+            if (mTestConfiguration.flushResetPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushResetPts)
             {
-                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, mVideoSinkController, false, true);
-            }
-
-            if (mTestConfiguration.flushResetPts == pts)
-            {
-                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, mVideoSinkController, true, true);
+                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, mVideoSinkController, true);
                 VIDEOSINK_START_SUCCESS(mSinkHandle, mVideoSinkController, true);
             }
 
-            if (mTestConfiguration.eosPts == pts)
+            if (mTestConfiguration.eosPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.eosPts)
             {
-                // After EOS, decoder should fail
-                VIDEODECODER_DECODEBUFFER_FAILURE(mVideoDecoderHandle, pts, videoBufferHandle, Status::EX_NONE);
+                // Send EOS (expect failure)
+                VIDEODECODER_DECODEBUFFER_FAILURE(videoDecoderController, pts, videoBufferHandle, Status::EX_NONE);
 
-                // Restart decoder after EOS
-                VIDEODECODER_STOP_SUCCESS(mVideoDecoderHandle, mVideoDecoderController, true);
-                VIDEODECODER_START_SUCCESS(mVideoDecoderHandle, mVideoDecoderController, true);
+                // Restart decoder
+                VIDEODECODER_STOP_SUCCESS(mDecoderHandle, videoDecoderController, true);
+                VIDEODECODER_START_SUCCESS(mDecoderHandle, videoDecoderController, true);
             }
             else
             {
-                // Decode buffer into the sink via decoder (Tunnel Mode)
-                VIDEODECODER_DECODEBUFFER_SUCCESS(mVideoDecoderHandle, pts, videoBufferHandle);
+                // Normal decode
+                VIDEODECODER_DECODEBUFFER_SUCCESS(videoDecoderController, pts, videoBufferHandle);
             }
 
-            this_thread::sleep_for(chrono::milliseconds(mTestConfiguration.decoderDelay));
-
-            // Free buffer
             AVBUFFER_FREE_SUCCESS(mAVBufferManager, videoBufferHandle);
         }
-
     }
+
 
 };
 
@@ -706,7 +838,7 @@ public:
 
     ~VTS_L3_VideoSink() override = default;
 
-    vector<tuple<IVideoSink::Id, sp<IVideoSink>, sp<VideoSinkControllerListener>, sp<VideoSinkEventListener>, videosink::Capabilities *>> mVideoSinkList;
+    vector<tuple<IVideoSink::Id, sp<IVideoSink>, sp<VideoSinkControllerListener>, sp<VideoSinkEventListener>>> mVideoSinkList;
     vector<tuple<IVideoDecoder::Id, sp<IVideoDecoder>, sp<IVideoDecoderControllerListener>, sp<IVideoDecoderEventListener>, videodecoder::Capabilities*>> mVideoDecoderList;
 
     sp<IAVBuffer> mAVBufferManager;
@@ -748,7 +880,6 @@ public:
         {
             sp<IVideoSink> videoSink;
 
-            videoSink::Capabilities *videoSinkCapabilities = new videoSink::Capabilities();
 
             sp<VideoSinkEventListener> videoSinkEventListener = new VideoSinkEventListener();
 
@@ -760,32 +891,35 @@ public:
             /* Register events */
             VIDEOSINK_REGISTER_EVENT_SUCCESS(videoSink, videoSinkEventListener);
 
-            /* Get Capabilities of Audio Decoder */
-            VIDEOSINK_GETCAPABILITIES(videoSink, videoSinkCapabilities);
-
-            mVideoSinkList.push_back({_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener, videoSinkCapabilities});
+            mVideoSinkList.push_back({_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener});
 
         }
     }
 
-    void runSequentialSink(testConfiguration_t& testConfig, bool secure, bool tunnel)
+    void runSequentialSink(videoTestConfiguration_t& testConfig, bool secure, bool tunnel)
     {
-
         for (size_t i = 0; i < mVideoSinkList.size(); ++i)
         {
-            auto& [_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener, videoSinkCapabilities] = mVideoSinkList[i];
+            auto& [_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener] = mVideoSinkList[i];
             auto& [_decoderId, decoderHandle, decoderControlListener, decoderEventListener, decoderCapabilities] = mVideoDecoderList[i];
 
             HeapMetrics beforeHeapMetrics, afterHeapMetrics;
 
-            //Skip if the plafrom doesn't support secure decode
+            // Skip if the platform doesn't support secure decode
             if (secure && !decoderCapabilities->supportsSecure)
             {
                 UT_LOG_INFO("Decoder [%d] doesn't support secure decoding", _decoderId);
                 continue;
             }
-            auto result = find(decoderCapabilities->supportedCodecs.begin(),decoderCapabilities->supportedCodecs.end(),testConfig.codec);
-            if(result == decoderCapabilities->supportedCodecs.end())
+
+            // Find if codec supported by this decoder
+            auto result = std::find_if(decoderCapabilities->supportedCodecs.begin(),
+                                    decoderCapabilities->supportedCodecs.end(),
+                                    [&](const com::rdk::hal::videodecoder::CodecCapabilities& cap) {
+                                        return cap.codec == testConfig.codec;
+                                    });
+
+            if (result == decoderCapabilities->supportedCodecs.end())
             {
                 UT_LOG_INFO("Decoder [%d] doesn't support Codec [%s]", _decoderId, videodecoder::toString(testConfig.codec).c_str());
                 continue;
@@ -794,11 +928,10 @@ public:
             AVBUFFER_GETMETRICS(mAVBufferManager, secure, beforeHeapMetrics);
 
             SinkTest sinkTest(_sinkId, videoSink,
-                  videoSinkControlListener, videoSinkEventListener,
-                  decoderHandle, _decoderId,
-                  decoderControlListener, decoderEventListener,
-                  decoderCapabilities,
-                  mAVBufferManager, secure, testConfig);
+                videoSinkControlListener, videoSinkEventListener,
+                decoderHandle, _decoderId,
+                decoderControlListener, decoderEventListener,
+                mAVBufferManager, secure, testConfig);
 
             sinkTest.run(tunnel);
 
@@ -807,61 +940,72 @@ public:
             UT_ASSERT_TRUE(beforeHeapMetrics.bytesUsed == afterHeapMetrics.bytesUsed);
             UT_ASSERT_TRUE(beforeHeapMetrics.bytesTotal == afterHeapMetrics.bytesTotal);
         }
-
     }
 
-    void runConcurrentSink(testConfiguration_t& testConfig, bool secure, bool tunnel)
-    {
-        vector<thread> threads;
-        HeapMetrics beforeHeapMetrics, afterHeapMetrics;
 
+    void runConcurrentSink(videoTestConfiguration_t& testConfig, bool secure, bool tunnel)
+    {
+        std::vector<std::thread> threads;
+        std::vector<SinkTest> sinkTests;  // Store SinkTest objects here
+
+        HeapMetrics beforeHeapMetrics, afterHeapMetrics;
         AVBUFFER_GETMETRICS(mAVBufferManager, secure, beforeHeapMetrics);
 
         for (size_t i = 0; i < mVideoSinkList.size(); ++i)
         {
-            auto& [_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener, videoSinkCapabilities] = mVideoSinkList[i];
+            auto& [_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener] = mVideoSinkList[i];
             auto& [_decoderId, decoderHandle, decoderControlListener, decoderEventListener, decoderCapabilities] = mVideoDecoderList[i];
 
-            //Skip if the plafrom doesn't support secure decode
+            // Skip if the platform doesn't support secure decode
             if (secure && !decoderCapabilities->supportsSecure)
             {
                 UT_LOG_INFO("Decoder [%d] doesn't support secure decoding", _decoderId);
                 continue;
             }
-            auto result = find(decoderCapabilities->supportedCodecs.begin(),decoderCapabilities->supportedCodecs.end(),testConfig.codec);
-            if(result == decoderCapabilities->supportedCodecs.end())
+
+            // Find if codec supported by this decoder
+            auto result = std::find_if(decoderCapabilities->supportedCodecs.begin(),
+                                    decoderCapabilities->supportedCodecs.end(),
+                                    [&](const com::rdk::hal::videodecoder::CodecCapabilities& cap) {
+                                        return cap.codec == testConfig.codec;
+                                    });
+
+            if (result == decoderCapabilities->supportedCodecs.end())
             {
                 UT_LOG_INFO("Decoder [%d] doesn't support Codec [%s]", _decoderId, videodecoder::toString(testConfig.codec).c_str());
                 continue;
             }
 
-            SinkTest sinkTest(_sinkId, videoSink,
-                            videoSinkControlListener, videoSinkEventListener,
-                            decoderHandle, _decoderId,
-                            decoderControlListener, decoderEventListener,
-                            decoderCapabilities,
-                            mAVBufferManager, secure, testConfig);
-
-            threads.emplace_back(&sinkTest::run, &sinkTest, tunnel);
+            // Construct SinkTest object and keep it alive
+            sinkTests.emplace_back(_sinkId, videoSink,
+                                videoSinkControlListener, videoSinkEventListener,
+                                decoderHandle, _decoderId,
+                                decoderControlListener, decoderEventListener,
+                                mAVBufferManager, secure, testConfig);
         }
+
+        // Launch threads after creating all SinkTest objects
+        for (auto& sinkTest : sinkTests)
+        {
+            threads.emplace_back(&SinkTest::run, &sinkTest, tunnel);
+        }
+
         for (auto& t : threads)
         {
             t.join();
         }
 
-        /* Get heap metrics */
         AVBUFFER_GETMETRICS(mAVBufferManager, secure, afterHeapMetrics);
 
-        /* check if the decoder freed all the buffer pools */
         UT_ASSERT_TRUE(beforeHeapMetrics.secure == afterHeapMetrics.secure);
         UT_ASSERT_TRUE(beforeHeapMetrics.bytesUsed == afterHeapMetrics.bytesUsed);
         UT_ASSERT_TRUE(beforeHeapMetrics.bytesTotal == afterHeapMetrics.bytesTotal);
-
     }
+
 
     void runSingleProcessTest(const char *testName, bool secureMode, bool isTunnel, bool concurrentMode)
     {
-        vector<testConfiguration_t> testConfiguration;
+        vector<videoTestConfiguration_t> testConfiguration;
 
         vts_videosink_parse_testconfig(gTestConfiguration, gModuleName, gTestGroup, testName, testConfiguration);
 
@@ -890,7 +1034,7 @@ public:
         }
         mVideoDecoderList.clear();
 
-        for (const auto& [_sinkId, sink, videoSinkControlListener, videoSinkEventListener, videoSinkCapabilities] : mVideoSinkList)
+        for (const auto& [_sinkId, sink, videoSinkControlListener, videoSinkEventListener] : mVideoSinkList)
         {
             /* Un-register the events */
             VIDEOSINK_UNREGISTER_EVENT_SUCCESS(sink, videoSinkEventListener);
@@ -919,7 +1063,8 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Video_FirstFrame_NonTunnel)
     const char *testName = "Render_Video_FirstFrame_NonTunnel";
     bool secureMode = false;
     bool isTunnel = false;
-    runSingleProcessTest(testName, secureMode, isTunnel);
+    bool isConcurrent = true;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
  /** @} */ // End of VIDEO_SINK_HALTEST L3 File
 /** @} */ // End of VIDEO_SINK_HALTEST

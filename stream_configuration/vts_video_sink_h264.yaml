@@ -1,0 +1,36 @@
+VideoStreams:
+  H264_0:
+    input: VideoStream_h264_0.es
+    codec: H264
+    width: 1280
+    height: 720
+    framerate: 25
+    num_of_frames: 8
+    frame_size:
+      - 12000
+      - 11800
+      - 11950
+      - 12100
+      - 12050
+      - 11900
+      - 11850
+      - 11920
+
+  H264_1:
+    input: VideoStream_h264_1.es
+    codec: H264
+    width: 1280
+    height: 720
+    framerate: 25
+    num_of_frames: 10
+    frame_size:
+      - 1000
+      - 1800
+      - 1950
+      - 1100
+      - 1050
+      - 1900
+      - 1850
+      - 1920
+      - 1700
+      - 1600
