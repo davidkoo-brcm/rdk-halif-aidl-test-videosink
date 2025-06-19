@@ -114,7 +114,6 @@ UT_status_t getVideoDecoderService() {
    return UT_STATUS_OK;
 }
 
->>>>>>> 030df10 (gh #25 develop L3 test cases)
 sp<IAVBuffer> vts_avbuffer_getService()
 {
     return
@@ -452,10 +451,7 @@ do { \
         } \
     } while (0)
 
-#define VIDEODECODER_DECODEBUFFER_SUCCESS(videoDecoderHandle, nsPresentationTime, bufferHandle) \
-=======
 #define VIDEODECODER_DECODEBUFFER_SUCCESS(videoDecoderController, nsPresentationTime, bufferHandle) \
->>>>>>> 030df10 (gh #25 develop L3 test cases)
     do { \
         ::android::binder::Status status; \
         bool _aidl_return; \
@@ -660,17 +656,6 @@ private:
         sp<IVideoSinkController> controller;
         sp<IAVBufferSpaceListener> bufferListener = new AVBufferSpaceListener();
 
-        // Open Sink
-        VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, stateCheck);
-        assert(stateCheck == SinkState::READY);
-
-        // Start Sink
-        VIDEOSINK_START_SUCCESS(mSinkHandle, controller, stateCheck);
-        assert(stateCheck == SinkState::STARTED);
-
-        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(mAVBufferManager, mSecure, mDecoderId, mDecoderHandle, bufferListener, mVideoPool);
-
-        std::vector<uint8_t> dummyFrame(mTestConfiguration.videoFrame.bufferSize, 0x80);
         VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
 
         // Start Sink
