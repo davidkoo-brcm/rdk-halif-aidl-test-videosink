@@ -44,11 +44,11 @@ The Video Sink `HAL` service provides the interfaces for the video frame queue a
 
 #### Video Decoder
 
-Decoded Video frames are supplied to the Video Sink during testing, which necessitates a pre-validated Video Decoder module. Therefore, the VideoDecoder must successfully pass VTS L1, L2, and L3 testing before being used in the Video Decoder tests
+Decoded Video frames are supplied to the Video Sink queue during non-tunneled mode testing, which necessitates a pre-validated Video Decoder module. Therefore, the VideoDecoder must successfully pass VTS L1, L2, and L3 testing before being used in the Video Sink tests
 
 #### AV Buffer
 
-Video frames are supplied to the Video Decoder during testing, which necessitates a pre-validated AVBuffer module. Therefore, the AVBuffer must successfully pass VTS L1, L2, and L3 testing before being used in the Video Decoder tests
+Av buffer provides frames buffers to the Video sink during non-tunneled testing, which necessitates a pre-validated AVBuffer module. Therefore, the AVBuffer must successfully pass VTS L1, L2, and L3 testing before being used in the Video Sink tests
 
 ### Feature List
 
@@ -58,14 +58,26 @@ VTS L3 validates all the Video Sink features in both sequential and concurrent m
 
 The Sequential Decoding test evaluates each video sink individually, one after another, to ensure functional correctness across all supported features. This approach helps isolate issues and verify that every sink instance performs as expected in a standalone environment.
 
+##### Non-Tunneled
+In non-tunnel mode Decoder should set Sink to nom-tunnel mode, Decoded video frames are passed to the linked video sink via AVbuffer for rendering.
 ```mermaid
 block-beta
     block:1
-        VideoStream("Video Stream") space AVBuffer("AVBuffer") space Decoder("Decoder_1") space Sink("Sink_1") space Output("Output")
+        VideoStream("Decoded Video Stream") space AVBuffer_1("AVBuffer") space Sink("Sink_1") space Output("Video Plane")
+        VideoStream --> AVBuffer_1
+        AVBuffer_1-->Sink
+        Sink --> Output
+    end
+```
+##### Tunneled
+In tunnel mode Decoder should set Sink to tunnel mode, Decoded video frames are passed directly to the linked video plane for rendering.
+```mermaid
+block-beta
+    block:1
+        VideoStream("Video Stream") space AVBuffer("AVBuffer") space Decoder("Decoder_1") space Output("Video Plane")
         VideoStream --> AVBuffer
         AVBuffer --> Decoder
-        Decoder --> Sink
-        Sink --> Output
+        Decoder --> Output
     end
 ```
 
@@ -73,50 +85,74 @@ block-beta
 
 The Concurrent Decoding test assesses the system's ability to handle multiple video sink operating simultaneously, each configured with different supported features. This test is designed to validate the robustness, resource management, and feature compatibility of the platform under concurrent load, and is applicable only if the platform supports multiple sink instances.
 
+##### Non-Tunneled
 ```mermaid
 block-beta
 columns 1
     block:1
-        VideoStream_1("Video Stream") space AVBuffer_1("AVBuffer") space Decoder_1("Decoder_1") space Sink_1("Sink_1") space Output_1("Output")
+        VideoStream_1("Decoded Video Stream") space AVBuffer_1("AVBuffer") space Sink_1("Sink_1") space Output_1("Video Plane")
         VideoStream_1 --> AVBuffer_1
-        AVBuffer_1 --> Decoder_1
-        Decoder_1 --> Sink_1
+        AVBuffer_1 --> Sink_1
         Sink_1 --> Output_1
     end
     space
     block:2
-        VideoStream_2("Video Stream") space AVBuffer_2("AVBuffer") space Decoder_2("Decoder_2") space Sink_2("Sink_2") space Output_2("Output")
+        VideoStream_2("Decoded Video Stream") space AVBuffer_2("AVBuffer") space Sink_2("Sink_2") space Output_2("Video Plane")
         VideoStream_2 --> AVBuffer_2
-        AVBuffer_2 --> Decoder_2
-        Decoder_2 --> Sink_2
+        AVBuffer_2 --> Sink_2
         Sink_2 --> Output_2
     end
     space
     block:N
-        VideoStream_N("Video Stream") space AVBuffer_N("AVBuffer") space Decoder_N("Decoder_N") space Sink_N("Sink_N") space Output_N("Output")
+        VideoStream_N("Decoded Video Stream") space AVBuffer_N("AVBuffer") space Sink_N("Sink_N") space Output_N("Video Plane")
+        VideoStream_N --> AVBuffer_N
+        AVBuffer_N --> Sink_N
+        Sink_N --> Output_N
+    end
+```
+##### Tunneled
+In tunnel mode Decoder should set Sink to tunnel mode, Decoded video frames are passed directly to the linked video plane for rendering.
+```mermaid
+block-beta
+columns 1
+    block:1
+        VideoStream_1("Video Stream") space AVBuffer_1("AVBuffer") space Decoder_1("Decoder_1") space Output_1("Video Plane")
+        VideoStream_1 --> AVBuffer_1
+        AVBuffer_1 --> Decoder_1
+        Decoder_1 --> Output_1
+    end
+    space
+    block:2
+        VideoStream_2("Video Stream") space AVBuffer_2("AVBuffer") space Decoder_2("Decoder_2") space Output_2("Video Plane")
+        VideoStream_2 --> AVBuffer_2
+        AVBuffer_2 --> Decoder_2
+        Decoder_2 --> Output_2
+    end
+    space
+    block:N
+        VideoStream_N("Video Stream") space AVBuffer_N("AVBuffer") space Decoder_N("Decoder_N") space Output_N("Video Plane")
         VideoStream_N --> AVBuffer_N
         AVBuffer_N --> Decoder_N
-        Decoder_N --> Sink_N
-        Sink_N --> Output_N
+        Decoder_N --> Output_N
     end
 ```
 The following table outlines the core features validated in the L3 test phase
 
 |#|Testing Feature|Description|
 |-|---------------|-----------|
-|1|Tunnel/Non-Tunnel|Executes the sink in tunnel mode. Based on stream format, the sink chooses between tunnel and non-tunnel operation. In tunnel mode, the test validates only metrics and metadata.|
-|2|Render First Frame|Test the sink's capability to send `onFirstFrameRendered` calback event with presentation time on First frame rendering.|
-|3|EOS|Test the sink's handling of an `eos` (end-of-stream) signal. sink should raise an event call back on recieving `eos` frame.|
+|1|Tunnel/Non-Tunnel|Executes the sink in tunnel mode. Based on video decoder configuration, the sink chooses between tunnel and non-tunnel operation. In tunnel mode, the test validates only metrics.|
+|2|Render First Frame|Test the sink's capability to send `onFirstFrameRendered` callback event with presentation time on First frame rendering.|
+|3|EOS|Test the sink's handling of an `eos` (end-of-stream) signal. sink should raise an event call back on receiving `eos` frame.|
 |4|Underflow|Test the sink's handling of video underflow. Sink should be able to raise event during video buffer underflow condition. |
-|5|Video Resume|Verfies Sink can resume video playback after an underflow occured in teh video buffer|
-|6|Flush without hold last frame|Test the sinks's flush functionality. The decoder sink discard any buffers already queued and resume normal playbak of subsequent frames whithoput displaying the last frame till new frame is received.|
-|7|Flush with hold last frame|Test the sink’s flush functionality combined with hold last frame. The sink should discard all queued buffers amd resume playback of subsequent frame by displaying the last frame till new frame is recieved|
+|5|Video Resume|Verifies Sink can resume video playback after an underflow occurred in the video buffer. Sink should be able to raise event `onVideoResumed` during video buffer underflow condition.|
+|6|Flush without hold last frame|Test the sinks's flush functionality. The sink discard any buffers already queued and resume normal playback of subsequent frames without displaying the last frame till new frame is received. Sink will raise an event `onFlushComplete`|
+|7|Flush with hold last frame|Test the sink’s flush functionality combined with hold last frame. The sink should discard all queued buffers amd resume playback of subsequent frame by displaying the last frame till new frame is received. Sink will raise an event `onFlushComplete`|
 |8|Discard Frame Till|Test the sink's ability to discard the incoming frames till the specified presentation time|
-|9|Queue Depth|This test verifed teh sink's queue depth by readign teh metric property|
-|10|Frames Dropped| This test verifes the metric data read form the sink's property to know how many framed are dorpped during playback|
-|11|Frames Dropped due to frame rate change| This test verifes the metric data read form the sink's property to know how many framed are dorpped becaus of frame rate change in stream during playback |
-|12|Frames Repeated due to frame rate change | This test verifes the metric data read form the sink's property to know how many framed are repeated during playback |
-|13|Multi Instance|If platform supports multiple sinks, test executes multiple sinkss simultaneously, validating outputs and their respective metrics.|
+|9|Queue Depth|This test verifies the sink's queue depth by reading the metric property|
+|10|Frames Dropped| This test verifies the metric data read form the sink's property to know how many framed are dropped during playback|
+|11|Frames Dropped due to frame rate change| This test verifies the metric data read form the sink's property to know how many framed are dropped becaus of frame rate change in stream during playback |
+|12|Frames Repeated due to frame rate change | This test verifies the metric data read form the sink's property to know how many framed are repeated during playback |
+|13|Multi Instance|If platform supports multiple sinks, test executes multiple sinks simultaneously, validating outputs and their respective metrics.|
 
 
 |#|Test|Tunnel|Render First Frame|EOS|Underflow|Video Resume|Flush|Flush+Hold Last Frame|Discard Frame Till|Queue Depth|Frames Dropped|Frames Dropped due to frame rate change|Frames Repeated due to frame rate change|Multi Instance|
