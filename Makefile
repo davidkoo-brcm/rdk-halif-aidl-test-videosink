@@ -26,7 +26,6 @@ TARGET_EXEC := vts-videosink
 
 ROOT_DIR := $(CURDIR)
 SRC_DIRS := $(ROOT_DIR)/src
-SRC_DIRS += $(ROOT_DIR)/src
 SRC_DIRS += $(ROOT_DIR)/test
 BIN_DIR := $(ROOT_DIR)/build/bin
 LIB_DIR := $(ROOT_DIR)/build/$(TARGET)/lib
@@ -48,7 +47,7 @@ XLDFLAGS += -laudiodecoderaidl -lavbufferaidl -lvideodecoderaidl -lvideosinkaidl
 # required for std::optional
 CXXFLAGS := -std=c++17
 
-UT_CORE_DIR := $(CURDIR)/ut/ut-core
+UT_CORE_DIR := $(CURDIR)/ut-core
 
 export BIN_DIR
 export LIB_DIR
