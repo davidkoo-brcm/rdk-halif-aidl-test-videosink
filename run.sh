@@ -60,19 +60,19 @@ else
     sleep 2
 fi
 
-# Check if either EmulateVideoSinkService or RDKVideoSinkService is running
-if check_process "EmulateVideoSinkService" || check_process "RDKVideoSinkAndPCService"; then
+# Check if either MockVideoSinkService or RDKVideoSinkService is running
+if check_process "MockVideoSinkService" || check_process "RDKVideoSinkAndPCService"; then
     echo "Video decoder service is already running"
-    if check_process "EmulateVideoSinkService"; then
-        VideoSinkService_pid=$(pgrep -f "EmulateVideoSinkService")
+    if check_process "MockVideoSinkService"; then
+        VideoSinkService_pid=$(pgrep -f "MockVideoSinkService")
     else
         VideoSinkService_pid=$(pgrep -f "RDKVideoSinkAndPCService")
     fi
 else
-    # Prompt user to start EmulateVideoSinkService
-    if prompt_yes_no "Do you want to start EmulateVideoSinkService?"; then
-        echo "Execute [EmulateVideoSinkService]"
-        ${RUN_DIR}/EmulateVideoSinkService &
+    # Prompt user to start MockVideoSinkService
+    if prompt_yes_no "Do you want to start MockVideoSinkService?"; then
+        echo "Execute [MockVideoSinkService]"
+        ${RUN_DIR}/MockVideoSinkService &
         VideoSinkService_pid=$!
         # Wait for service to be ready
         sleep 2

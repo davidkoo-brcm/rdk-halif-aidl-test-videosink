@@ -20,9 +20,12 @@
 
 # Define the directory where the repository will be cloned
 declare -r TOP=`dirname $(realpath $0)`
-declare -r UT_CORE_DIR="${TOP}/ut/ut-core"
+declare -r UT_CORE_DIR="${TOP}/ut-core"
 declare -r BUILD_DIR="${TOP}/build"
 declare -r BUILD_INSTALL_PREFIX=${BUILD_DIR}/usr
+declare -r MOCK_SERVICE_DIR="${TOP}/mockservice"
+declare -r AIDL_LIB_DIR=${TOP}/aidl_lib
+declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
 
 DEF_LINUX_BINDER="`realpath ${TOP}/../`/linux_binder_idl"
 # AIDL_BIN: path of aidl compiler
@@ -149,7 +152,7 @@ generate_videosink_hal()
 
 generate_avbufferhelper_skeleton()
 {
-    declare -r AVBUFFER_HELPER_DIR=${TOP}/vcomponent/avbufferhelper
+    declare -r AVBUFFER_HELPER_DIR=${MOCK_SERVICE_DIR}/avbufferhelper
 
     mkdir -p $AVBUFFER_HELPER_DIR/build
 
@@ -165,10 +168,18 @@ generate_avbufferhelper_skeleton()
     rm -rf $AVBUFFER_HELPER_DIR/build
 }
 
-build_vcomponent()
+build_aidl_libs()
+{
+    pushd ${AIDL_LIB_DIR}
+    make -j`nproc`
+    echo "AIDL Build completed successfully."
+    popd
+}
+
+build_mockservice()
 {
     make -j`nproc` \
-        -C ${TOP}/vcomponent
+        -C ${MOCK_SERVICE_DIR}
 }
 
 build_ut_core()
@@ -215,15 +226,66 @@ install_test()
     rm -rf ${INSTALL_PATH}/libavbufferhelper.so
 }
 
-generate_avbufferhelper_skeleton
+dist_clean_test()
+{
+    rm -rf $BUILD_DIR
+    rm -rf src/*.o
+    rm -rf ${MOCK_SERVICE_DIR}/src/*.o
+    rm -rf $RDK_HAL_DIR
+    rm -rf ${UT_CORE_DIR}
+}
 
-install_linux_binder
-generate_avbuffer_hal
-generate_audiodecoder_hal
-generate_videodecoder_hal
-generate_videosink_hal
-build_vcomponent
-build_ut_core
-# Building test module using ut-core framework
-make -j`nproc` -C ${TOP}
-install_test
+clean_test()
+{
+    rm -rf $BUILD_DIR
+    rm -rf src/*.o
+    rm -rf ${MOCK_SERVICE_DIR}/src/*.o
+}
+
+help()
+{
+    # Colors
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    RESET='\033[0m'
+
+    echo -e "${BOLD}${CYAN}Usage:${RESET}"
+
+    echo -e "${BOLD}╔════════════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${BOLD}* ${GREEN}$0 all${RESET}            ${YELLOW}- Builds the test${RESET}                        ${BOLD}*${RESET}"
+    echo -e "${BOLD}* ${GREEN}$0 clean${RESET}          ${YELLOW}- Cleans the build folder${RESET}                ${BOLD}*${RESET}"
+    echo -e "${BOLD}* ${GREEN}$0 dist_clean${RESET}     ${YELLOW}- Deletes all build and checkout folders${RESET} ${BOLD}*${RESET}"
+    echo -e "${BOLD}* ${GREEN}$0 help/-h/--help${RESET} ${YELLOW}- Prints this message${RESET}                    ${BOLD}*${RESET}"
+    echo -e "${BOLD}╚════════════════════════════════════════════════════════════════════╝${RESET}"
+}
+
+if [ "$1" == "clean" ]; then
+    clean_test
+elif [ "$1" == "dist_clean" ]; then
+    dist_clean_test
+elif [[ "$1" == "help" || "$1" == "--help" || "$1" == "-h" ]]; then
+    help
+elif [ "$1" == "all" ]; then
+    install_linux_binder
+    generate_avbuffer_hal
+    generate_audiodecoder_hal
+    generate_videodecoder_hal
+    generate_videosink_hal
+    generate_avbufferhelper_skeleton
+    build_aidl_libs
+    build_mockservice
+    build_ut_core
+    # Building test module using ut-core framework
+    make -j`nproc` -C ${TOP}
+    install_test
+else
+    # Colors
+    RED='\033[0;31m'
+    BOLD='\033[1m'
+    RESET='\033[0m'
+    echo -e "${BOLD}${RED}Invalid Arguments${RESET}"
+    help
+fi
