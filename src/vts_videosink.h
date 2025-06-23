@@ -684,61 +684,58 @@ struct DecodedVideoFrame
 class VideoSinkControllerListener : public BnVideoSinkControllerListener
 {
     public:
-
         VideoSinkControllerListener() = default;
         virtual ~VideoSinkControllerListener() = default;
 
-        Status onFirstFrameRendered(int64_t nsPresentationTime) override
+        android::binder::Status onFirstFrameRendered(int64_t nsPresentationTime) override
         {
-                {
-                    std::lock_guard<std::mutex> lock(mMutex);
-                    if (!mFirstFrameRendered) {
-                        mFirstPTS = nsPresentationTime;
-                        mFirstFrameRendered = true;
-                    }
+            {
+                std::lock_guard<std::mutex> lock(mMutex);
+                if (!mFirstFrameRendered) {
+                    mFirstPTS = nsPresentationTime;
+                    mFirstFrameRendered = true;
                 }
-                mCV.notify_all();
-                return ::android::binder::Status::ok();
+            }
+            mCV.notify_all();
+            return android::binder::Status::ok();
         }
-        // Other callbacks remain unchanged...
 
-        // Wait for the first frame rendered event to happen with timeout
-        bool waitForFirstFrame(std::chrono::milliseconds timeout)
+        // Reset first-frame rendered flag and PTS for reuse
+        void resetFirstFrameRendered()
         {
-            std::unique_lock<std::mutex> lock(mMutex);
-            return mCV.wait_for(lock, timeout, [this]() { return mFirstFrameRendered; });
+            std::lock_guard<std::mutex> lock(mMutex);
+            mFirstFrameRendered = false;
+            mFirstPTS = -1;
         }
 
-        // Get the first frame PTS safely
-        int64_t getFirstPTS() const
+        // Check if first frame has been rendered
+        bool hasFirstFrameRendered()
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            return mFirstFrameRendered;
+        }
+
+        // Get the PTS of the first rendered frame
+        int64_t getFirstFrameRenderedPTS()
         {
             std::lock_guard<std::mutex> lock(mMutex);
             return mFirstPTS;
         }
 
-        Status onEndOfStream(int64_t nsPresentationTime) override {
-            return ::android::binder::Status::ok();
-        }
-        Status onVideoUnderflow() override {
-            return ::android::binder::Status::ok();
-        }
-        Status onVideoResumed() override {
-            return ::android::binder::Status::ok();
-        }
-        Status onFlushComplete() override {
-            return ::android::binder::Status::ok();
-        }
-        Status onStateChanged(State oldState, State newState) override {
-            return ::android::binder::Status::ok();
-        }
+        // Other callbacks remain unchanged, just return ok
+        android::binder::Status onEndOfStream(int64_t /*nsPresentationTime*/) override { return android::binder::Status::ok(); }
+        android::binder::Status onVideoUnderflow() override { return android::binder::Status::ok(); }
+        android::binder::Status onVideoResumed() override { return android::binder::Status::ok(); }
+        android::binder::Status onFlushComplete() override { return android::binder::Status::ok(); }
+        android::binder::Status onStateChanged(State /*oldState*/, State /*newState*/) override { return android::binder::Status::ok(); }
 
-private:
-    mutable std::mutex mMutex;
-    std::condition_variable mCV;
-    bool mFirstFrameRendered = false;
-    int64_t mFirstPTS = -1;
-
+    private:
+        mutable std::mutex mMutex;
+        std::condition_variable mCV;
+        bool mFirstFrameRendered = false;
+        int64_t mFirstPTS = -1;
 };
+
 
 class VideoSinkEventListener : public BnVideoSinkEventListener
 {

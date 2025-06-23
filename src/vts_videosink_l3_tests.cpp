@@ -559,78 +559,82 @@ public:
 
     void run ( bool isTunnel )
     {
-        if(isTunnel)
+        UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+        if(!isTunnel)
         {
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             videoSinkNonTunnelMode();
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
         }
         else
         {
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             videoSinkTunnelMode();
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
         }
+         UT_LOG_INFO("SKY_TRACE %d",__LINE__);
     }
 
     bool getSinkMetrics(int32_t& sinkQueueDepth, int32_t &framesReceived, int32_t &framesDroppedLate, int32_t &framesDroppedFrc, int32_t &framesRepeatedFrc,
                         int32_t& framesMissingFrame)
     {
         std::optional<com::rdk::hal::PropertyValue> propertyValue;
+        ::android::binder::Status status;
 
         sinkQueueDepth = framesReceived = framesDroppedLate = framesDroppedFrc = framesRepeatedFrc = framesMissingFrame = -1;
 
-        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::SINK_QUEUE_DEPTH, propertyValue);
-         if (!propertyValue.has_value() || !propertyValue->value.has_value())
+        // SINK_QUEUE_DEPTH
+        status = mSinkHandle->getProperty(videosink::Property::SINK_QUEUE_DEPTH, &propertyValue);
+        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
+            !propertyValue.has_value() || !propertyValue->value.has_value())
         {
             return false;
         }
-
         sinkQueueDepth = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_RECEIVED, propertyValue);
-         if (!propertyValue.has_value() || !propertyValue->value.has_value())
+        // METRIC_FRAMES_RECEIVED
+        status = mSinkHandle->getProperty(videosink::Property::METRIC_FRAMES_RECEIVED, &propertyValue);
+        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
+            !propertyValue.has_value() || !propertyValue->value.has_value())
         {
             return false;
         }
-
         framesReceived = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_DROPPED_LATE, propertyValue);
-         if (!propertyValue.has_value() || !propertyValue->value.has_value())
+        // METRIC_FRAMES_DROPPED_LATE
+        status = mSinkHandle->getProperty(videosink::Property::METRIC_FRAMES_DROPPED_LATE, &propertyValue);
+        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
+            !propertyValue.has_value() || !propertyValue->value.has_value())
         {
             return false;
         }
-
         framesDroppedLate = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-
-        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_DROPPED_FRC, propertyValue);
-        if (!propertyValue.has_value() || !propertyValue->value.has_value())
+        // METRIC_FRAMES_DROPPED_FRC
+        status = mSinkHandle->getProperty(videosink::Property::METRIC_FRAMES_DROPPED_FRC, &propertyValue);
+        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
+            !propertyValue.has_value() || !propertyValue->value.has_value())
         {
             return false;
         }
-
         framesDroppedFrc = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_REPEATED_FRC, propertyValue);
-        if (!propertyValue.has_value() || !propertyValue->value.has_value())
+        // METRIC_FRAMES_REPEATED_FRC
+        status = mSinkHandle->getProperty(videosink::Property::METRIC_FRAMES_REPEATED_FRC, &propertyValue);
+        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
+            !propertyValue.has_value() || !propertyValue->value.has_value())
         {
             return false;
         }
-
         framesRepeatedFrc = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_REPEATED_FRC, propertyValue);
-        if (!propertyValue.has_value() || !propertyValue->value.has_value())
+        // METRIC_FRAMES_REPEATED_MISSING_FRAME
+        status = mSinkHandle->getProperty(videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME, &propertyValue);
+        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
+            !propertyValue.has_value() || !propertyValue->value.has_value())
         {
             return false;
         }
-
-        framesRepeatedFrc = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
-
-        VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME, propertyValue);
-        if (!propertyValue.has_value() || !propertyValue->value.has_value())
-        {
-            return false;
-        }
-
         framesMissingFrame = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
         return true;
@@ -656,19 +660,21 @@ private:
         sp<IVideoSinkController> controller;
         sp<IAVBufferSpaceListener> bufferListener = new AVBufferSpaceListener();
 
-        VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
+        mVideoSinkControlListener->resetFirstFrameRendered();
+        UT_LOG_INFO("Reset first-frame rendered state");
 
-        // Start Sink
+        VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
+        UT_LOG_INFO("Sink opened and started");
 
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(mAVBufferManager, mSecure, mDecoderId, bufferListener, mVideoPool);
+        UT_LOG_INFO("Buffer pool created");
 
         std::vector<uint8_t> dummyFrame(mTestConfiguration.frameMetadata.bufferSize, 0x80);
-
-        /*Copy the dummy frame using mmap of avbuffer helper*/
-        /*TODO Yet to implement the copying of the buffer*/
-
         int32_t repeatCount = mTestConfiguration.repeatPerFrame > 0 ? mTestConfiguration.repeatPerFrame : 1;
+
+        bool firstFrameQueued = false;
+        int64_t expectedFirstPts = -1;
 
         for (const auto& frame : mTestConfiguration.frames)
         {
@@ -678,63 +684,96 @@ private:
 
                 int64_t bufferHandle;
                 AVBUFFER_ALLOC_SUCCESS(mAVBufferManager, mVideoPool, frame.size, bufferHandle);
+                UT_LOG_INFO("Allocated buffer handle %ld for PTS %ld", bufferHandle, pts);
 
-                FrameMetadata metadata;
-                metadata.parX = 1;
-                metadata.parY = 1;
-                metadata.sarX = 16;
-                metadata.sarY = 9;
-                metadata.codedWidth  = mTestConfiguration.frameMetadata.width;
+                FrameMetadata metadata = {};
+                metadata.codedWidth = mTestConfiguration.frameMetadata.width;
                 metadata.codedHeight = mTestConfiguration.frameMetadata.height;
-                metadata.activeX = 0;
-                metadata.activeY = 0;
-                metadata.activeWidth  = mTestConfiguration.frameMetadata.width;
+                metadata.activeWidth = mTestConfiguration.frameMetadata.width;
                 metadata.activeHeight = mTestConfiguration.frameMetadata.height;
-                metadata.colorDepth   = mTestConfiguration.frameMetadata.colorDepth;
-                metadata.pixelFormat  = static_cast<PixelFormat>(mTestConfiguration.frameMetadata.pixelFormat);
-                metadata.dynamicRange = DynamicRange::SDR;
-                metadata.scanType     = ScanType::PROGRESSIVE_FRAME;
-                metadata.afd = 0;
+                metadata.pixelFormat = static_cast<PixelFormat>(mTestConfiguration.frameMetadata.pixelFormat);
+                metadata.colorDepth = mTestConfiguration.frameMetadata.colorDepth;
                 metadata.frameRateNumerator = 24;
                 metadata.frameRateDenominator = 1;
-                metadata.endOfStream = (mTestConfiguration.eosPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.eosPts && repeat == repeatCount - 1);
-                metadata.discontinuity = (mTestConfiguration.signalDiscontinuityPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.signalDiscontinuityPts && repeat == 0);
-                metadata.lowLatency = false;
+                metadata.endOfStream = (mTestConfiguration.eosPts != static_cast<uint64_t>(-1) &&
+                                        pts == mTestConfiguration.eosPts && repeat == repeatCount - 1);
+                metadata.discontinuity = (mTestConfiguration.signalDiscontinuityPts != static_cast<uint64_t>(-1) &&
+                                        pts == mTestConfiguration.signalDiscontinuityPts && repeat == 0);
+                metadata.scanType = ScanType::PROGRESSIVE_FRAME;
+                metadata.dynamicRange = DynamicRange::SDR;
                 metadata.source = AVSource::HDMI_1;
                 metadata.sha1 = {0x12, 0x34, 0x56, static_cast<uint8_t>((pts + repeat) % 256)};
 
-                uint64_t presentedTime = 0;
-                VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, presentedTime, bufferHandle, metadata);
+                UT_LOG_INFO("Queueing frame: PTS=%ld, Handle=%ld, EOS=%d, Discontinuity=%d",
+                            pts, bufferHandle, metadata.endOfStream, metadata.discontinuity);
+
+                VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, pts, bufferHandle, metadata);
+                UT_LOG_INFO("Queued video frame for PTS %ld", pts);
+
+                if (!firstFrameQueued) {
+                    expectedFirstPts = pts;
+                    firstFrameQueued = true;
+                    UT_LOG_INFO("Marked expected first PTS as %ld", expectedFirstPts);
+                }
 
                 if (repeat == 0)
                 {
-                    if (mTestConfiguration.flushPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushPts)
+                    if (mTestConfiguration.flushPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushPts) {
+                        UT_LOG_INFO("Flushing video sink at PTS %ld", pts);
                         VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
+                    }
 
-                    if (mTestConfiguration.flushResetPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushResetPts)
-                    {
+                    if (mTestConfiguration.flushResetPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushResetPts) {
+                        UT_LOG_INFO("Flush+Reset video sink at PTS %ld", pts);
                         VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, true);
                         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
                     }
 
                     if (frame.errorFrame)
-                    {
                         UT_LOG_ERROR("Injected error frame at PTS: %ld", pts);
-                    }
                 }
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(30));
                 AVBUFFER_FREE_SUCCESS(mAVBufferManager, bufferHandle);
+                UT_LOG_INFO("Freed buffer handle %ld", bufferHandle);
             }
         }
 
-        // Stop & Cleanup
+        // Wait and check for onFirstFrameRendered
+        const int maxWaitMs = 5000;
+        const int pollIntervalMs = 50;
+        int waitedMs = 0;
+        int64_t renderedPts = -1;
+
+        UT_LOG_INFO("Waiting for onFirstFrameRendered... (expecting PTS: %ld)", expectedFirstPts);
+
+        while (waitedMs < maxWaitMs)
+        {
+            if (mVideoSinkControlListener->hasFirstFrameRendered()) {
+                renderedPts = mVideoSinkControlListener->getFirstFrameRenderedPTS();
+                UT_LOG_INFO("Detected first frame rendered at PTS %ld", renderedPts);
+                break;
+            }
+
+            UT_LOG_INFO("Waited %d ms... still no first frame rendered", waitedMs);
+            std::this_thread::sleep_for(std::chrono::milliseconds(pollIntervalMs));
+            waitedMs += pollIntervalMs;
+        }
+
+        if (renderedPts == expectedFirstPts) {
+            UT_LOG_INFO("First frame rendered as expected at PTS: %ld", renderedPts);
+        } else if (renderedPts != -1) {
+            UT_LOG_ERROR("First frame rendered at unexpected PTS: %ld (expected: %ld)", renderedPts, expectedFirstPts);
+        } else {
+            UT_LOG_ERROR("First frame was never rendered within timeout.");
+        }
+
         VIDEOSINK_STOP_SUCCESS(mSinkHandle, controller, true);
-
         VIDEOSINK_CLOSE_SUCCESS(mSinkHandle, controller, true);
-
         AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, mVideoPool);
+        UT_LOG_INFO("Video sink test cleanup completed");
     }
+
 
 
     void videoSinkTunnelMode()
@@ -837,34 +876,44 @@ public:
         gTestConfiguration = vts_kvp_create_instance(VTS_TEST_CONFIG_PATH);
 
         /*Get the Video Sink IDs*/
+        UT_LOG_INFO("SKY_TRACE %d",__LINE__);
         VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
+        UT_LOG_INFO("SKY_TRACE %d",__LINE__);
 
-        /*Get the Video Decoder IDs*/
-        VIDEODECODER_MANAGER_GETVIDEODECODERIDS(videoDecoderIds);
-
-        android::ProcessState::self()->startThreadPool();
-
-        for (const auto& _videoDecoderId : videoDecoderIds)
+        if(getVideoDecoderService() != UT_STATUS_OK)
         {
-            sp<IVideoDecoder> videoDecoder;
+            UT_LOG_ERROR("getVideoDecoderService failed %d",__LINE__);
+        }
+        else
+        {
+            /*Get the Video Decoder IDs*/
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+            VIDEODECODER_MANAGER_GETVIDEODECODERIDS(videoDecoderIds);
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
 
-            videodecoder::Capabilities* videoDecoderCapabilities = new videodecoder::Capabilities();
+            android::ProcessState::self()->startThreadPool();
 
-            sp<IVideoDecoderEventListener> videoDecoderEventListener = new VideoDecoderEventListener();
+            for (const auto& _videoDecoderId : videoDecoderIds)
+            {
+                sp<IVideoDecoder> videoDecoder;
 
-            sp<IVideoDecoderControllerListener> videoDecoderControlListener = new VideoDecoderControllerListener();
+                videodecoder::Capabilities* videoDecoderCapabilities = new videodecoder::Capabilities();
 
-            VIDEODECODER_MANAGER_GETVIDEODECODER(_videoDecoderId, videoDecoder);
-            VIDEODECODER_REGISTER_EVENT_SUCCESS(videoDecoder, videoDecoderEventListener);
-            VIDEODECODER_GETCAPABILITIES(videoDecoder, videoDecoderCapabilities);
+                sp<IVideoDecoderEventListener> videoDecoderEventListener = new VideoDecoderEventListener();
 
-            mVideoDecoderList.push_back({_videoDecoderId, videoDecoder, videoDecoderControlListener, videoDecoderEventListener, videoDecoderCapabilities});
+                sp<IVideoDecoderControllerListener> videoDecoderControlListener = new VideoDecoderControllerListener();
+
+                VIDEODECODER_MANAGER_GETVIDEODECODER(_videoDecoderId, videoDecoder);
+                VIDEODECODER_REGISTER_EVENT_SUCCESS(videoDecoder, videoDecoderEventListener);
+                VIDEODECODER_GETCAPABILITIES(videoDecoder, videoDecoderCapabilities);
+
+                mVideoDecoderList.push_back({_videoDecoderId, videoDecoder, videoDecoderControlListener, videoDecoderEventListener, videoDecoderCapabilities});
+            }
         }
 
         for(const auto& _sinkId: sinkIds)
         {
             sp<IVideoSink> videoSink;
-
 
             sp<VideoSinkEventListener> videoSinkEventListener = new VideoSinkEventListener();
 
@@ -890,6 +939,7 @@ public:
 
             HeapMetrics beforeHeapMetrics, afterHeapMetrics;
 
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             // Skip if the platform doesn't support secure decode
             if (secure && !decoderCapabilities->supportsSecure)
             {
@@ -897,30 +947,19 @@ public:
                 continue;
             }
 
-            // Find if codec supported by this decoder
-            auto result = std::find_if(decoderCapabilities->supportedCodecs.begin(),
-                                    decoderCapabilities->supportedCodecs.end(),
-                                    [&](const com::rdk::hal::videodecoder::CodecCapabilities& cap) {
-                                        return cap.codec == testConfig.codec;
-                                    });
-
-            if (result == decoderCapabilities->supportedCodecs.end())
-            {
-                UT_LOG_INFO("Decoder [%d] doesn't support Codec [%s]", _decoderId, videodecoder::toString(testConfig.codec).c_str());
-                continue;
-            }
-
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             AVBUFFER_GETMETRICS(mAVBufferManager, secure, beforeHeapMetrics);
-
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             SinkTest sinkTest(_sinkId, videoSink,
                 videoSinkControlListener, videoSinkEventListener,
                 decoderHandle, _decoderId,
                 decoderControlListener, decoderEventListener,
                 mAVBufferManager, secure, testConfig);
-
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             sinkTest.run(tunnel);
-
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             AVBUFFER_GETMETRICS(mAVBufferManager, secure, afterHeapMetrics);
+            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             UT_ASSERT_TRUE(beforeHeapMetrics.secure == afterHeapMetrics.secure);
             UT_ASSERT_TRUE(beforeHeapMetrics.bytesUsed == afterHeapMetrics.bytesUsed);
             UT_ASSERT_TRUE(beforeHeapMetrics.bytesTotal == afterHeapMetrics.bytesTotal);
@@ -992,7 +1031,11 @@ public:
     {
         vector<videoTestConfiguration_t> testConfiguration;
 
+        UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
         vts_videosink_parse_testconfig(gTestConfiguration, gModuleName, gTestGroup, testName, testConfiguration);
+
+        UT_LOG_INFO("SKY_TRACE %d concurrentMode[%d]",__LINE__,concurrentMode);
 
         if(concurrentMode)
         {
@@ -1005,7 +1048,9 @@ public:
         {
             for(auto& test: testConfiguration)
             {
+                UT_LOG_INFO("SKY_TRACE %d",__LINE__);
                 runSequentialSink(test, secureMode, isTunnel);
+                UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             }
         }
     }
@@ -1048,7 +1093,8 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Video_FirstFrame_NonTunnel)
     const char *testName = "Render_Video_FirstFrame_NonTunnel";
     bool secureMode = false;
     bool isTunnel = false;
-    bool isConcurrent = true;
+    bool isConcurrent = false;
+    UT_LOG_INFO("SKY_TRACE %d",__LINE__);
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
  /** @} */ // End of VIDEO_SINK_HALTEST L3 File

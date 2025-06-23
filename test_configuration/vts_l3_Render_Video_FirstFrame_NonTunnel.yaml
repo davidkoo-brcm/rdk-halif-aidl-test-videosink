@@ -5,12 +5,11 @@ IVideoSinkManager:
         repeatPerFrame: 3
         flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
         flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
-        eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
+        eos_pts: 191999997 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
       Inputs:
         Streams:
           - Name: YCBCR422_0 #Stream name
             PTS: #List of Presentation Time Stamps (per frame) in nanoseconds
-              - 0
               - 21333333
               - 42666666
               - 63999999
