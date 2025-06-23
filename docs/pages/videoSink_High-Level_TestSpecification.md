@@ -27,7 +27,7 @@ This document provides an overview of the testing requirements for the Video Sin
 
 - Video Sink Interface Definitions - [Video Sink HAL](https://github.com/rdkcentral/rdk-halif-aidl/tree/v0.6/videosink/current/com/rdk/hal/videosink)
 
-- Video Sink Overview - [Video Decoder Overview](https://wiki.rdkcentral.com/display/RDKHAL/Video+Sink)
+- Video Sink Overview - [Video Sink Overview](https://wiki.rdkcentral.com/display/RDKHAL/Video+Sink)
 
 ## Module Description
 The Video Sink `HAL` service provides the interfaces for the video frame queue and deliver video frames to a video plane under the timing of the vendor AV sync.
@@ -54,9 +54,9 @@ Av buffer provides frames buffers to the Video sink during non-tunneled testing,
 
 VTS L3 validates all the Video Sink features in both sequential and concurrent modes (if the platform supports multiple sinks) as represented below.
 
-#### Sequential Decoding
+#### Sequential Sink Playback
 
-The Sequential Decoding test evaluates each video sink individually, one after another, to ensure functional correctness across all supported features. This approach helps isolate issues and verify that every sink instance performs as expected in a standalone environment.
+The Sequential Sink Playback test evaluates each video sink individually, one after another, to ensure functional correctness across all supported features. This approach helps isolate issues and verify that every sink instance performs as expected in a standalone environment.
 
 ##### Non-Tunneled
 In non-tunnel mode Decoder should set Sink to nom-tunnel mode, Decoded video frames are passed to the linked video sink via AVbuffer for rendering.
@@ -81,9 +81,9 @@ block-beta
     end
 ```
 
-#### Concurrent Decoding
+#### Concurrent Sink Playback
 
-The Concurrent Decoding test assesses the system's ability to handle multiple video sink operating simultaneously, each configured with different supported features. This test is designed to validate the robustness, resource management, and feature compatibility of the platform under concurrent load, and is applicable only if the platform supports multiple sink instances.
+The Concurrent Sink Playback test assesses the system's ability to handle multiple video sink operating simultaneously, each configured with different supported features. This test is designed to validate the robustness, resource management, and feature compatibility of the platform under concurrent load, and is applicable only if the platform supports multiple sink instances.
 
 ##### Non-Tunneled
 ```mermaid
