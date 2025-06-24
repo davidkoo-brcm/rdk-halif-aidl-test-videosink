@@ -25,7 +25,7 @@
 
 This document provides an overview of the testing requirements for the Video Sink module. It outlines the scope of testing, objectives, testing levels and approaches, specific test requirements.
 
-- Video Sink Interface Definitions - [Video Sink HAL](https://github.com/rdkcentral/rdk-halif-aidl/tree/v0.6/videosink/current/com/rdk/hal/videosink)
+- Video Sink Interface Definitions - [Video Sink HAL](https://github.com/rdkcentral/rdk-halif-aidl/tree/0.7.1/videosink/current/com/rdk/hal/videosink)
 
 - Video Sink Overview - [Video Sink Overview](https://wiki.rdkcentral.com/display/RDKHAL/Video+Sink)
 
@@ -44,11 +44,11 @@ The Video Sink `HAL` service provides the interfaces for the video frame queue a
 
 #### Video Decoder
 
-Decoded Video frames are supplied to the Video Sink queue during non-tunneled mode testing, which necessitates a pre-validated Video Decoder module. Therefore, the VideoDecoder must successfully pass VTS L1, L2, and L3 testing before being used in the Video Sink tests
+Decoded Video frames are supplied to the Video Sink queue during non-tunnel mode testing, which necessitates a pre-validated Video Decoder module. Therefore, the VideoDecoder must successfully pass VTS L1, L2, and L3 testing before being used in the Video Sink tests
 
 #### AV Buffer
 
-Av buffer provides frames buffers to the Video sink during non-tunneled testing, which necessitates a pre-validated AVBuffer module. Therefore, the AVBuffer must successfully pass VTS L1, L2, and L3 testing before being used in the Video Sink tests
+Av buffer provides frames buffers to the Video sink during non-tunnel testing, which necessitates a pre-validated AVBuffer module. Therefore, the AVBuffer must successfully pass VTS L1, L2, and L3 testing before being used in the Video Sink tests
 
 ### Feature List
 
@@ -58,7 +58,7 @@ VTS L3 validates all the Video Sink features in both sequential and concurrent m
 
 The Sequential Sink Playback test evaluates each video sink individually, one after another, to ensure functional correctness across all supported features. This approach helps isolate issues and verify that every sink instance performs as expected in a standalone environment.
 
-##### Non-Tunneled
+##### Non-Tunnel
 In non-tunnel mode Decoder should set Sink to nom-tunnel mode, Decoded video frames are passed to the linked video sink via AVbuffer for rendering.
 ```mermaid
 block-beta
@@ -69,7 +69,7 @@ block-beta
         Sink --> Output
     end
 ```
-##### Tunneled
+##### Tunnel
 In tunnel mode Decoder should set Sink to tunnel mode, Decoded video frames are passed directly to the linked video plane for rendering.
 ```mermaid
 block-beta
@@ -85,7 +85,7 @@ block-beta
 
 The Concurrent Sink Playback test assesses the system's ability to handle multiple video sink operating simultaneously, each configured with different supported features. This test is designed to validate the robustness, resource management, and feature compatibility of the platform under concurrent load, and is applicable only if the platform supports multiple sink instances.
 
-##### Non-Tunneled
+##### Non-Tunnel
 ```mermaid
 block-beta
 columns 1
@@ -110,7 +110,7 @@ columns 1
         Sink_N --> Output_N
     end
 ```
-##### Tunneled
+##### Tunnel
 In tunnel mode Decoder should set Sink to tunnel mode, Decoded video frames are passed directly to the linked video plane for rendering.
 ```mermaid
 block-beta
@@ -140,18 +140,18 @@ The following table outlines the core features validated in the L3 test phase
 
 |#|Testing Feature|Description|
 |-|---------------|-----------|
-|1|Tunnel/Non-Tunnel|Executes the sink in tunnel mode. Based on video decoder configuration, the sink chooses between tunnel and non-tunnel operation. In tunnel mode, the test validates only metrics.|
+|1|Tunnel/Non-Tunnel|Executes the sink in tunnel mode. Based on video decoder configuration, the sink chooses between tunnel and non-tunnel operation. In tunnel mode, the test validates by reading the metrics data like (METRIC_FRAMES_RECEIVED, METRIC_FRAMES_PRESENTED, METRIC_FRAMES_DROPPED_FRC etc).|
 |2|Render First Frame|Test the sink's capability to send `onFirstFrameRendered` callback event with presentation time on First frame rendering.|
 |3|EOS|Test the sink's handling of an `eos` (end-of-stream) signal. sink should raise an event call back on receiving `eos` frame.|
 |4|Underflow|Test the sink's handling of video underflow. Sink should be able to raise event during video buffer underflow condition. |
 |5|Video Resume|Verifies Sink can resume video playback after an underflow occurred in the video buffer. Sink should be able to raise event `onVideoResumed` during video buffer underflow condition.|
 |6|Flush without hold last frame|Test the sinks's flush functionality. The sink discard any buffers already queued and resume normal playback of subsequent frames without displaying the last frame till new frame is received. Sink will raise an event `onFlushComplete`|
-|7|Flush with hold last frame|Test the sink’s flush functionality combined with hold last frame. The sink should discard all queued buffers amd resume playback of subsequent frame by displaying the last frame till new frame is received. Sink will raise an event `onFlushComplete`|
-|8|Discard Frame Till|Test the sink's ability to discard the incoming frames till the specified presentation time|
-|9|Queue Depth|This test verifies the sink's queue depth by reading the metric property|
-|10|Frames Dropped| This test verifies the metric data read form the sink's property to know how many framed are dropped during playback|
-|11|Frames Dropped due to frame rate change| This test verifies the metric data read form the sink's property to know how many framed are dropped becaus of frame rate change in stream during playback |
-|12|Frames Repeated due to frame rate change | This test verifies the metric data read form the sink's property to know how many framed are repeated during playback |
+|7|Flush with hold last frame|Test the sink’s flush functionality combined with hold last frame. The sink should discard all queued buffers and resume playback of subsequent frame by displaying the last frame till new frame is received. Sink will raise an event `onFlushComplete`|
+|8|Discard Frame Till|Test the sink's ability to discard the incoming frames till the specified presentation time. This can be validated by calculating expected number of frames to be dropped from queue match with the Number of frames dropped Metrics data|
+|9|Queue Depth|This test verifies the sink's queue depth by reading the property. Test supply the frames to the queue and validate the frame queue depth value|
+|10|Frames Dropped| This test verifies the metric data read form the sink's property to know how many frames are dropped during playback of known error stream. |
+|11|Frames Dropped due to frame rate change| This test verifies the metric data read form the sink's property to know how many frames are dropped becaus of frame rate change in stream during playback. Validate the test by setting frame rate that is lower than the test stream|
+|12|Frames Repeated due to frame rate change | This test verifies the metric data read form the sink's property to know how many frames are repeated during playback. Validate the test by setting frame rate that is higher than the test stream |
 |13|Multi Instance|If platform supports multiple sinks, test executes multiple sinks simultaneously, validating outputs and their respective metrics.|
 
 
