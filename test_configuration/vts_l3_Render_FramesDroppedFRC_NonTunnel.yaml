@@ -1,0 +1,18 @@
+IVideoSinkManager:
+  L3:
+    Render_FramesDroppedFRC_NonTunnel:
+      Controls:
+        repeatPerFrame: 1
+        flush_pts: 40000000
+        flush_reset_pts: -1
+        eos_pts: -1
+      Inputs:
+        Streams:
+          - Name: YCBCR422_0
+            PTS:
+              - 10000000   # Regular 30 FPS
+              - 43333333   # Regular
+              - 76666666   # Regular
+              - 77000000   # Sudden jump — reduced spacing
+              - 77333333   # Even faster
+              - 77666666   # Forces frame rate change

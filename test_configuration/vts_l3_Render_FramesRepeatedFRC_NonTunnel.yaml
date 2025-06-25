@@ -1,0 +1,16 @@
+IVideoSinkManager:
+  L3:
+    Render_FramesRepeatedFRC_NonTunnel:
+      Controls:
+        repeatPerFrame: 1
+        flush_pts: 40000000
+        flush_reset_pts: -1
+        eos_pts: -1
+      Inputs:
+        Streams:
+          - Name: YCBCR422_0
+            PTS:
+              - 0
+              - 66666666   # ~15 FPS (66.6 ms interval)
+              - 133333332
+              - 200000000

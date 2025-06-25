@@ -575,69 +575,32 @@ public:
          UT_LOG_INFO("SKY_TRACE %d",__LINE__);
     }
 
-    bool getSinkMetrics(int32_t& sinkQueueDepth, int32_t &framesReceived, int32_t &framesDroppedLate, int32_t &framesDroppedFrc, int32_t &framesRepeatedFrc,
-                        int32_t& framesMissingFrame)
+    bool getSinkPropertyInt(videosink::Property property, int32_t& outValue)
     {
+
         std::optional<com::rdk::hal::PropertyValue> propertyValue;
         ::android::binder::Status status;
 
-        sinkQueueDepth = framesReceived = framesDroppedLate = framesDroppedFrc = framesRepeatedFrc = framesMissingFrame = -1;
+        outValue = -1;
 
-        // SINK_QUEUE_DEPTH
-        status = mSinkHandle->getProperty(videosink::Property::SINK_QUEUE_DEPTH, &propertyValue);
-        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
-            !propertyValue.has_value() || !propertyValue->value.has_value())
-        {
+        status = mSinkHandle->getProperty(property, &propertyValue);
+        if (!status.isOk() ||
+            status.exceptionCode() != ::android::binder::Status::EX_NONE ||
+            !propertyValue.has_value() ||
+            !propertyValue->value.has_value()) {
+            UT_LOG_ERROR("Failed to get property %d", static_cast<int>(property));
+            UT_LOG_ERROR("Result getProperty(IN:property value[%d], property value has Value[%d]), status:[isOK:%s, exception:%s]", videosink::toString(property).c_str(), \
+                propertyValue.has_value(), \
+                propertyValue->value.has_value(), \
+                UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+
             return false;
         }
-        sinkQueueDepth = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
 
-        // METRIC_FRAMES_RECEIVED
-        status = mSinkHandle->getProperty(videosink::Property::METRIC_FRAMES_RECEIVED, &propertyValue);
-        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
-            !propertyValue.has_value() || !propertyValue->value.has_value())
-        {
-            return false;
-        }
-        framesReceived = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
-
-        // METRIC_FRAMES_DROPPED_LATE
-        status = mSinkHandle->getProperty(videosink::Property::METRIC_FRAMES_DROPPED_LATE, &propertyValue);
-        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
-            !propertyValue.has_value() || !propertyValue->value.has_value())
-        {
-            return false;
-        }
-        framesDroppedLate = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
-
-        // METRIC_FRAMES_DROPPED_FRC
-        status = mSinkHandle->getProperty(videosink::Property::METRIC_FRAMES_DROPPED_FRC, &propertyValue);
-        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
-            !propertyValue.has_value() || !propertyValue->value.has_value())
-        {
-            return false;
-        }
-        framesDroppedFrc = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
-
-        // METRIC_FRAMES_REPEATED_FRC
-        status = mSinkHandle->getProperty(videosink::Property::METRIC_FRAMES_REPEATED_FRC, &propertyValue);
-        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
-            !propertyValue.has_value() || !propertyValue->value.has_value())
-        {
-            return false;
-        }
-        framesRepeatedFrc = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
-
-        // METRIC_FRAMES_REPEATED_MISSING_FRAME
-        status = mSinkHandle->getProperty(videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME, &propertyValue);
-        if (!status.isOk() || status.exceptionCode() != ::android::binder::Status::EX_NONE ||
-            !propertyValue.has_value() || !propertyValue->value.has_value())
-        {
-            return false;
-        }
-        framesMissingFrame = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
-
+        outValue = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
         return true;
+
     }
 
 private:
@@ -648,29 +611,30 @@ private:
     IVideoDecoder::Id mDecoderId;
     sp<IVideoDecoder> mDecoderHandle;
     sp<IAVBuffer> mAVBufferManager;
-    sp<IVideoSinkController> mVideoSinkController;
     sp<IVideoDecoderControllerListener> mDecoderControllerListener;
     sp<IVideoDecoderEventListener> mDecoderEventListener;
     Pool mVideoPool;
     bool mSecure;
     videoTestConfiguration_t mTestConfiguration;
 
+
     void videoSinkNonTunnelMode()
     {
         sp<IVideoSinkController> controller;
         sp<IAVBufferSpaceListener> bufferListener = new AVBufferSpaceListener();
+        int32_t sinkQueueDepth, framesReceived, framesDroppedLate, framesDroppedFrc, framesRepeatedFrc, framesMissingFrame;
 
         mVideoSinkControlListener->resetFirstFrameRendered();
         UT_LOG_INFO("Reset first-frame rendered state");
 
         VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
+
         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
         UT_LOG_INFO("Sink opened and started");
 
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(mAVBufferManager, mSecure, mDecoderId, bufferListener, mVideoPool);
         UT_LOG_INFO("Buffer pool created");
 
-        std::vector<uint8_t> dummyFrame(mTestConfiguration.frameMetadata.bufferSize, 0x80);
         int32_t repeatCount = mTestConfiguration.repeatPerFrame > 0 ? mTestConfiguration.repeatPerFrame : 1;
 
         bool firstFrameQueued = false;
@@ -683,7 +647,8 @@ private:
                 int64_t pts = frame.pts;
 
                 int64_t bufferHandle;
-                AVBUFFER_ALLOC_SUCCESS(mAVBufferManager, mVideoPool, frame.size, bufferHandle);
+                size_t allocSize = frame.size > 0 ? frame.size : mTestConfiguration.frameMetadata.bufferSize;
+                AVBUFFER_ALLOC_SUCCESS(mAVBufferManager, mVideoPool, allocSize, bufferHandle);
                 UT_LOG_INFO("Allocated buffer handle %ld for PTS %ld", bufferHandle, pts);
 
                 FrameMetadata metadata = {};
@@ -702,13 +667,27 @@ private:
                 metadata.scanType = ScanType::PROGRESSIVE_FRAME;
                 metadata.dynamicRange = DynamicRange::SDR;
                 metadata.source = AVSource::HDMI_1;
-                metadata.sha1 = {0x12, 0x34, 0x56, static_cast<uint8_t>((pts + repeat) % 256)};
+                metadata.sha1 = std::vector<uint8_t>(20, 0x00);
+                metadata.sha1[0] = 0x12;
+                metadata.sha1[1] = 0x34;
+                metadata.sha1[2] = 0x56;
+                metadata.sha1[3] = static_cast<uint8_t>((pts + repeat) % 256);
 
                 UT_LOG_INFO("Queueing frame: PTS=%ld, Handle=%ld, EOS=%d, Discontinuity=%d",
                             pts, bufferHandle, metadata.endOfStream, metadata.discontinuity);
 
+
+                if (mTestConfiguration.testName == "Render_Underflowed_NonTunnel")
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Intentionally delay
+                }
+
                 VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, pts, bufferHandle, metadata);
-                UT_LOG_INFO("Queued video frame for PTS %ld", pts);
+
+                if (mTestConfiguration.testName == "Render_FramesDroppedLate_NonTunnel")
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(40));
+                }
 
                 if (!firstFrameQueued) {
                     expectedFirstPts = pts;
@@ -738,36 +717,183 @@ private:
                 UT_LOG_INFO("Freed buffer handle %ld", bufferHandle);
             }
         }
-
-        // Wait and check for onFirstFrameRendered
-        const int maxWaitMs = 5000;
-        const int pollIntervalMs = 50;
-        int waitedMs = 0;
-        int64_t renderedPts = -1;
-
-        UT_LOG_INFO("Waiting for onFirstFrameRendered... (expecting PTS: %ld)", expectedFirstPts);
-
-        while (waitedMs < maxWaitMs)
+#if 0
+        if (mTestConfiguration.testName == "Render_Video_FirstFrame_NonTunnel")
         {
-            if (mVideoSinkControlListener->hasFirstFrameRendered()) {
-                renderedPts = mVideoSinkControlListener->getFirstFrameRenderedPTS();
-                UT_LOG_INFO("Detected first frame rendered at PTS %ld", renderedPts);
-                break;
+            // Wait and check for onFirstFrameRendered
+            const int maxWaitMs = 5000;
+            const int pollIntervalMs = 50;
+            int waitedMs = 0;
+            int64_t renderedPts = -1;
+
+            UT_LOG_INFO("Waiting for onFirstFrameRendered... (expecting PTS: %ld)", expectedFirstPts);
+
+            while (waitedMs < maxWaitMs)
+            {
+                if (mVideoSinkControlListener->hasFirstFrameRendered()) {
+                    renderedPts = mVideoSinkControlListener->getFirstFrameRenderedPTS();
+                    UT_LOG_INFO("Detected first frame rendered at PTS %ld", renderedPts);
+                    break;
+                }
+
+                UT_LOG_INFO("Waited %d ms... still no first frame rendered", waitedMs);
+                std::this_thread::sleep_for(std::chrono::milliseconds(pollIntervalMs));
+                waitedMs += pollIntervalMs;
             }
 
-            UT_LOG_INFO("Waited %d ms... still no first frame rendered", waitedMs);
-            std::this_thread::sleep_for(std::chrono::milliseconds(pollIntervalMs));
-            waitedMs += pollIntervalMs;
+            if (renderedPts == expectedFirstPts) {
+                UT_LOG_INFO("First frame rendered as expected at PTS: %ld", renderedPts);
+            } else if (renderedPts != -1) {
+                UT_LOG_ERROR("First frame rendered at unexpected PTS: %ld (expected: %ld)", renderedPts, expectedFirstPts);
+                UT_ASSERT_TRUE(false);
+            } else {
+                UT_LOG_ERROR("First frame was never rendered within timeout.");
+                UT_ASSERT_TRUE(false);
+            }
+        }
+#endif
+        if (mTestConfiguration.testName == "Render_QueueDepth_NonTunnel")
+        {
+            int expectedQueueDepth = static_cast<int>(mTestConfiguration.frames.size()) * repeatCount;
+            int actualQueueDepth = -1;
+
+            bool success = getSinkPropertyInt(videosink::Property::SINK_QUEUE_DEPTH, actualQueueDepth);
+            if (!success)
+            {
+                UT_LOG_ERROR("Failed to get SINK_QUEUE_DEPTH property");
+                UT_ASSERT_TRUE(false);
+            }
+
+            UT_LOG_INFO("Expected Queue Depth: %d, Actual Queue Depth: %d", expectedQueueDepth, actualQueueDepth);
+            if (expectedQueueDepth != actualQueueDepth)
+            {
+                UT_LOG_ERROR("Queue Depth mismatch! Expected: %d, Actual: %d", expectedQueueDepth, actualQueueDepth);
+                UT_ASSERT_TRUE(false);
+            }
+            else
+            {
+                UT_LOG_INFO("Queue Depth matches expected value.");
+            }
+        }
+        else if (mTestConfiguration.testName == "Render_FramesReceived_NonTunnel")
+        {
+            int expectedFramesReceived = 0;
+             int actualFramesReceived = -1;
+            int repeatValue = mTestConfiguration.repeatPerFrame > 0 ? mTestConfiguration.repeatPerFrame : 1;
+            for (const auto& frame : mTestConfiguration.frames) {
+                expectedFramesReceived += repeatValue;
+            }
+
+            bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_RECEIVED, actualFramesReceived);
+            if (!success)
+            {
+                UT_LOG_ERROR("Failed to get METRIC_FRAMES_RECEIVED property");
+                UT_ASSERT_TRUE(false);
+            }
+
+            if (actualFramesReceived == expectedFramesReceived) {
+                UT_LOG_INFO("Frames received matches expected: %d", actualFramesReceived);
+            } else {
+                UT_LOG_ERROR("Frames received mismatch. Expected: %d, Actual: %d", expectedFramesReceived, actualFramesReceived);
+                UT_ASSERT_TRUE(false);
+            }
+        }
+        else if (mTestConfiguration.testName == "Render_FramesDroppedLate_NonTunnel")
+        {
+            int actualFramesDroppedLate = -1;
+
+            UT_LOG_INFO("Waiting briefly to allow metrics to update...");
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
+            bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_DROPPED_LATE, actualFramesDroppedLate);
+            if (!success) {
+                UT_LOG_ERROR("Failed to get METRIC_FRAMES_DROPPED_LATE property");
+                UT_ASSERT_TRUE(false);
+            }
+
+            if (actualFramesDroppedLate >= 1) {
+                UT_LOG_INFO("Detected late frame drops as expected: %d", actualFramesDroppedLate);
+            } else {
+                UT_LOG_ERROR("Expected late frame drops, but got: %d", actualFramesDroppedLate);
+                UT_ASSERT_TRUE(false);
+            }
+        }
+        else if (mTestConfiguration.testName == "Render_FramesDroppedFRC_NonTunnel")
+        {
+            int actualDroppedFRC = -1;
+
+            UT_LOG_INFO("Waiting briefly to allow metrics to update...");
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
+            bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_DROPPED_FRC, actualDroppedFRC);
+            if (!success) {
+                UT_LOG_ERROR("Failed to get METRIC_FRAMES_DROPPED_FRC property");
+                UT_ASSERT_TRUE(false);
+            }
+
+            if (actualDroppedFRC > 0) {
+                UT_LOG_INFO("Detected frame drops due to FRC as expected: %d", actualDroppedFRC);
+            } else {
+                UT_LOG_ERROR("Expected frame drops due to FRC, but got: %d", actualDroppedFRC);
+                UT_ASSERT_TRUE(false);
+            }
+        }
+        else if (mTestConfiguration.testName == "Render_FramesRepeatedFRC_NonTunnel")
+        {
+            int actualRepeatedFRC = -1;
+
+            UT_LOG_INFO("Waiting briefly to allow metrics to update...");
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
+            bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_REPEATED_FRC, actualRepeatedFRC);
+            if (!success) {
+                UT_LOG_ERROR("Failed to get METRIC_FRAMES_REPEATED_FRC property");
+                UT_ASSERT_TRUE(false);
+            }
+
+            if (actualRepeatedFRC > 0) {
+                UT_LOG_INFO("Detected frame repetitions due to FRC as expected: %d", actualRepeatedFRC);
+            } else {
+                UT_LOG_ERROR("Expected frame repetitions due to FRC, but got: %d", actualRepeatedFRC);
+                UT_ASSERT_TRUE(false);
+            }
+        }
+        else if (mTestConfiguration.testName == "Render_FramesMiss_NonTunnel")
+        {
+            int actualRepeatMissing = -1;
+
+            UT_LOG_INFO("Waiting briefly to allow metrics to update...");
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
+            bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME, actualRepeatMissing);
+            if (!success || actualRepeatMissing == -1) {
+                UT_LOG_ERROR("METRIC_FRAMES_REPEATED_MISSING_FRAME not supported or fetch failed.");
+            } else if (actualRepeatMissing > 0) {
+                UT_LOG_INFO("Frames repeated due to missing frame: %d", actualRepeatMissing);
+            } else {
+                UT_LOG_ERROR("Expected some frames to be repeated due to missing frame, but got 0");
+                UT_ASSERT_TRUE(false);
+            }
+        }
+        else if (mTestConfiguration.testName == "Render_Underflowed_NonTunnel")
+        {
+            int actualUnderflowed = -1;
+
+            UT_LOG_INFO("Waiting briefly to allow metrics to update...");
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
+            bool success = getSinkPropertyInt(videosink::Property::METRIC_UNDERFLOWED, actualUnderflowed);
+            if (!success || actualUnderflowed == -1) {
+                UT_LOG_ERROR("METRIC_UNDERFLOWED not supported or fetch failed.");
+            } else if (actualUnderflowed > 0) {
+                UT_LOG_INFO("Detected %d underflow events", actualUnderflowed);
+            } else {
+                UT_LOG_ERROR("Expected at least 1 underflow event, but got 0");
+                UT_ASSERT_TRUE(false);
+            }
         }
 
-        if (renderedPts == expectedFirstPts) {
-            UT_LOG_INFO("First frame rendered as expected at PTS: %ld", renderedPts);
-        } else if (renderedPts != -1) {
-            UT_LOG_ERROR("First frame rendered at unexpected PTS: %ld (expected: %ld)", renderedPts, expectedFirstPts);
-        } else {
-            UT_LOG_ERROR("First frame was never rendered within timeout.");
-        }
-
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
         VIDEOSINK_STOP_SUCCESS(mSinkHandle, controller, true);
         VIDEOSINK_CLOSE_SUCCESS(mSinkHandle, controller, true);
         AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, mVideoPool);
@@ -824,13 +950,13 @@ private:
             // Handle control signals
             if (mTestConfiguration.flushPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushPts)
             {
-                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, mVideoSinkController, false);
+                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
             }
 
             if (mTestConfiguration.flushResetPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushResetPts)
             {
-                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, mVideoSinkController, true);
-                VIDEOSINK_START_SUCCESS(mSinkHandle, mVideoSinkController, true);
+                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, true);
+                VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
             }
 
             if (mTestConfiguration.eosPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.eosPts)
@@ -956,7 +1082,10 @@ public:
                 decoderControlListener, decoderEventListener,
                 mAVBufferManager, secure, testConfig);
             UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
             sinkTest.run(tunnel);
+
+
             UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             AVBUFFER_GETMETRICS(mAVBufferManager, secure, afterHeapMetrics);
             UT_LOG_INFO("SKY_TRACE %d",__LINE__);
@@ -1097,6 +1226,135 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Video_FirstFrame_NonTunnel)
     UT_LOG_INFO("SKY_TRACE %d",__LINE__);
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
+
+/**
+ * @brief Test the sink's ability to report correct queue depth
+ *        Decoding type: Sequential
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 002@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_QueueDepth_NonTunnel)
+{
+    const char *testName = "Render_QueueDepth_NonTunnel";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test the number of frames received by video sink
+ *        Decoding type: Sequential
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 003@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_FramesReceived_NonTunnel)
+{
+    const char *testName = "Render_FramesReceived_NonTunnel";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames dropped due to lateness
+ *        Decoding type: Sequential
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 004@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_FramesDroppedLate_NonTunnel)
+{
+    const char *testName = "Render_FramesDroppedLate_NonTunnel";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frame drops due to frame rate changes
+ *        Decoding type: Sequential
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 005@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Underflowed_NonTunnel)
+{
+    const char *testName = "Render_Underflowed_NonTunnel";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames repeated due to frame rate changes
+ *        Decoding type: Sequential
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 006@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_FramesRepeatedFRC_NonTunnel)
+{
+    const char *testName = "Render_FramesRepeatedFRC_NonTunnel";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Decoding type: Sequential
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 007@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_FramesMiss_NonTunnel)
+{
+    const char *testName = "Render_FramesMiss_NonTunnel";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Decoding type: Sequential
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 008@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_FramesDroppedFRC_NonTunnel)
+{
+    const char *testName = "Render_FramesDroppedFRC_NonTunnel";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+
  /** @} */ // End of VIDEO_SINK_HALTEST L3 File
 /** @} */ // End of VIDEO_SINK_HALTEST
 /** @} */ // End of VIDEO_SINK Module

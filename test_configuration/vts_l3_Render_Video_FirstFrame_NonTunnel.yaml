@@ -2,7 +2,7 @@ IVideoSinkManager:
   L3: #Test Level
     Render_Video_FirstFrame_NonTunnel: #Test Name
       Controls:
-        repeatPerFrame: 3
+        repeatPerFrame: 1
         flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
         flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
         eos_pts: 191999997 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`

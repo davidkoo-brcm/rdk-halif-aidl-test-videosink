@@ -106,6 +106,7 @@ struct videoTestConfiguration_t {
     uint64_t flushResetPts = 0;
     uint64_t eosPts = 0;
     uint32_t repeatPerFrame = 0;
+    std::string testName;
 };
 
 void* vts_kvp_create_instance(char *fileName);

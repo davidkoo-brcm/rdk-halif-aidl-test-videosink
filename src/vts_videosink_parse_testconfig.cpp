@@ -213,7 +213,7 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
         testDetails.flushResetPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".flush_reset_pts").c_str());
         testDetails.eosPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".eos_pts").c_str());
         testDetails.repeatPerFrame = ut_kvp_getUInt32Field(kvpTestInstance, (controlList + ".repeatPerFrame").c_str());
-
+        testDetails.testName = testName;
         testConfigurations.push_back(testDetails);
     }
 

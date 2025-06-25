@@ -1,0 +1,15 @@
+IVideoSinkManager:
+  L3:
+    Render_FramesDroppedLate_NonTunnel:
+      Controls:
+        repeatPerFrame: 1
+        flush_pts: -1
+        flush_reset_pts: -1
+        eos_pts: -1
+      Inputs:
+        Streams:
+          - Name: YCBCR422_0
+            PTS:
+              - 10000000
+              - 10000010  # too close to previous frame, likely to be late
+              - 10000020
