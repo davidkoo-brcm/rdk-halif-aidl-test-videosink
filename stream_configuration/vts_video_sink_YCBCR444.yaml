@@ -6,3 +6,4 @@ VideoStreams:
     height: 1080
     color_depth: 8           # bits per channel
     buffer_size: 6220800     # width * height * 3 bytes per pixel
+    frame_rate: 24 #frame per second

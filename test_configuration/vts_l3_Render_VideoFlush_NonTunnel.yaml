@@ -1,0 +1,20 @@
+IVideoSinkManager:
+  L3:
+    Render_VideoFlush_NonTunnel:
+      Controls:
+        discardFramesUntilPts: -1
+        underflow_pts: -1
+        repeatPerFrame: 1
+        flush_pts: 106666665  # Set flush at this PTS
+        flush_reset_pts: -1
+        eos_pts: -1
+        interFrameDelayMs: 0
+      Inputs:
+        Streams:
+          - Name: YCBCR422_0
+            PTS:
+              - 21333333
+              - 42666666
+              - 63999999
+              - 85333332
+              - 106666665

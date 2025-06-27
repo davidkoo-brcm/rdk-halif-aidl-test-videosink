@@ -689,6 +689,7 @@ class VideoSinkControllerListener : public BnVideoSinkControllerListener
 
         android::binder::Status onFirstFrameRendered(int64_t nsPresentationTime) override
         {
+            UT_LOG_INFO("\n=======onFirstFrameRendered: %d, %d=============\n");
             {
                 std::lock_guard<std::mutex> lock(mMutex);
                 if (!mFirstFrameRendered) {
@@ -721,111 +722,264 @@ class VideoSinkControllerListener : public BnVideoSinkControllerListener
             std::lock_guard<std::mutex> lock(mMutex);
             return mFirstPTS;
         }
+        void resetFlushComplete()
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            mFlushComplete = false;
+        }
 
-        // Other callbacks remain unchanged, just return ok
-        android::binder::Status onEndOfStream(int64_t /*nsPresentationTime*/) override { return android::binder::Status::ok(); }
-        android::binder::Status onVideoUnderflow() override { return android::binder::Status::ok(); }
-        android::binder::Status onVideoResumed() override { return android::binder::Status::ok(); }
-        android::binder::Status onFlushComplete() override { return android::binder::Status::ok(); }
+        bool hasFlushComplete()
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            return mFlushComplete;
+        }
+
+        android::binder::Status onFlushComplete() override
+        {
+            UT_LOG_INFO("\n=======onFlushComplete: %d, %d=============\n");
+            {
+                std::lock_guard<std::mutex> lock(mMutex);
+                mFlushComplete = true;
+            }
+            mCV.notify_all();
+            return android::binder::Status::ok();
+        }
+
+        android::binder::Status onEndOfStream(int64_t nsPresentationTime) override
+        {
+            UT_LOG_INFO("\n=======onEndOfStream: %d, %d=============\n");
+            {
+                std::lock_guard<std::mutex> lock(mMutex);
+                mEosReceived = true;
+                mEosPTS = nsPresentationTime;
+            }
+            mCV.notify_all();
+            return android::binder::Status::ok();
+        }
+
+        bool hasEosReceived()
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            return mEosReceived;
+        }
+
+        int64_t getEosPTS()
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            return mEosPTS;
+        }
+
+        void resetEos()
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            mEosReceived = false;
+            mEosPTS = -1;
+        }
+
+        android::binder::Status onVideoUnderflow() override {
+            UT_LOG_INFO("\n=======onVideoUnderflow: %d, %d=============\n");
+            {
+                std::lock_guard<std::mutex> lock(mMutex);
+                mUnderflowReceived = true;
+            }
+            mCV.notify_all();
+            return android::binder::Status::ok();
+        }
+
+        bool hasUnderflowReceived() {
+            std::lock_guard<std::mutex> lock(mMutex);
+            return mUnderflowReceived;
+        }
+
+        void resetUnderflow() {
+            std::lock_guard<std::mutex> lock(mMutex);
+            mUnderflowReceived = false;
+        }
+
+        android::binder::Status onVideoResumed() override {
+             UT_LOG_INFO("\n=======onVideoUnderflow: %d, %d=============\n");
+            {
+                std::lock_guard<std::mutex> lock(mMutex);
+                mResumedReceived = true;
+            }
+            mCV.notify_all();
+            return android::binder::Status::ok();
+        }
+
+        bool hasResumedReceived() {
+            std::lock_guard<std::mutex> lock(mMutex);
+            return mResumedReceived;
+        }
+
+        void resetResumed() {
+            std::lock_guard<std::mutex> lock(mMutex);
+            mResumedReceived = false;
+        }
         android::binder::Status onStateChanged(State /*oldState*/, State /*newState*/) override { return android::binder::Status::ok(); }
+
+        bool waitForFlushComplete(std::chrono::seconds timeout)
+        {
+            std::unique_lock<std::mutex> lock(mMutex);
+            return mCV.wait_for(lock, std::chrono::seconds(timeout), [this] {
+                return mFlushComplete;
+            });
+        }
+
+        bool waitForFlushCompleteEvent(std::chrono::seconds timeout)
+        {
+            std::unique_lock<std::mutex> lock(mMutex);
+            return mCV.wait_for(lock, timeout, [this]() { return mFlushComplete; });
+        }
+
+        bool waitForEosEvent(int timeoutSeconds)
+        {
+            std::unique_lock<std::mutex> lock(mMutex);
+            return mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this]
+            {
+                return mEosReceived;
+            });
+        }
+
+        bool waitForUnderflowEvent(int timeoutSeconds) {
+            std::unique_lock<std::mutex> lock(mMutex);
+            return mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] {
+                return mUnderflowReceived;
+            });
+        }
+
+        bool waitForResumedEvent(int timeoutSeconds) {
+            std::unique_lock<std::mutex> lock(mMutex);
+            return mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] {
+            return mResumedReceived;
+            });
+        }
 
     private:
         mutable std::mutex mMutex;
         std::condition_variable mCV;
         bool mFirstFrameRendered = false;
         int64_t mFirstPTS = -1;
-};
+        bool mFlushComplete = false;
+        bool mEosReceived = false;
+        int64_t mEosPTS = -1;
+        bool mUnderflowReceived = false;
+        bool mResumedReceived = false;
+    };
 
 
 class VideoSinkEventListener : public BnVideoSinkEventListener
 {
-    public:
-        VideoSinkEventListener(): mCurrentState(State::CLOSED) {}
-        virtual ~VideoSinkEventListener() = default;
+public:
+    VideoSinkEventListener()
+        : mCurrentState(State::CLOSED),
+          mFlushComplete(false) {}
 
-        Status onFirstFrameRendered(int64_t nsPresentationTime) override{
-            return ::android::binder::Status::ok();
-        }
+    virtual ~VideoSinkEventListener() = default;
 
-        Status onEndOfStream(int64_t nsPresentationTime) override{
-            return ::android::binder::Status::ok();
-        }
-        Status onVideoUnderflow() override{
-            return ::android::binder::Status::ok();
-        }
-        Status onVideoResumed() override{
-            return ::android::binder::Status::ok();
-        }
-        Status onFlushComplete() override{
-            return ::android::binder::Status::ok();
-        }
+    Status onFirstFrameRendered(int64_t /*nsPresentationTime*/) override {
+        UT_LOG_INFO("\n=======onFirstFrameRendered: %d, %d=============\n");
+        return ::android::binder::Status::ok();
+    }
 
-        Status onStateChanged(State oldState,State newState) override
+    Status onEndOfStream(int64_t /*nsPresentationTime*/) override {
+        UT_LOG_INFO("\n=======onEndOfStream: %d, %d=============\n");
+        return ::android::binder::Status::ok();
+    }
+
+    Status onVideoUnderflow() override {
+        UT_LOG_INFO("\n=======onVideoUnderflow: %d, %d=============\n");
+        return ::android::binder::Status::ok();
+    }
+
+    Status onVideoResumed() override {
+        UT_LOG_INFO("\n=======onVideoResumed: %d, %d=============\n");
+        return ::android::binder::Status::ok();
+    }
+
+    Status onFlushComplete() override {
+        UT_LOG_INFO("\n=======onFlushComplete: %d, %d=============\n");
         {
-            UT_LOG("\n=======State Change received: %d, %d=============\n", oldState, newState);
-            {
-                std::lock_guard<std::mutex> lock(mMutex);
-                mStateChanges.emplace_back(oldState, newState);
-                mCurrentState = newState;
+            std::lock_guard<std::mutex> lock(mMutex);
+            mFlushComplete = true;
+        }
+        mCV.notify_all();
+        return ::android::binder::Status::ok();
+    }
+
+    Status onStateChanged(State oldState, State newState) override {
+        UT_LOG("\n=======State Change received: %d, %d=============\n", oldState, newState);
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            mStateChanges.emplace_back(oldState, newState);
+            mCurrentState = newState;
+        }
+        mCV.notify_all(); // Unblock any waiting test code
+        return Status::ok();
+    }
+
+    // ================= Flush helpers =================
+
+    void resetFlushComplete() {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mFlushComplete = false;
+    }
+
+    bool hasFlushComplete() {
+        std::lock_guard<std::mutex> lock(mMutex);
+        return mFlushComplete;
+    }
+
+    bool waitForFlushComplete(std::chrono::seconds timeout) {
+        std::unique_lock<std::mutex> lock(mMutex);
+        return mCV.wait_for(lock, timeout, [this]() { return mFlushComplete; });
+    }
+
+    // ================= State transition helpers =================
+
+    bool waitForState(State desiredState, std::chrono::milliseconds timeout) {
+        std::unique_lock<std::mutex> lock(mMutex);
+        return mCV.wait_for(lock, timeout, [this, desiredState]() {
+            return (mCurrentState == desiredState);
+        });
+    }
+
+    std::vector<std::pair<State, State>> getStateChanges() const {
+        std::lock_guard<std::mutex> lock(mMutex);
+        return mStateChanges;
+    }
+
+    void resetStateChanges() {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mStateChanges.clear();
+    }
+
+    bool checkStateTransistion(State expOldState, State expNewState) {
+        std::lock_guard<std::mutex> lock(mMutex);
+        for (const auto &[oldState, newState] : mStateChanges) {
+            if (oldState == expOldState && newState == expNewState) {
+                return true;
             }
-            mCV.notify_all(); // Unblock any waiting test code
-            return Status::ok();
         }
-        /**
-         * Wait for the sink to reach a particular State within a given timeout.
-         *
-         * @param desiredState The state we want to observe.
-         * @param timeout      How long to wait, e.g. std::chrono::milliseconds(500).
-         * @return true if the state was reached; false if we timed out waiting.
-         */
-        bool waitForState(State desiredState, std::chrono::milliseconds timeout)
-        {
-            std::unique_lock<std::mutex> lock(mMutex);
-            // Wait until mCurrentState == desiredState or until timeout
-            return mCV.wait_for(lock, timeout, [this, desiredState]() {
-                return (mCurrentState == desiredState);
-            });
-        }
-        // Accessors for test verifications if desired
-        std::vector<std::pair<State, State>> getStateChanges() const
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            return mStateChanges;
-        }
+        return false;
+    }
 
-        void resetStateChanges()
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            mStateChanges.clear();
-        }
+    std::vector<int32_t> getErrors() const {
+        std::lock_guard<std::mutex> lock(mMutex);
+        return mErrors;
+    }
 
-        bool checkStateTransistion(State expOldState, State expNewState)
-        {
-            bool foundClosedToOpening = false;
-            for (const auto &[oldState, newState] : mStateChanges)
-            {
-                if (oldState == expOldState && newState == expNewState)
-                {
-                    foundClosedToOpening = true;
-                    break;
-                }
-            }
-            return foundClosedToOpening;
-        }
+private:
+    mutable std::mutex mMutex;
+    std::condition_variable mCV;
 
-        std::vector<int32_t> getErrors() const
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            return mErrors;
-        }
-    private:
-        mutable std::mutex mMutex;
-        std::condition_variable mCV;
+    State mCurrentState;
+    std::vector<std::pair<State, State>> mStateChanges;
+    std::vector<int32_t> mErrors;
 
-        State mCurrentState;
-        std::vector<std::pair<State, State>> mStateChanges;
-        std::vector<int32_t> mErrors;
+    // Flush tracking
+    bool mFlushComplete;
 };
+
 
 #endif //__VTS_VIDEOSINK_H__
 

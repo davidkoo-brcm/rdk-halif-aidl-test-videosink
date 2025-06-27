@@ -3,14 +3,16 @@ include_1: stream_configuration/vts_video_sink_YCBCR444.yaml
 include_2: stream_configuration/vts_video_sink_mpeg.yaml
 include_3: stream_configuration/vts_video_sink_h264.yaml
 
-#include 4: test_configuration/vts_l3_Render_Video_FirstFrame_NonTunnel.yaml
-#include 5: test_configuration/vts_l3_Render_QueueDepth_NonTunnel.yaml
-#include 6: test_configuration/vts_l3_Render_FramesReceived_NonTunnel.yaml
-#include 7: test_configuration/vts_l3_Render_FramesDroppedLate_NonTunnel.yaml
-include 4: test_configuration/vts_l3_Render_Underflowed_NonTunnel.yaml
-include 5: test_configuration/vts_l3_Render_FramesRepeatedFRC_NonTunnel.yaml
-include 6: test_configuration/vts_l3_Render_FramesMiss_NonTunnel.yaml
-include 7: test_configuration/vts_l3_Render_FramesDroppedFRC_NonTunnel.yaml
+include_4: test_configuration/vts_l3_Render_QueueDepth_NonTunnel.yaml
+#include_5: test_configuration/vts_l3_Render_FramesReceived_NonTunnel.yaml
+#include_6: test_configuration/vts_l3_Render_FramesDroppedLate_NonTunnel.yaml
+#include_8: test_configuration/vts_l3_Render_FramesRepeatedFRC_NonTunnel.yaml
+#include_9: test_configuration/vts_l3_Render_FramesMiss_NonTunnel.yaml
+#include_10: test_configuration/vts_l3_Render_FramesDroppedFRC_NonTunnel.yaml
+include_7: test_configuration/vts_l3_Render_VideoFlush_NonTunnel.yaml
+include_8: test_configuration/vts_l3_Render_EndToEnd_NonTunnel.yaml
+include_9: test_configuration/vts_l3_Render_UnderflowResumed_NonTunnel.yaml
+include_10: test_configuration/vts_l3_Render_DiscardFramesUntil_NonTunnel.yaml
 
 IVideoSinkManager:
   stream_download_path: "http://<>/streams" #`URL` path to download the audio test streams

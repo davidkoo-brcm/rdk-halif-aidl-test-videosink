@@ -2,10 +2,13 @@ IVideoSinkManager:
   L3:
     Render_FramesReceived_NonTunnel:
       Controls:
+        discardFramesUntilPts: -1
+        underflow_pts: -1
         repeatPerFrame: 2
         flush_pts: -1
         flush_reset_pts: -1
         eos_pts: -1
+        interFrameDelayMs: 0
       Inputs:
         Streams:
           - Name: YCBCR422_0

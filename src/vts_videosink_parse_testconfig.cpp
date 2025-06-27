@@ -175,6 +175,8 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
                 if (vfWidth != 0) testDetails.frameMetadata.width = vfWidth;
                 uint32_t vfHeight = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".height").c_str());
                 if (vfHeight != 0) testDetails.frameMetadata.height = vfHeight;
+                uint32_t vfFrameRate = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".frame_rate").c_str());
+                if (vfFrameRate != 0) testDetails.frameMetadata.frameRate = vfFrameRate;
                 // No codec info in VideoFrame, codec will remain default/unset
             }
             else
@@ -213,13 +215,16 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
         testDetails.flushResetPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".flush_reset_pts").c_str());
         testDetails.eosPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".eos_pts").c_str());
         testDetails.repeatPerFrame = ut_kvp_getUInt32Field(kvpTestInstance, (controlList + ".repeatPerFrame").c_str());
+        testDetails.underflowPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".underflow_pts").c_str());
+        testDetails.discardFramesUntilPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".discardFramesUntilPts").c_str());
+        testDetails.interFrameDelayMs = ut_kvp_getUInt32Field(kvpTestInstance, (controlList + ".interFrameDelayMs").c_str());
         testDetails.testName = testName;
         testConfigurations.push_back(testDetails);
     }
 
     // Log all parsed configurations for verification
     for (const auto& config : testConfigurations) {
-        UT_LOG_INFO("Parsed Config: name=%s, width=%u, height=%u, framerate=%u, input=%s, codec=%d, numFrames=%zu, repeatPerFrame=%u eos %u",
+        UT_LOG_INFO("Parsed Config: name=%s, width=%u, height=%u, framerate=%u, input=%s, codec=%d, numFrames=%zu, repeatPerFrame=%u eos %u underflowPts=%u",
                     config.frameMetadata.name.c_str(),
                     config.frameMetadata.width,
                     config.frameMetadata.height,
@@ -228,8 +233,8 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
                     config.codec,
                     config.frames.size(),
                     config.repeatPerFrame,
-                    config.eosPts
-                );
+                    config.eosPts,
+                    config.underflowPts );
     }
 
     return UT_STATUS_OK;

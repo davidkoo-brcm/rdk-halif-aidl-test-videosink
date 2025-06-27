@@ -1,0 +1,24 @@
+IVideoSinkManager:
+  L3:
+    Render_UnderflowResumed_NonTunnel:
+      Controls:
+        discardFramesUntilPts: -1
+        underflow_pts: 106666665   # Will delay this PTS by 1s
+        repeatPerFrame: 1
+        flush_pts: -1
+        flush_reset_pts: -1
+        eos_pts: -1
+        interFrameDelayMs: 0
+      Inputs:
+        Streams:
+          - Name: YCBCR422_0
+            PTS:
+              - 0                  # frame 1
+              - 41666667           # frame 2
+              - 83333334           # frame 3
+              - 125000001          # frame 4
+              - 106666665          # frame 5 - will be delayed by 1s (simulate underflow)
+              - 208333331          # frame 6 - resume here (delayed + ~1s)
+              - 250000000          # frame 7
+              - 291666667          # frame 8
+              - 333333334          # frame 9
