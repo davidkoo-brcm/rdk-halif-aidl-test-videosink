@@ -224,7 +224,7 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
 
     // Log all parsed configurations for verification
     for (const auto& config : testConfigurations) {
-        UT_LOG_INFO("Parsed Config: name=%s, width=%u, height=%u, framerate=%u, input=%s, codec=%d, numFrames=%zu, repeatPerFrame=%u eos %u underflowPts=%u",
+        UT_LOG_INFO("Parsed Config: name=%s, width=%u, height=%u, framerate=%u, input=%s, codec=%d, numFrames=%zu, repeatPerFrame=%u eos %d underflowPts=%d",
                     config.frameMetadata.name.c_str(),
                     config.frameMetadata.width,
                     config.frameMetadata.height,

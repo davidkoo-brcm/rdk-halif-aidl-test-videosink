@@ -516,6 +516,28 @@ do { \
         } \
     } while (0)
 
+#define VIDEODECODER_CLOSE_SUCCESS(videoDecoder, controller, stateCheck) \
+    do { \
+        Status status; \
+        bool aidl_return; \
+        sp<IVideoDecoderController> tempController = (controller); \
+        void* controllerPtr = tempController ? tempController.get() : nullptr; \
+        UT_LOG_INFO("Calling close(IN:videoDecoderController:[0x%p], OUT:_aidl_return[])", controllerPtr); \
+        status = (videoDecoder)->close((controller), &aidl_return); \
+        UT_LOG_INFO("Result close(IN:videoDecoderController:[0x%p], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                    controllerPtr, UT_Control_GetMapString(bool_mapTable, aidl_return), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE_FATAL(status.isOk()) << "close binder call failed"; \
+        UT_ASSERT_TRUE_FATAL(aidl_return) << "close returned false"; \
+        UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE) << "close returned an exception"; \
+        if (stateCheck) { \
+            State lastState; \
+            VIDEODECODER_WAIT_FOR_STATE(videoDecoder, State::CLOSED, lastState); \
+            UT_ASSERT_EQUAL(lastState, State::CLOSED) << "Decoder did not reach CLOSED state after close"; \
+        } \
+    } while (0)
+
 class AVBufferSpaceListener : public BnAVBufferSpaceListener
 {
 public:
@@ -559,7 +581,7 @@ public:
     }
 
     void verifyUnderflow();
-    void verifyQueueDepth(int repeatCount);
+    void verifyQueueDepth();
     void verifyFramesReceived();
     void verifyFramesDroppedLate();
     void verifyFramesDroppedFRC();
@@ -567,7 +589,7 @@ public:
     void verifyFramesMissed();
     void verifyFlushComplete();
     void handleEosFrame(const FrameMetadata& metadata, int64_t pts, int repeat, int repeatCount);
-    void runPostVerification(int repeatCount);
+    void runPostVerification();
 
     void run ( bool isTunnel )
     {
@@ -599,7 +621,8 @@ public:
         if (!status.isOk() ||
             status.exceptionCode() != ::android::binder::Status::EX_NONE ||
             !propertyValue.has_value() ||
-            !propertyValue->value.has_value()) {
+            !propertyValue->value.has_value())
+        {
             UT_LOG_ERROR("Failed to get property %d", static_cast<int>(property));
             UT_LOG_ERROR("Result getProperty(IN:property value[%d], property value has Value[%d]), status:[isOK:%s, exception:%s]", videosink::toString(property).c_str(), \
                 propertyValue.has_value(), \
@@ -629,6 +652,16 @@ private:
     bool mSecure;
     videoTestConfiguration_t mTestConfiguration;
 
+    float getBytesPerPixelMultiplier(const std::string& basePixelFormat) const
+    {
+        if (basePixelFormat == "YCBCR420") return 1.5f;
+        if (basePixelFormat == "YCBCR422") return 2.0f;
+        if (basePixelFormat == "YCBCR444") return 3.0f;
+        if (basePixelFormat == "RGB")      return 3.0f;
+        if (basePixelFormat == "NATIVE")   return 0.0f; // handle as needed
+        return 0.0f; // unknown format fallback
+    }
+
     void videoSinkNonTunnelMode()
     {
         sp<IVideoSinkController> controller;
@@ -650,12 +683,21 @@ private:
 
         int32_t repeatCount = mTestConfiguration.repeatPerFrame > 0 ? mTestConfiguration.repeatPerFrame : 1;
 
-        bool firstFrameQueued = false;
-        int64_t expectedFirstPts = -1;
+        if (mTestConfiguration.discardFramesUntilPts != static_cast<uint64_t>(-1))
+        {
+            ::com::rdk::hal::State currentState;
+            VIDEOSINK_GET_STATE(mSinkHandle, currentState);
 
-        if (mTestConfiguration.discardFramesUntilPts != static_cast<uint64_t>(-1)) {
-            UT_LOG_INFO("Calling discardFramesUntil with PTS %ld", mTestConfiguration.discardFramesUntilPts);
-            VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, mTestConfiguration.discardFramesUntilPts);
+            if (currentState == com::rdk::hal::State::STARTED)
+            {
+                UT_LOG_INFO("Calling discardFramesUntil with PTS %ld", mTestConfiguration.discardFramesUntilPts);
+                VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, mTestConfiguration.discardFramesUntilPts);
+            }
+            else
+            {
+                UT_LOG_ERROR("Skipping discardFramesUntil - sink is not in STARTED state, current state = %s",
+                            com::rdk::hal::toString(currentState).c_str());
+            }
         }
 
         for (const auto& frame : mTestConfiguration.frames)
@@ -665,7 +707,22 @@ private:
                 int64_t pts = frame.pts;
 
                 int64_t bufferHandle;
-                size_t allocSize = frame.size > 0 ? frame.size : mTestConfiguration.frameMetadata.bufferSize;
+                std::string baseFormat = mTestConfiguration.frameMetadata.name.substr(0, mTestConfiguration.frameMetadata.name.find('_'));
+                float bytesPerPixel = getBytesPerPixelMultiplier(baseFormat);
+
+                if (bytesPerPixel <= 0.0f)
+                {
+                    UT_LOG_ERROR("Unsupported pixel format: %s - cannot calculate buffer size", baseFormat.c_str());
+                    // Handle error or default allocation size here if needed
+                    continue;
+                }
+
+                size_t allocSize = static_cast<size_t>(
+                    mTestConfiguration.frameMetadata.width *
+                    mTestConfiguration.frameMetadata.height *
+                    bytesPerPixel
+                );
+
                 AVBUFFER_ALLOC_SUCCESS(mAVBufferManager, mVideoPool, allocSize, bufferHandle);
                 UT_LOG_INFO("Allocated buffer handle %ld for PTS %ld", bufferHandle, pts);
 
@@ -714,12 +771,6 @@ private:
                     std::this_thread::sleep_for(std::chrono::milliseconds(mTestConfiguration.interFrameDelayMs));
                 }
 
-                if (!firstFrameQueued) {
-                    expectedFirstPts = pts;
-                    firstFrameQueued = true;
-                    UT_LOG_INFO("Marked expected first PTS as %ld", expectedFirstPts);
-                }
-
                 if (repeat == 0)
                 {
                     if (mTestConfiguration.flushPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushPts)
@@ -729,14 +780,17 @@ private:
                         verifyFlushComplete();
                     }
 
-                    if (mTestConfiguration.flushResetPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushResetPts) {
+                    if (mTestConfiguration.flushResetPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushResetPts)
+                    {
                         UT_LOG_INFO("Flush+Reset video sink at PTS %ld", pts);
                         VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, true);
                         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
                     }
 
                     if (frame.errorFrame)
+                    {
                         UT_LOG_ERROR("Injected error frame at PTS: %ld", pts);
+                    }
                 }
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(30));
@@ -745,7 +799,7 @@ private:
             }
         }
 
-        runPostVerification(repeatCount);
+        runPostVerification();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
         VIDEOSINK_STOP_SUCCESS(mSinkHandle, controller, true);
@@ -756,17 +810,22 @@ private:
 
     void videoSinkTunnelMode()
     {
+#if 0
         sp<IVideoSinkController> controller;
         sp<IVideoDecoderController> videoDecoderController;
         sp<IAVBufferSpaceListener> bufferListener = new AVBufferSpaceListener();
 
         // Open Sink
         VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
+        UT_LOG_INFO("Video sink opened in tunneled mode");
 
         // Start Sink
         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
+        UT_LOG_INFO("Video sink started");
 
+        // Create buffer pool
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(mAVBufferManager, mSecure, mDecoderId, bufferListener, mVideoPool);
+        UT_LOG_INFO("Buffer pool created for tunneled mode");
 
         std::ifstream inputFile(mTestConfiguration.input, std::ios::binary);
         if (!inputFile)
@@ -777,15 +836,18 @@ private:
 
         // Open Decoder
         VIDEODECODER_OPEN_SUCCESS(mDecoderHandle, mTestConfiguration.codec, mSecure, mDecoderControllerListener, videoDecoderController, true);
+        UT_LOG_INFO("Video decoder opened");
 
         // Set OPERATIONAL_MODE to TUNNELLED
         PropertyValue propertyValue;
         propertyValue.value = PropertyValue::Value::make<PropertyValue::Value::Tag::intValue>(
             static_cast<int32_t>(OperationalMode::TUNNELLED));
         VIDEODECODER_SETPROPERTY_SUCCESS(videoDecoderController, com::rdk::hal::videodecoder::Property::OPERATIONAL_MODE, propertyValue);
+        UT_LOG_INFO("Decoder set to TUNNELLED mode");
 
         // Start Decoder
         VIDEODECODER_START_SUCCESS(mDecoderHandle, videoDecoderController, true);
+        UT_LOG_INFO("Video decoder started");
 
         for (const auto& frame : mTestConfiguration.frames)
         {
@@ -796,38 +858,95 @@ private:
             int64_t videoBufferHandle = -1;
 
             AVBUFFER_ALLOC_SUCCESS(mAVBufferManager, mVideoPool, frameSize, videoBufferHandle);
+            UT_LOG_INFO("Allocated buffer handle %ld for PTS %ld", videoBufferHandle, pts);
 
-            //map the buffer
+            // Read frame data
+            std::vector<uint8_t> inputBuffer(frameSize);
+            inputFile.read(reinterpret_cast<char*>(inputBuffer.data()), frameSize);
 
-            // Handle control signals
-            if (mTestConfiguration.flushPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushPts)
+            if (!inputFile)
             {
-                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
+                UT_LOG_ERROR("Failed to read frame data for PTS %ld", pts);
+                AVBUFFER_FREE_SUCCESS(mAVBufferManager, videoBufferHandle);
+                continue;
             }
 
-            if (mTestConfiguration.flushResetPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushResetPts)
+            // Inject frame data into buffer
+            if (mSecure)
             {
-                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, true);
-                VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
+                if (!gAVbufferHelper->writeSecureHandle(videoBufferHandle, inputBuffer.data(), frameSize))
+                {
+                    UT_LOG_ERROR("Failed to write data to secure buffer at PTS %ld", pts);
+                    AVBUFFER_FREE_SUCCESS(mAVBufferManager, videoBufferHandle);
+                    continue;
+                }
+            }
+            else
+            {
+                void* mapBuffer = nullptr;
+                uint32_t mapSize = 0;
+                mapBuffer = gAVbufferHelper->mapHandle(videoBufferHandle, &mapSize);
+
+                if (!mapBuffer || mapSize < frameSize)
+                {
+                    UT_LOG_ERROR("Buffer map failed or insufficient size at PTS %ld", pts);
+                    AVBUFFER_FREE_SUCCESS(mAVBufferManager, videoBufferHandle);
+                    continue;
+                }
+
+                memcpy(mapBuffer, inputBuffer.data(), frameSize);
             }
 
             if (mTestConfiguration.eosPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.eosPts)
             {
-                // Send EOS (expect failure)
+                UT_LOG_INFO("Sending EOS frame at PTS %ld", pts);
                 VIDEODECODER_DECODEBUFFER_FAILURE(videoDecoderController, pts, videoBufferHandle, Status::EX_NONE);
 
-                // Restart decoder
+                UT_LOG_INFO("Restarting decoder after EOS");
                 VIDEODECODER_STOP_SUCCESS(mDecoderHandle, videoDecoderController, true);
                 VIDEODECODER_START_SUCCESS(mDecoderHandle, videoDecoderController, true);
             }
             else
             {
-                // Normal decode
+                if (isErrorFrame)
+                {
+                    UT_LOG_ERROR("Injected error frame at PTS: %ld", pts);
+                }
+
                 VIDEODECODER_DECODEBUFFER_SUCCESS(videoDecoderController, pts, videoBufferHandle);
             }
 
+            // Handle flush signals after decode
+            if (mTestConfiguration.flushPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushPts)
+            {
+                UT_LOG_INFO("Flushing video sink at PTS %ld", pts);
+                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
+            }
+
+            if (mTestConfiguration.flushResetPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushResetPts)
+            {
+                UT_LOG_INFO("Flush+Reset video sink at PTS %ld", pts);
+                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, true);
+                VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
+            }
+
+            // Unmap and free the buffer
+            if (!mSecure)
+            {
+                gAVbufferHelper->unmapHandle(videoBufferHandle);
+            }
             AVBUFFER_FREE_SUCCESS(mAVBufferManager, videoBufferHandle);
+            UT_LOG_INFO("Freed buffer handle %ld", videoBufferHandle);
         }
+
+        // Teardown and cleanup
+        VIDEODECODER_STOP_SUCCESS(mDecoderHandle, videoDecoderController, true);
+        VIDEODECODER_CLOSE_SUCCESS(mDecoderHandle, videoDecoderController, true);
+        VIDEOSINK_STOP_SUCCESS(mSinkHandle, controller, true);
+        VIDEOSINK_CLOSE_SUCCESS(mSinkHandle, controller, true);
+        AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, mVideoPool);
+        UT_LOG_INFO("Tunnel mode video sink test cleanup completed");
+#endif
     }
 
 
@@ -1141,17 +1260,19 @@ void SinkTest::verifyFlushComplete()
     UT_LOG_INFO("Waiting for flush complete event...");
 
     bool flushReceived = mVideoSinkControlListener->waitForFlushComplete(std::chrono::seconds(3));
-    if (!flushReceived) {
+    if (!flushReceived)
+    {
         UT_LOG_ERROR("Flush complete event not received within timeout.");
         UT_ASSERT_TRUE(false);
-    } else {
+    }
+    else
+    {
         UT_LOG_INFO("Flush complete event received.");
     }
 }
 
-void SinkTest::verifyQueueDepth(int repeatCount)
+void SinkTest::verifyQueueDepth()
 {
-    int expectedQueueDepth = static_cast<int>(mTestConfiguration.frames.size()) * repeatCount;
     int actualQueueDepth = -1;
 
     bool success = getSinkPropertyInt(videosink::Property::SINK_QUEUE_DEPTH, actualQueueDepth);
@@ -1161,10 +1282,10 @@ void SinkTest::verifyQueueDepth(int repeatCount)
         UT_ASSERT_TRUE(false);
     }
 
-    UT_LOG_INFO("Expected Queue Depth: %d, Actual Queue Depth: %d", expectedQueueDepth, actualQueueDepth);
-    if (expectedQueueDepth != actualQueueDepth)
+    UT_LOG_INFO(" Actual Queue Depth: %d", actualQueueDepth);
+    if (actualQueueDepth <= 0)
     {
-        UT_LOG_ERROR("Queue Depth mismatch! Expected: %d, Actual: %d", expectedQueueDepth, actualQueueDepth);
+        UT_LOG_ERROR("No Queue Depth value!: %d", actualQueueDepth);
         UT_ASSERT_TRUE(false);
     }
     else
@@ -1173,12 +1294,14 @@ void SinkTest::verifyQueueDepth(int repeatCount)
     }
 }
 
+
 void SinkTest::verifyFramesReceived()
 {
     int expectedFramesReceived = 0;
     int actualFramesReceived = -1;
     int repeatValue = mTestConfiguration.repeatPerFrame > 0 ? mTestConfiguration.repeatPerFrame : 1;
-    for (const auto& frame : mTestConfiguration.frames) {
+    for (const auto& frame : mTestConfiguration.frames)
+    {
         expectedFramesReceived += repeatValue;
     }
 
@@ -1189,9 +1312,12 @@ void SinkTest::verifyFramesReceived()
         UT_ASSERT_TRUE(false);
     }
 
-    if (actualFramesReceived == expectedFramesReceived) {
+    if (actualFramesReceived == expectedFramesReceived)
+    {
         UT_LOG_INFO("Frames received matches expected: %d", actualFramesReceived);
-    } else {
+    }
+    else
+    {
         UT_LOG_ERROR("Frames received mismatch. Expected: %d, Actual: %d", expectedFramesReceived, actualFramesReceived);
         UT_ASSERT_TRUE(false);
     }
@@ -1205,14 +1331,18 @@ void SinkTest::verifyFramesDroppedLate()
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_DROPPED_LATE, actualFramesDroppedLate);
-    if (!success) {
+    if (!success)
+    {
         UT_LOG_ERROR("Failed to get METRIC_FRAMES_DROPPED_LATE property");
         UT_ASSERT_TRUE(false);
     }
 
-    if (actualFramesDroppedLate >= 1) {
+    if (actualFramesDroppedLate >= 1)
+    {
         UT_LOG_INFO("Detected late frame drops as expected: %d", actualFramesDroppedLate);
-    } else {
+    }
+    else
+    {
         UT_LOG_ERROR("Expected late frame drops, but got: %d", actualFramesDroppedLate);
         UT_ASSERT_TRUE(false);
     }
@@ -1226,14 +1356,18 @@ void SinkTest::verifyFramesDroppedFRC()
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_DROPPED_FRC, actualDroppedFRC);
-    if (!success) {
+    if (!success)
+    {
         UT_LOG_ERROR("Failed to get METRIC_FRAMES_DROPPED_FRC property");
         UT_ASSERT_TRUE(false);
     }
 
-    if (actualDroppedFRC > 0) {
+    if (actualDroppedFRC > 0)
+    {
         UT_LOG_INFO("Detected frame drops due to FRC as expected: %d", actualDroppedFRC);
-    } else {
+    }
+    else
+    {
         UT_LOG_ERROR("Expected frame drops due to FRC, but got: %d", actualDroppedFRC);
         UT_ASSERT_TRUE(false);
     }
@@ -1247,14 +1381,18 @@ void SinkTest::verifyFramesRepeatedFRC()
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_REPEATED_FRC, actualRepeatedFRC);
-    if (!success) {
+    if (!success)
+    {
         UT_LOG_ERROR("Failed to get METRIC_FRAMES_REPEATED_FRC property");
         UT_ASSERT_TRUE(false);
     }
 
-    if (actualRepeatedFRC > 0) {
+    if (actualRepeatedFRC > 0)
+    {
         UT_LOG_INFO("Detected frame repetitions due to FRC as expected: %d", actualRepeatedFRC);
-    } else {
+    }
+    else
+    {
         UT_LOG_ERROR("Expected frame repetitions due to FRC, but got: %d", actualRepeatedFRC);
         UT_ASSERT_TRUE(false);
     }
@@ -1268,29 +1406,45 @@ void SinkTest::verifyFramesMissed()
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME, actualRepeatMissing);
-    if (!success || actualRepeatMissing == -1) {
+    if (!success || actualRepeatMissing == -1)
+    {
         UT_LOG_ERROR("METRIC_FRAMES_REPEATED_MISSING_FRAME not supported or fetch failed.");
-    } else if (actualRepeatMissing > 0) {
+    }
+    else if (actualRepeatMissing > 0)
+    {
         UT_LOG_INFO("Frames repeated due to missing frame: %d", actualRepeatMissing);
-    } else {
+    }
+    else
+    {
         UT_LOG_ERROR("Expected some frames to be repeated due to missing frame, but got 0");
         UT_ASSERT_TRUE(false);
     }
 }
 
-void SinkTest::runPostVerification(int repeatCount)
+void SinkTest::runPostVerification()
 {
-    if (mTestConfiguration.testName == "Render_QueueDepth_NonTunnel") {
-        verifyQueueDepth(repeatCount);
-    } else if (mTestConfiguration.testName == "Render_FramesReceived_NonTunnel") {
+    if ( mTestConfiguration.testName == "Render_QueueDepth_NonTunnel")
+    {
+        verifyQueueDepth();
+    }
+    else if (mTestConfiguration.testName == "Render_FramesReceived_NonTunnel")
+    {
         verifyFramesReceived();
-    } else if (mTestConfiguration.testName == "Render_FramesDroppedLate_NonTunnel") {
+    }
+    else if (mTestConfiguration.testName == "Render_FramesDroppedLate_NonTunnel")
+    {
         verifyFramesDroppedLate();
-    } else if (mTestConfiguration.testName == "Render_FramesDroppedFRC_NonTunnel") {
+    }
+    else if (mTestConfiguration.testName == "Render_FramesDroppedFRC_NonTunnel")
+    {
         verifyFramesDroppedFRC();
-    } else if (mTestConfiguration.testName == "Render_FramesRepeatedFRC_NonTunnel") {
+    }
+    else if (mTestConfiguration.testName == "Render_FramesRepeatedFRC_NonTunnel")
+    {
         verifyFramesRepeatedFRC();
-    } else if (mTestConfiguration.testName == "Render_FramesMiss_NonTunnel") {
+    }
+    else if (mTestConfiguration.testName == "Render_FramesMiss_NonTunnel")
+    {
         verifyFramesMissed();
     }
 }

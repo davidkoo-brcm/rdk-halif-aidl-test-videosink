@@ -8,7 +8,7 @@ IVideoSinkManager:
         flush_pts: -1
         flush_reset_pts: -1
         eos_pts: -1
-        interFrameDelayMs: 0
+        interFrameDelayMs: 10
       Inputs:
         Streams:
           - Name: YCBCR422_0
@@ -22,3 +22,14 @@ IVideoSinkManager:
               - 250000002
               - 291666669
               - 333333336
+              - 375000003
+              - 416666670
+              - 458333337
+              - 500000004
+              - 541666671
+              - 583333338
+              - 625000005
+              - 666666672
+              - 708333339
+              - 750000006
+              - 791666673

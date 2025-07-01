@@ -37,12 +37,14 @@ INC_DIRS += $(ROOT_DIR)/build/audiodecoder_gen/current/h
 INC_DIRS += $(ROOT_DIR)/build/videodecoder_gen/current/h
 INC_DIRS += $(ROOT_DIR)/build/videosink_gen/current/h
 INC_DIRS += $(ROOT_DIR)/build/usr/include
+INC_DIRS += $(ROOT_DIR)/mockservice/avbufferhelper
 INC_DIRS += $(ROOT_DIR)/src
 
 XLDFLAGS := -L$(ROOT_DIR)/build/usr/lib
-XLDFLAGS += -Wl,-rpath-link=$(ROOT_DIR)/build/usr/lib
+XLDFLAGS += -Wl,-rpath-link=$(ROOT_DIR)/build/usr/lib -Wl,--export-dynamic
 XLDFLAGS += -lbinder -lutils
 XLDFLAGS += -laudiodecoderaidl -lavbufferaidl -lvideodecoderaidl -lvideosinkaidl
+XLDFLAGS += -lhal_logger -lavbufferhelper
 
 # required for std::optional
 CXXFLAGS := -std=c++17

@@ -26,6 +26,7 @@ declare -r BUILD_INSTALL_PREFIX=${BUILD_DIR}/usr
 declare -r MOCK_SERVICE_DIR="${TOP}/mockservice"
 declare -r AIDL_LIB_DIR=${TOP}/aidl_lib
 declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
+declare -r INSTALL_PATH=${BUILD_DIR}/bin
 
 DEF_LINUX_BINDER="`realpath ${TOP}/../`/linux_binder_idl"
 # AIDL_BIN: path of aidl compiler
@@ -211,10 +212,21 @@ build_ut_core()
     popd
 }
 
+build_hal_log()
+{
+    declare -r INSTALL_PATH=${BUILD_DIR}/bin
+    declare -r HAL_LOG_DIR="${TOP}/mockservice/hal_log"
+    pushd ${HAL_LOG_DIR}
+    make
+
+    cp -f ${HAL_LOG_DIR}/libhal_logger.so ${INSTALL_PATH}/
+    cp ${HAL_LOG_DIR}/libhal_logger.so ${BUILD_DIR}/usr/lib/
+    make clean
+    popd
+}
+
 install_test()
 {
-	declare -r INSTALL_PATH=${BUILD_DIR}/bin
-
 	install -t ${INSTALL_PATH} ${BUILD_INSTALL_PREFIX}/bin/*
 	install -t ${INSTALL_PATH} ${BUILD_INSTALL_PREFIX}/lib/*
 	install -t ${INSTALL_PATH} run.sh
@@ -278,6 +290,7 @@ elif [ "$1" == "all" ]; then
     build_aidl_libs
     build_mockservice
     build_ut_core
+    build_hal_log
     # Building test module using ut-core framework
     make -j`nproc` -C ${TOP}
     install_test
