@@ -9,9 +9,11 @@ IVideoSinkManager:
         flush_reset_pts: -1
         eos_pts: -1
         interFrameDelayMs: 40
+        discontinuityPTS: -1
       Inputs:
         Streams:
-          - Name: YCBCR422_0
+          - Name: YCBCR420_1920_1080_10_0_hlg
+            frameRate: 30
             PTS:
               - 10000000
               - 10000010  # too close to previous frame, likely to be late

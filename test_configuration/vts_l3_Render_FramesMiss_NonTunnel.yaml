@@ -9,9 +9,11 @@ IVideoSinkManager:
         flush_reset_pts: -1
         eos_pts: -1
         interFrameDelayMs: 0
+        discontinuityPTS: -1
       Inputs:
         Streams:
-          - Name: YCBCR422_0
+          - Name: YCBCR422_1280_720_10_1_hdr10plus
+            frameRate: 24
             PTS:
               - 10000000
               - 20000000

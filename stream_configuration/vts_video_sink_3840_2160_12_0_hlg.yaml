@@ -1,0 +1,29 @@
+VideoFrame:
+  YCBCR420_3840_2160_12_0_hlg:
+    input: YCBCR420
+    width: 3840
+    height: 2160
+    color_depth: 12
+    scan_type: 0
+    dynamic_range: 2
+  YCBCR422_3840_2160_12_0_hlg:
+    input: YCBCR422
+    width: 3840
+    height: 2160
+    color_depth: 12
+    scan_type: 0
+    dynamic_range: 2
+  YCBCR444_3840_2160_12_0_hlg:
+    input: YCBCR444
+    width: 3840
+    height: 2160
+    color_depth: 12
+    scan_type: 0
+    dynamic_range: 2
+  RGB_3840_2160_12_0_hlg:
+    input: RGB
+    width: 3840
+    height: 2160
+    color_depth: 12
+    scan_type: 0
+    dynamic_range: 2

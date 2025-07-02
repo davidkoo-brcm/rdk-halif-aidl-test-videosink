@@ -1,0 +1,29 @@
+VideoFrame:
+  YCBCR420_1920_1080_8_1_hdr10plus:
+    input: YCBCR420
+    width: 1920
+    height: 1080
+    color_depth: 8
+    scan_type: 1
+    dynamic_range: 4
+  YCBCR422_1920_1080_8_1_hdr10plus:
+    input: YCBCR422
+    width: 1920
+    height: 1080
+    color_depth: 8
+    scan_type: 1
+    dynamic_range: 4
+  YCBCR444_1920_1080_8_1_hdr10plus:
+    input: YCBCR444
+    width: 1920
+    height: 1080
+    color_depth: 8
+    scan_type: 1
+    dynamic_range: 4
+  RGB_1920_1080_8_1_hdr10plus:
+    input: RGB
+    width: 1920
+    height: 1080
+    color_depth: 8
+    scan_type: 1
+    dynamic_range: 4

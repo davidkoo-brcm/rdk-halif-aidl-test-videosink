@@ -593,20 +593,14 @@ public:
 
     void run ( bool isTunnel )
     {
-        UT_LOG_INFO("SKY_TRACE %d",__LINE__);
         if(!isTunnel)
         {
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             videoSinkNonTunnelMode();
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
         }
         else
         {
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
             videoSinkTunnelMode();
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
         }
-         UT_LOG_INFO("SKY_TRACE %d",__LINE__);
     }
 
     bool getSinkPropertyInt(videosink::Property property, int32_t& outValue)
@@ -652,14 +646,39 @@ private:
     bool mSecure;
     videoTestConfiguration_t mTestConfiguration;
 
-    float getBytesPerPixelMultiplier(const std::string& basePixelFormat) const
+    float getBytesPerPixelMultiplier(const std::string& basePixelFormat, int colorDepth) const
     {
-        if (basePixelFormat == "YCBCR420") return 1.5f;
-        if (basePixelFormat == "YCBCR422") return 2.0f;
-        if (basePixelFormat == "YCBCR444") return 3.0f;
-        if (basePixelFormat == "RGB")      return 3.0f;
-        if (basePixelFormat == "NATIVE")   return 0.0f; // handle as needed
-        return 0.0f; // unknown format fallback
+        int bytesPerChannel = (colorDepth <= 8) ? 1 : 2;
+
+        if (basePixelFormat == "YCBCR420")
+            return 1.5f * bytesPerChannel;
+        if (basePixelFormat == "YCBCR422")
+            return 2.0f * bytesPerChannel;
+        if (basePixelFormat == "YCBCR444")
+            return 3.0f * bytesPerChannel;
+        if (basePixelFormat == "RGB")
+            return 3.0f * bytesPerChannel;
+        if (basePixelFormat == "NATIVE")
+            return 0.0f;
+
+        return 0.0f;
+    }
+
+    PixelFormat getPixelFormatEnum(const std::string& basePixelFormat)
+    {
+        if (basePixelFormat == "YCBCR420")
+            return PixelFormat::YCBCR420;
+        if (basePixelFormat == "YCBCR422")
+            return PixelFormat::YCBCR422;
+        if (basePixelFormat == "YCBCR444")
+            return PixelFormat::YCBCR444;
+        if (basePixelFormat == "RGB")
+            return PixelFormat::RGB;
+        if (basePixelFormat == "NATIVE")
+            return PixelFormat::NATIVE;
+
+        // Default fallback, can throw or return a special value if needed
+        return PixelFormat::NATIVE;
     }
 
     void videoSinkNonTunnelMode()
@@ -708,7 +727,7 @@ private:
 
                 int64_t bufferHandle;
                 std::string baseFormat = mTestConfiguration.frameMetadata.name.substr(0, mTestConfiguration.frameMetadata.name.find('_'));
-                float bytesPerPixel = getBytesPerPixelMultiplier(baseFormat);
+                float bytesPerPixel = getBytesPerPixelMultiplier(baseFormat, mTestConfiguration.frameMetadata.colorDepth);
 
                 if (bytesPerPixel <= 0.0f)
                 {
@@ -723,6 +742,20 @@ private:
                     bytesPerPixel
                 );
 
+                UT_LOG_INFO("Metadata Details: input %s name=%s, width=%u, height=%u, framerate=%u, input=%s, codec=%d, numFrames=%zu, repeatPerFrame=%u eos %d underflowPts=%d buffersize %d",
+                    mTestConfiguration.input,
+                    mTestConfiguration.frameMetadata.name.c_str(),
+                    mTestConfiguration.frameMetadata.width,
+                    mTestConfiguration.frameMetadata.height,
+                    frame.frameRate,
+                    mTestConfiguration.input.c_str(),
+                    mTestConfiguration.codec,
+                    mTestConfiguration.frames.size(),
+                    mTestConfiguration.repeatPerFrame,
+                    mTestConfiguration.eosPts,
+                    mTestConfiguration.underflowPts,
+                    allocSize );
+
                 AVBUFFER_ALLOC_SUCCESS(mAVBufferManager, mVideoPool, allocSize, bufferHandle);
                 UT_LOG_INFO("Allocated buffer handle %ld for PTS %ld", bufferHandle, pts);
 
@@ -731,16 +764,16 @@ private:
                 metadata.codedHeight = mTestConfiguration.frameMetadata.height;
                 metadata.activeWidth = mTestConfiguration.frameMetadata.width;
                 metadata.activeHeight = mTestConfiguration.frameMetadata.height;
-                metadata.pixelFormat = static_cast<PixelFormat>(mTestConfiguration.frameMetadata.pixelFormat);
+                metadata.pixelFormat = getPixelFormatEnum(mTestConfiguration.input);
                 metadata.colorDepth = mTestConfiguration.frameMetadata.colorDepth;
-                metadata.frameRateNumerator = mTestConfiguration.frameMetadata.frameRate;
+                metadata.frameRateNumerator = frame.frameRate;
                 metadata.frameRateDenominator = 1;
                 metadata.endOfStream = (mTestConfiguration.eosPts != static_cast<uint64_t>(-1) &&
                                         pts == mTestConfiguration.eosPts && repeat == repeatCount - 1);
                 metadata.discontinuity = (mTestConfiguration.signalDiscontinuityPts != static_cast<uint64_t>(-1) &&
                                         pts == mTestConfiguration.signalDiscontinuityPts && repeat == 0);
-                metadata.scanType = ScanType::PROGRESSIVE_FRAME;
-                metadata.dynamicRange = DynamicRange::SDR;
+                metadata.scanType = static_cast<ScanType>(mTestConfiguration.frameMetadata.scanType);
+                metadata.dynamicRange = static_cast<DynamicRange>(mTestConfiguration.frameMetadata.dynamicRange);
                 metadata.source = AVSource::HDMI_1;
                 metadata.sha1 = std::vector<uint8_t>(20, 0x00);
                 metadata.sha1[0] = 0x12;
@@ -973,9 +1006,9 @@ public:
         gTestConfiguration = vts_kvp_create_instance(VTS_TEST_CONFIG_PATH);
 
         /*Get the Video Sink IDs*/
-        UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
         VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
-        UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
 
         if(getVideoDecoderService() != UT_STATUS_OK)
         {
@@ -984,9 +1017,9 @@ public:
         else
         {
             /*Get the Video Decoder IDs*/
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
             VIDEODECODER_MANAGER_GETVIDEODECODERIDS(videoDecoderIds);
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
 
             android::ProcessState::self()->startThreadPool();
 
@@ -1038,7 +1071,7 @@ public:
 
             HeapMetrics beforeHeapMetrics, afterHeapMetrics;
 
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
             // Skip if the platform doesn't support secure decode
             if (secure && !decoderCapabilities->supportsSecure)
             {
@@ -1046,9 +1079,9 @@ public:
                 continue;
             }
 
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
             AVBUFFER_GETMETRICS(mAVBufferManager, secure, beforeHeapMetrics);
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
             UT_LOG_INFO("SKY_TRACE %d videoSinkControlListener %x", __LINE__, videoSinkControlListener);
 
             SinkTest sinkTest(_sinkId, videoSink,
@@ -1056,14 +1089,14 @@ public:
                 decoderHandle, _decoderId,
                 decoderControlListener, decoderEventListener,
                 mAVBufferManager, secure, testConfig);
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
 
             sinkTest.run(tunnel);
 
 
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
             AVBUFFER_GETMETRICS(mAVBufferManager, secure, afterHeapMetrics);
-            UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
             UT_ASSERT_TRUE(beforeHeapMetrics.secure == afterHeapMetrics.secure);
             UT_ASSERT_TRUE(beforeHeapMetrics.bytesUsed == afterHeapMetrics.bytesUsed);
             UT_ASSERT_TRUE(beforeHeapMetrics.bytesTotal == afterHeapMetrics.bytesTotal);
@@ -1135,7 +1168,7 @@ public:
     {
         vector<videoTestConfiguration_t> testConfiguration;
 
-        UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
 
         vts_videosink_parse_testconfig(gTestConfiguration, gModuleName, gTestGroup, testName, testConfiguration);
 
@@ -1152,9 +1185,9 @@ public:
         {
             for(auto& test: testConfiguration)
             {
-                UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
                 runSequentialSink(test, secureMode, isTunnel);
-                UT_LOG_INFO("SKY_TRACE %d",__LINE__);
+
             }
         }
     }
@@ -1283,7 +1316,7 @@ void SinkTest::verifyQueueDepth()
     }
 
     UT_LOG_INFO(" Actual Queue Depth: %d", actualQueueDepth);
-    if (actualQueueDepth <= 0)
+    if (actualQueueDepth < 0)
     {
         UT_LOG_ERROR("No Queue Depth value!: %d", actualQueueDepth);
         UT_ASSERT_TRUE(false);
@@ -1409,6 +1442,7 @@ void SinkTest::verifyFramesMissed()
     if (!success || actualRepeatMissing == -1)
     {
         UT_LOG_ERROR("METRIC_FRAMES_REPEATED_MISSING_FRAME not supported or fetch failed.");
+        UT_ASSERT_TRUE(false);
     }
     else if (actualRepeatMissing > 0)
     {
@@ -1464,7 +1498,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_QueueDepth_NonTunnel)
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
-    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
 
@@ -1482,7 +1516,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_FramesReceived_NonTunnel)
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
-    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
 
@@ -1500,7 +1534,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_FramesDroppedLate_NonTunnel)
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
-    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
 
@@ -1518,7 +1552,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_FramesRepeatedFRC_NonTunnel)
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
-    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
 
@@ -1537,7 +1571,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_FramesMiss_NonTunnel)
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
-    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
 
@@ -1555,7 +1589,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_FramesDroppedFRC_NonTunnel)
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
-    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
 /**
@@ -1572,7 +1606,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_VideoFlush_NonTunnel)
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
-    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
 
@@ -1590,7 +1624,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_EndToEnd_NonTunnel)
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
-    UT_LOG_INFO("SKY_TRACE %d", __LINE__);
+
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
 /**

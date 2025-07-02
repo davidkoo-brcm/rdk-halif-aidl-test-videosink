@@ -80,19 +80,20 @@ struct frameMetadata_t {
     std::string name;
     uint32_t width = 0;
     uint32_t height = 0;
-    uint32_t frameRate = 0;
     std::vector<uint32_t> frameSizes;
 
     std::string input;
-    uint32_t pixelFormat = 0;
     uint32_t colorDepth = 0;
-    uint32_t bufferSize = 0;
+    uint32_t scanType = 0;
+    uint32_t dynamicRange = 0;
 };
 
 struct videoFrame_t {
     uint32_t size = 0;
+    int32_t frameRate = 0;
     int64_t pts = 0;
     bool errorFrame = false;
+
 };
 
 struct videoTestConfiguration_t {

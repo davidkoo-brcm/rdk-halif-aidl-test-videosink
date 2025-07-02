@@ -1,9 +1,0 @@
-VideoFrame:
-  YCBCR422_0:
-    input: YCBCR422
-    pixel_format: 1          # YCBCR422
-    width: 1920
-    height: 1080
-    color_depth: 8           # bits per channel
-    buffer_size: 4147200     # width * height * bytes per pixel
-    frame_rate: 2 #frame per second

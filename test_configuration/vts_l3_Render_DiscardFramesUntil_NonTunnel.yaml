@@ -2,7 +2,7 @@ IVideoSinkManager:
   L3:
     Render_DiscardFramesUntil_NonTunnel:
       Controls:
-        discardFramesUntilPts: 166666668   # Discard frames before this PTS
+        discardFramesUntilPts: 125000001   # Discard frames before this PTS
         underflow_pts: -1
         repeatPerFrame: 1
         flush_pts: -1
@@ -11,7 +11,7 @@ IVideoSinkManager:
         interFrameDelayMs: 0
       Inputs:
         Streams:
-          - Name: YCBCR422_0
+          - Name: YCBCR420_1280_720_8_0_sdr
             PTS:
               - 0
               - 41666667

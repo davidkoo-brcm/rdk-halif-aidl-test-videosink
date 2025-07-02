@@ -116,12 +116,9 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
 {
     ut_kvp_status_t status;
     ut_kvp_instance_t* kvpTestInstance = (ut_kvp_instance_t*)pTestInstance;
-    char streamInputPath[UT_KVP_MAX_ELEMENT_SIZE] = {0};
     string testList = string(module) + "." + string(testGroup) + "." + string(testName);
     string controlList = testList + ".Controls";
     string streamList = testList + ".Inputs.Streams";
-
-    status = ut_kvp_getStringField(kvpTestInstance, "input_streams_path", streamInputPath, UT_KVP_MAX_ELEMENT_SIZE);
     int32_t streamCount = ut_kvp_getListCount(kvpTestInstance, streamList.c_str());
 
     if (streamCount <= 0) {
@@ -138,52 +135,24 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
         }
         string streamName = string(resultKVP);
 
-        // === Try parse VideoStreams section ===
-        string videoStreamKey = string("VideoStreams.") + streamName;
-        char testFieldCheck[UT_KVP_MAX_ELEMENT_SIZE] = {0};
-        if (ut_kvp_getStringField(kvpTestInstance, (videoStreamKey + ".input").c_str(), testFieldCheck, UT_KVP_MAX_ELEMENT_SIZE) == UT_KVP_STATUS_SUCCESS) {
-            // Found VideoStreams input
-            testDetails.input = testFieldCheck;
-            ut_kvp_getStringField(kvpTestInstance, (videoStreamKey + ".codec").c_str(), resultKVP, UT_KVP_MAX_ELEMENT_SIZE);
-            testDetails.codec = vts_videodecoder_helper_StringTocodec(std::string(resultKVP));
-
+        // === Fallback: Try parse VideoFrame section if VideoStreams input not found ===
+        string videoFrameKey = string("VideoFrame.") + streamName;
+        char optionalCheck[UT_KVP_MAX_ELEMENT_SIZE] = {0};
+        if (ut_kvp_getStringField(kvpTestInstance, (videoFrameKey + ".input").c_str(), optionalCheck, UT_KVP_MAX_ELEMENT_SIZE) == UT_KVP_STATUS_SUCCESS) {
+            testDetails.input = optionalCheck;
             testDetails.frameMetadata.name = streamName;
-            testDetails.frameMetadata.width = ut_kvp_getUInt32Field(kvpTestInstance, (videoStreamKey + ".width").c_str());
-            testDetails.frameMetadata.height = ut_kvp_getUInt32Field(kvpTestInstance, (videoStreamKey + ".height").c_str());
-            testDetails.frameMetadata.frameRate = ut_kvp_getUInt32Field(kvpTestInstance, (videoStreamKey + ".framerate").c_str());
-
-            int32_t frameSizeCount = ut_kvp_getListCount(kvpTestInstance, (videoStreamKey + ".frame_size").c_str());
-            testDetails.frameMetadata.frameSizes.clear();
-            for (int32_t j = 0; j < frameSizeCount; ++j) {
-                string frameSizeKey = videoStreamKey + ".frame_size." + to_string(j);
-                uint32_t size = ut_kvp_getUInt32Field(kvpTestInstance, frameSizeKey.c_str());
-                testDetails.frameMetadata.frameSizes.push_back(size);
-            }
+            testDetails.frameMetadata.colorDepth = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".color_depth").c_str());
+            testDetails.frameMetadata.scanType = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".scan_type").c_str());
+            testDetails.frameMetadata.dynamicRange = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".dynamic_range").c_str());
+            uint32_t vfWidth = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".width").c_str());
+            if (vfWidth != 0) testDetails.frameMetadata.width = vfWidth;
+            uint32_t vfHeight = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".height").c_str());
+            if (vfHeight != 0) testDetails.frameMetadata.height = vfHeight;
         }
         else
         {
-            // === Fallback: Try parse VideoFrame section if VideoStreams input not found ===
-            string videoFrameKey = string("VideoFrame.") + streamName;
-            char optionalCheck[UT_KVP_MAX_ELEMENT_SIZE] = {0};
-            if (ut_kvp_getStringField(kvpTestInstance, (videoFrameKey + ".input").c_str(), optionalCheck, UT_KVP_MAX_ELEMENT_SIZE) == UT_KVP_STATUS_SUCCESS) {
-                testDetails.input = optionalCheck;
-                testDetails.frameMetadata.name = streamName;
-                testDetails.frameMetadata.pixelFormat = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".pixel_format").c_str());
-                testDetails.frameMetadata.colorDepth = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".color_depth").c_str());
-                testDetails.frameMetadata.bufferSize = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".buffer_size").c_str());
-                uint32_t vfWidth = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".width").c_str());
-                if (vfWidth != 0) testDetails.frameMetadata.width = vfWidth;
-                uint32_t vfHeight = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".height").c_str());
-                if (vfHeight != 0) testDetails.frameMetadata.height = vfHeight;
-                uint32_t vfFrameRate = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".frame_rate").c_str());
-                if (vfFrameRate != 0) testDetails.frameMetadata.frameRate = vfFrameRate;
-                // No codec info in VideoFrame, codec will remain default/unset
-            }
-            else
-            {
-                // Neither VideoStreams nor VideoFrame section present for this stream; skip it
-                continue;
-            }
+            // Neither VideoStreams nor VideoFrame section present for this stream; skip it
+            continue;
         }
 
         // === Parse PTS list and generate frames ===
@@ -197,12 +166,16 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
             videoFrame_t frame;
             frame.pts = PTS;
 
-            if (testDetails.frameMetadata.bufferSize != 0) {
-                frame.size = testDetails.frameMetadata.bufferSize;
-            } else if (!testDetails.frameMetadata.frameSizes.empty()) {
+            if (!testDetails.frameMetadata.frameSizes.empty()) {
                 frame.size = testDetails.frameMetadata.frameSizes[min(k, static_cast<int32_t>(testDetails.frameMetadata.frameSizes.size() - 1))];
             } else {
                 frame.size = 0;
+            }
+
+            string frameRateKey = streamList + "." + to_string(i) + ".frameRate";
+            int32_t frameRate = ut_kvp_getUInt32Field(kvpTestInstance, frameRateKey.c_str());
+            if (frameRate > 0) {
+                frame.frameRate = static_cast<uint32_t>(frameRate);
             }
 
             frame.errorFrame = false;
@@ -210,7 +183,7 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
         }
 
         // === Parse Control Parameters ===
-        testDetails.signalDiscontinuityPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".signal_discontinuity_pts").c_str());
+        testDetails.signalDiscontinuityPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".discontinuityPTS").c_str());
         testDetails.flushPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".flush_pts").c_str());
         testDetails.flushResetPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".flush_reset_pts").c_str());
         testDetails.eosPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".eos_pts").c_str());
@@ -224,11 +197,10 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
 
     // Log all parsed configurations for verification
     for (const auto& config : testConfigurations) {
-        UT_LOG_INFO("Parsed Config: name=%s, width=%u, height=%u, framerate=%u, input=%s, codec=%d, numFrames=%zu, repeatPerFrame=%u eos %d underflowPts=%d",
+        UT_LOG_INFO("Parsed Config: name=%s, width=%u, height=%u, input=%s, codec=%d, numFrames=%zu, repeatPerFrame=%u eos %d underflowPts=%d",
                     config.frameMetadata.name.c_str(),
                     config.frameMetadata.width,
                     config.frameMetadata.height,
-                    config.frameMetadata.frameRate,
                     config.input.c_str(),
                     config.codec,
                     config.frames.size(),

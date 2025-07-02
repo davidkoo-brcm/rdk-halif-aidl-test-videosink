@@ -1,0 +1,29 @@
+VideoFrame:
+  YCBCR420_1920_1080_12_0_sdr:
+    input: YCBCR420
+    width: 1920
+    height: 1080
+    color_depth: 12
+    scan_type: 0
+    dynamic_range: 1
+  YCBCR422_1920_1080_12_0_sdr:
+    input: YCBCR422
+    width: 1920
+    height: 1080
+    color_depth: 12
+    scan_type: 0
+    dynamic_range: 1
+  YCBCR444_1920_1080_12_0_sdr:
+    input: YCBCR444
+    width: 1920
+    height: 1080
+    color_depth: 12
+    scan_type: 0
+    dynamic_range: 1
+  RGB_1920_1080_12_0_sdr:
+    input: RGB
+    width: 1920
+    height: 1080
+    color_depth: 12
+    scan_type: 0
+    dynamic_range: 1
