@@ -189,6 +189,7 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
         testDetails.eosPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".eos_pts").c_str());
         testDetails.repeatPerFrame = ut_kvp_getUInt32Field(kvpTestInstance, (controlList + ".repeatPerFrame").c_str());
         testDetails.underflowPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".underflow_pts").c_str());
+        testDetails.resumeTriggerPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".resumeTriggerPts").c_str());
         testDetails.discardFramesUntilPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".discardFramesUntilPts").c_str());
         testDetails.interFrameDelayMs = ut_kvp_getUInt32Field(kvpTestInstance, (controlList + ".interFrameDelayMs").c_str());
         testDetails.testName = testName;

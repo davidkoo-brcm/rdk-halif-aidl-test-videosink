@@ -1,0 +1,27 @@
+IVideoSinkManager:
+  L3:
+    Render_Concurrent_UnderflowResumed_NonTunnel:
+      Controls:
+        discardFramesUntilPts: -1
+        underflow_pts: 106666665   # Will delay this PTS by 1s
+        resumeTriggerPts: -1
+        repeatPerFrame: 1
+        flush_pts: -1
+        flush_reset_pts: -1
+        eos_pts: -1
+        interFrameDelayMs: 0
+        discontinuityPTS: -1
+      Inputs:
+        Streams:
+          - Name: YCBCR420_1920_1080_8_0_sdr
+            frameRate: 30
+            PTS:
+              - 0                 # frame 1
+              - 33333333          # frame 2
+              - 66666666          # frame 3
+              - 99999999          # frame 4
+              - 33333333          # frame 5 - delayed by ~1s (goes back to simulate underflow)
+              - 1033333333        # frame 6 - resume here (delayed + ~1s)
+              - 1066666666        # frame 7
+              - 1100000000        # frame 8
+              - 1133333333        # frame 9

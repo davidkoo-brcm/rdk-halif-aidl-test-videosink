@@ -1,0 +1,23 @@
+IVideoSinkManager:
+  L3:
+    Render_Sequential_VideoFlush_NonTunnel:
+      Controls:
+        discardFramesUntilPts: -1
+        underflow_pts: -1
+        resumeTriggerPts: -1
+        repeatPerFrame: 1
+        flush_pts: 133333332  # Set flush at this PTS
+        flush_reset_pts: -1
+        eos_pts: -1
+        interFrameDelayMs: 0
+        discontinuityPTS: -1
+      Inputs:
+        Streams:
+          - Name: YCBCR420_1280_720_10_1_hdr10
+            frameRate: 30
+            PTS:
+              - 0
+              - 33333333
+              - 66666666
+              - 99999999
+              - 133333332

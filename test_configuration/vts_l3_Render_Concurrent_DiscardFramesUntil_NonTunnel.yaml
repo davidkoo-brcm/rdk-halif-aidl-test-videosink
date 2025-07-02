@@ -1,18 +1,19 @@
 IVideoSinkManager:
   L3:
-    Render_QueueDepth_NonTunnel:
+    Render_Concurrent_DiscardFramesUntil_NonTunnel:
       Controls:
-        discardFramesUntilPts: -1
+        discardFramesUntilPts: 125000001   # Discard frames before this PTS
         underflow_pts: -1
+        resumeTriggerPts: -1
         repeatPerFrame: 1
         flush_pts: -1
         flush_reset_pts: -1
         eos_pts: -1
-        interFrameDelayMs: 10
+        interFrameDelayMs: 0
         discontinuityPTS: -1
       Inputs:
         Streams:
-          - Name: YCBCR444_1280_720_10_1_hdr10plus
+          - Name: YCBCR420_1280_720_8_0_sdr
             frameRate: 30
             PTS:
               - 0
@@ -24,14 +25,3 @@ IVideoSinkManager:
               - 250000002
               - 291666669
               - 333333336
-              - 375000003
-              - 416666670
-              - 458333337
-              - 500000004
-              - 541666671
-              - 583333338
-              - 625000005
-              - 666666672
-              - 708333339
-              - 750000006
-              - 791666673

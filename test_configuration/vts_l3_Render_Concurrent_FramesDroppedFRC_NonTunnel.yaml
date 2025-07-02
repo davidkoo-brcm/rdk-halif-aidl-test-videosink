@@ -1,0 +1,28 @@
+IVideoSinkManager:
+  L3:
+    Render_Concurrent_FramesDroppedFRC_NonTunnel:
+      Controls:
+        discardFramesUntilPts: -1
+        underflow_pts: -1
+        resumeTriggerPts: -1
+        repeatPerFrame: 1
+        flush_pts: 40000000
+        flush_reset_pts: -1
+        eos_pts: -1
+        interFrameDelayMs: 0
+        discontinuityPTS: -1
+      Inputs:
+        Streams:
+          - Name: YCBCR444_1280_720_10_1_hdr10plus
+            frameRate: 60
+            PTS:
+              - 0
+              - 16666667     # +16,666,667 — OK
+              - 33333334     # +16,666,667 — OK
+              - 50000001     # +16,666,667 — OK
+              - 66666668     # +16,666,667 — OK
+              - 68333335     # +1,666,667   — << Too early (possible repeat, not late drop)
+              - 70000000     # +1,666,665   — << Still early
+              - 71666667     # +1,666,667   — << Still early
+              - 90000000     # +18,333,333  — << Late (large delay — possible **late drop**)
+              - 91666667     # +1,666,667   — << Early again

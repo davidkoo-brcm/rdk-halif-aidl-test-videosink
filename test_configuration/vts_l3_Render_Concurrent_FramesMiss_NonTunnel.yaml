@@ -1,9 +1,10 @@
 IVideoSinkManager:
   L3:
-    Render_FramesMiss_NonTunnel:
+    Render_Concurrent_FramesMiss_NonTunnel:
       Controls:
         discardFramesUntilPts: -1
         underflow_pts: -1
+        resumeTriggerPts: -1
         repeatPerFrame: 1
         flush_pts: 40000000
         flush_reset_pts: -1
@@ -15,6 +16,6 @@ IVideoSinkManager:
           - Name: YCBCR422_1280_720_10_1_hdr10plus
             frameRate: 24
             PTS:
-              - 10000000
-              - 20000000
-              - 40000000
+              - 0                 # Frame 1
+              - 41666667          # Frame 2 (normal spacing)
+              - 125000001         # Frame 4 (skip Frame 3, so gap is doubled)

@@ -1,0 +1,29 @@
+IVideoSinkManager:
+  L3:
+    Render_Concurrent_FramesDroppedLate_NonTunnel:
+      Controls:
+        discardFramesUntilPts: -1
+        underflow_pts: -1
+        resumeTriggerPts: -1
+        repeatPerFrame: 1
+        flush_pts: -1
+        flush_reset_pts: -1
+        eos_pts: -1
+        interFrameDelayMs: 40
+        discontinuityPTS: -1
+      Inputs:
+        Streams:
+          - Name: YCBCR420_1920_1080_10_0_hlg
+            frameRate: 30
+            PTS:
+              - 0            # Frame 0 (valid)
+              - 10           # late drop (too close to frame 0)
+              - 20           # late drop
+              - 30           # late drop
+              - 40           # late drop
+              - 50           # late drop
+              - 60           # late drop
+              - 33333333     # Frame 1 (valid)
+              - 33333343     # late drop (too close to frame 1)
+              - 33333353     # late drop
+              - 66666666     # Frame 2 (valid)

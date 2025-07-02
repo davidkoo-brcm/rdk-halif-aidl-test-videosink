@@ -1,0 +1,29 @@
+IVideoSinkManager:
+  L3:
+    Render_Sequential_UnderflowResumed_NonTunnel:
+      Controls:
+        discardFramesUntilPts: -1
+        underflow_pts: 133333332  # Will delay this PTS by 1s
+        resumeTriggerPts: 333333330
+        repeatPerFrame: 1
+        flush_pts: -1
+        flush_reset_pts: -1
+        eos_pts: -1
+        interFrameDelayMs: 0
+        discontinuityPTS: -1
+      Inputs:
+        Streams:
+          - Name: YCBCR420_1920_1080_8_0_sdr
+            frameRate: 30
+            PTS:
+              - 0
+              - 33333333
+              - 66666666
+              - 99999999
+              - 133333332
+              - 166666665
+              - 233333331
+              - 266666664
+              - 299999997
+              - 333333330
+

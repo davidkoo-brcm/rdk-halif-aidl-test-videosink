@@ -1,0 +1,38 @@
+IVideoSinkManager:
+  L3:
+    Render_Sequential_EndToEnd_NonTunnel:
+      Controls:
+        discardFramesUntilPts: -1
+        underflow_pts: -1
+        resumeTriggerPts: -1
+        repeatPerFrame: 1
+        flush_pts: -1
+        flush_reset_pts: -1
+        eos_pts: 316666673
+        interFrameDelayMs: 0
+        discontinuityPTS: -1
+      Inputs:
+        Streams:
+          - Name: RGB_1920_1080_10_1_hdr10plus
+            frameRate: 60
+            PTS:
+              - 0
+              - 16666667
+              - 33333334
+              - 50000001
+              - 66666668
+              - 83333335
+              - 100000002
+              - 116666669
+              - 133333336
+              - 150000003
+              - 166666670
+              - 183333337
+              - 200000004
+              - 216666671
+              - 233333338
+              - 250000005
+              - 266666672
+              - 283333339
+              - 300000006
+              - 316666673
