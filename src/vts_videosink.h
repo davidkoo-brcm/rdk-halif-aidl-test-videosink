@@ -118,6 +118,8 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define MAX_TRANSITORY_STATE_WAIT_MS  5
 #define MAX_FINAL_STATE_WAIT_MS  500
 
+#define UT_LOG_WARN
+
 
 #define VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds) \
     do { \
@@ -717,8 +719,9 @@ public:
     int64_t getEosPTS();
     void resetEos();
 
-    bool hasUnderflowReceived();
     void resetUnderflow();
+    bool hasUnderflowReceived();
+    int getUnderflowCount();
 
     bool hasResumedReceived();
     void resetResumed();
@@ -742,8 +745,8 @@ private:
     bool mEosReceived;
     int64_t mEosPTS;
 
-    bool mUnderflowReceived;
-    bool mResumedReceived;
+    int mUnderflowCount = 0;
+    int mResumeCount = 0;
     int32_t mSinkID;
 };
 

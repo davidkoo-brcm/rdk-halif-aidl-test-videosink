@@ -35,6 +35,8 @@ include_32: test_configuration/vts_l3_Render_Concurrent_VideoFlush_NonTunnel.yam
 include_33: test_configuration/vts_l3_Render_Concurrent_EndToEnd_NonTunnel.yaml
 include_34: test_configuration/vts_l3_Render_Concurrent_UnderflowResumed_NonTunnel.yaml
 include_35: test_configuration/vts_l3_Render_Concurrent_DiscardFramesUntil_NonTunnel.yaml
+include_36: test_configuration/vts_l3_Render_Sequential_UnderFlowCheck_NonTunnel.yaml
+include_37: test_configuration/vts_l3_Render_Concurrent_UnderFlowCheck_NonTunnel.yaml
 
 IVideoSinkManager:
   stream_download_path: "http://<>/streams" #`URL` path to download the audio test streams

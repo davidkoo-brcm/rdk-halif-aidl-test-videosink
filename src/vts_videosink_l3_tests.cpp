@@ -580,6 +580,7 @@ public:
         mTestConfiguration = config;
     }
 
+    void verifyNoUnexpectedUnderflow(int64_t pts);;
     void verifyUnderflow();
     void verifyResume();
     void verifyQueueDepth();
@@ -692,8 +693,8 @@ private:
         VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
         UT_LOG_INFO("VIDEOSINK_OPEN_SUCCESS ctrl listner 0x%x", mVideoSinkControlListener);
 
-        mVideoSinkControlListener->resetFirstFrameRendered();
-        UT_LOG_INFO("Reset first-frame rendered state");
+        mVideoSinkControlListener->resetUnderflow();
+        mVideoSinkControlListener->resetResumed();
 
         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
         UT_LOG_INFO("Sink opened and started");
@@ -800,6 +801,7 @@ private:
                 if (mTestConfiguration.resumeTriggerPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.resumeTriggerPts)
                 {
                     verifyResume();
+                    mVideoSinkControlListener->resetUnderflow();
                 }
 
                 handleEosFrame(metadata, pts, repeat, repeatCount);
@@ -807,6 +809,11 @@ private:
                 if (mTestConfiguration.interFrameDelayMs > 0)
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(mTestConfiguration.interFrameDelayMs));
+                }
+
+                if (mTestConfiguration.underflowPts == static_cast<uint64_t>(-1))
+                {
+                    verifyNoUnexpectedUnderflow(pts);
                 }
 
                 if (repeat == 0)
@@ -1216,6 +1223,16 @@ public:
         //android::IPCThreadState::self()->joinThreadPool();
     }
 };
+
+void SinkTest::verifyNoUnexpectedUnderflow(int64_t pts)
+{
+    int count = mVideoSinkControlListener->getUnderflowCount();
+    if (count > 0)
+    {
+        UT_LOG_ERROR("Unexpected underflow at PTS %ld! Count: %d", pts, count);
+        UT_ASSERT_TRUE(false);
+    }
+}
 
 void SinkTest::verifyUnderflow()
 {
@@ -1699,6 +1716,23 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_DiscardFramesUntil_NonTunnel)
     bool isConcurrent = false;
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
+
+/**
+ * @brief Test to verify discardFramesUntil behavior in video sink
+ *        Decoding type: Sequential
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 011@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_UnderFlowCheck_NonTunnel)
+{
+    const char *testName = "Render_Sequential_UnderFlowCheck_NonTunnel";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
 /**
  * @brief Test the sink's ability to report correct queue depth
  *        Decoding type: Sequential
@@ -1845,6 +1879,9 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_EndToEnd_NonTunnel)
 /**
  * @brief Video sink playback with underflow detection
  *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 011@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_UnderflowResumed_NonTunnel)
 {
@@ -1856,15 +1893,31 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_UnderflowResumed_NonTunnel)
 }
 /**
  * @brief Test to verify discardFramesUntil behavior in video sink
- *        Decoding type: Sequential
+ *        Decoding type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 011@n
+ * **Test Case ID:** 012@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_DiscardFramesUntil_NonTunnel)
 {
     const char *testName = "Render_Concurrent_DiscardFramesUntil_NonTunnel";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify underflow check behavior in the normal video sink scenario
+ *        Decoding type: Concurrent
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 013@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, vts_l3_Render_Concurrent_UnderFlowCheck_NonTunnel)
+{
+    const char *testName = "vts_l3_Render_Concurrent_UnderFlowCheck_NonTunnel";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = true;
