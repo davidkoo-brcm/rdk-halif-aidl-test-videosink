@@ -56,37 +56,9 @@
  * @file vts_videosink_l3_tests.c
  *
  */
-#include <fstream>
-#include <ut.h>
-#include <ut_log.h>
-#include <ut_kvp_profile.h>
-#include <ut_control_plane.h>
-#include <binder/IServiceManager.h>
-#include <binder/ProcessState.h>
-#include <binder/IPCThreadState.h>
-#include <binder/Status.h>
-#include <sys/syscall.h>
-#include <utils/String16.h>
-#include <stdio.h>
-#include <vector>
-#include <optional>
-#include <algorithm>
-#include <unordered_set>
-#include <tuple>
-#include <map>
-#include <chrono>
-
-#include "com/rdk/hal/avbuffer/IAVBuffer.h"
-#include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
-
-#include "com/rdk/hal/videodecoder/IVideoDecoderManager.h"
-#include "com/rdk/hal/videodecoder/BnVideoDecoderControllerListener.h"
-#include "com/rdk/hal/videodecoder/BnVideoDecoderEventListener.h"
-
-#include "com/rdk/hal/avbuffer/IAVBuffer.h"
-#include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
-#include "com/rdk/hal/PropertyValue.h"
-
+#include "vts_l3_common.h"
+#include "vts_l3_avbuffer.h"
+#include "vts_l3_videodecoder.h"
 
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
@@ -103,455 +75,6 @@ UT_ADD_TEST_TO_GROUP(VTS_L3_VideoSink, UT_TESTS_L3)
 
 static const char *gModuleName = "IVideoSinkManager";
 static const char *gTestGroup = "L3";
-
-sp<IVideoDecoderManager> gVideoDecoderManager;
-
-UT_status_t getVideoDecoderService() {
-    gVideoDecoderManager = android::interface_cast<IVideoDecoderManager>(
-       defaultServiceManager()->getService(String16(IVideoDecoderManager::serviceName().c_str())));
-   if (gVideoDecoderManager == nullptr) {
-       printf("Service not available\n");
-       return UT_STATUS_FAILURE;
-   }
-   return UT_STATUS_OK;
-}
-
-sp<IAVBuffer> vts_avbuffer_getService()
-{
-    return
-        android::interface_cast<IAVBuffer>(
-            android::defaultServiceManager()->getService(
-                android::String16(IAVBuffer::serviceName().c_str())
-            )
-        );
-}
-
-class VideoDecoderControllerListener : public BnVideoDecoderControllerListener {
-public:
-    VideoDecoderControllerListener() = default;
-    virtual ~VideoDecoderControllerListener() = default;
-
-    android::binder::Status onFrameOutput(
-        int64_t nsPresentationTime,
-        int64_t frameBufferHandle,
-        const std::optional<com::rdk::hal::videodecoder::FrameMetadata>& metadata) override
-    {
-        UT_LOG_INFO("onFrameOutput: PTS = %x, FrameBufferHandle = %x", nsPresentationTime, frameBufferHandle);
-
-        if (metadata.has_value()) {
-            const auto& meta = metadata.value();
-            UT_LOG_INFO("Metadata: width=%d, height=%d, format=%d",
-                        meta.activeWidth, meta.activeHeight, static_cast<int>(meta.pixelFormat));
-        } else {
-            UT_LOG_ERROR("onFrameOutput: No metadata provided.");
-        }
-
-        return android::binder::Status::ok();
-    }
-
-    android::binder::Status onUserDataOutput(
-        int64_t nsPresentationTime,
-        const std::vector<uint8_t>& userData) override
-    {
-        UT_LOG_INFO("onUserDataOutput: PTS = %x, UserDataSize = %zu", nsPresentationTime, userData.size());
-
-        // Optionally print or parse user data
-        if (!userData.empty()) {
-            UT_LOG_INFO("First byte of user data: 0x%02X", userData[0]);
-        }
-
-        return android::binder::Status::ok();
-    }
-};
-
-class VideoDecoderEventListener : public BnVideoDecoderEventListener {
-    public:
-    VideoDecoderEventListener() {};
-    virtual ~VideoDecoderEventListener() = default;
-
-    Status onDecodeError(ErrorCode errorCode, int32_t vendorErrorCode) override {
-        return Status::ok();
-    }
-    Status onStateChanged(State oldState,State newState) override
-        {
-            UT_LOG("State Change received: %s -> %s", com::rdk::hal::toString(oldState).c_str(), com::rdk::hal::toString(newState).c_str());
-            {
-                std::lock_guard<std::mutex> lock(mMutex);
-                mStateChanges.emplace_back(oldState, newState);
-                mCurrentState = newState;
-            }
-            mCV.notify_all(); // Unblock any waiting test code
-            return Status::ok();
-        }
-        /**
-         * Wait for the sink to reach a particular State within a given timeout.
-         *
-         * @param desiredState The state we want to observe.
-         * @param timeout      How long to wait, e.g. std::chrono::milliseconds(500).
-         * @return true if the state was reached; false if we timed out waiting.
-         */
-        bool waitForState(State desiredState, std::chrono::milliseconds timeout)
-        {
-            std::unique_lock<std::mutex> lock(mMutex);
-            // Wait until mCurrentState == desiredState or until timeout
-            return mCV.wait_for(lock, timeout, [this, desiredState]() {
-                return (mCurrentState == desiredState);
-            });
-        }
-        // Accessors for test verifications if desired
-        std::vector<std::pair<State, State>> getStateChanges() const
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            return mStateChanges;
-        }
-
-        void resetStateChanges()
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            mStateChanges.clear();
-        }
-
-        bool checkStateTransistion(State expOldState, State expNewState)
-        {
-            bool foundClosedToOpening = false;
-            for (const auto &[oldState, newState] : mStateChanges)
-            {
-                if (oldState == expOldState && newState == expNewState)
-                {
-                    foundClosedToOpening = true;
-                    break;
-                }
-            }
-            return foundClosedToOpening;
-        }
-
-        std::vector<int32_t> getErrors() const
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            return mErrors;
-        }
-    private:
-        mutable std::mutex mMutex;
-        std::condition_variable mCV;
-
-        State mCurrentState;
-        std::vector<std::pair<State, State>> mStateChanges;
-        std::vector<int32_t> mErrors;
-};
-
-
-#define AVBUFFER_DESTROY_POOL_SUCCESS(avBufferManager, pool) \
-    do { \
-        bool _aidl_return = false; \
-        Status status; \
-        UT_LOG_INFO("Calling destroyPool(IN:poolHandle:[%d], OUT:_aidl_return:[])", pool); \
-        status = avBufferManager->destroyPool(pool, &_aidl_return); \
-        UT_LOG_INFO("Result destroyPool with (IN:poolHandle:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
-                    pool.handle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_TRUE(_aidl_return); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-    } while (0)
-
-#define AVBUFFER_ALLOC_SUCCESS(avBufferManager, pool, size, bufferHandle) \
-    do { \
-        UT_LOG_WARN("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
-        Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
-        UT_LOG_WARN("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%X]), status:[isOK:%s, exception:%s]", \
-                    pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_NOT_EQUAL(bufferHandle, IAVBuffer::INVALID_HANDLE); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-    } while (0)
-
-#define AVBUFFER_FREE_SUCCESS(avBufferManager, bufferHandle) \
-    do { \
-        bool _aidl_return = false; \
-        UT_LOG_WARN("Calling free(IN:bufferHandle:[0x%X], OUT:_aidl_return)", bufferHandle); \
-        Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
-        UT_LOG_WARN("Result free(IN:bufferHandle:[0x%X], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
-                    bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-        UT_ASSERT_TRUE(_aidl_return); \
-    } while (0)
-
-#define AVBUFFER_GETMETRICS(avBufferManager, secureHeap, heapMetrics) \
-    do { \
-        UT_LOG_INFO("Calling getHeapMetrics(IN:secureHeap:[%s], OUT:heapMetrics[])", \
-                    UT_Control_GetMapString(bool_mapTable, secureHeap)); \
-        Status status = avBufferManager->getHeapMetrics(secureHeap, &heapMetrics); \
-        UT_LOG_INFO("Result getHeapMetrics(IN:secureHeap:[%s], OUT:heapMetrics[secure:%s, bytesUsed:%d, bytesTotal:%d]), status:[isOK:%s, exception:%s]", \
-                    UT_Control_GetMapString(bool_mapTable, secureHeap), \
-                    UT_Control_GetMapString(bool_mapTable, heapMetrics.secure), \
-                    heapMetrics.bytesUsed, \
-                    heapMetrics.bytesTotal, \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-    } while (0)
-
-#define AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(avBufferManager, secureHeap, videoDecoderId, listener, videoPool) \
-do { \
-    UT_LOG_INFO("Calling createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool)", \
-                 secureHeap, videoDecoderId.value, listener.get()); \
-    Status status = avBufferManager->createVideoPool(secureHeap, videoDecoderId, listener, &videoPool); \
-    UT_LOG_INFO("Result createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
-                 secureHeap, videoDecoderId.value, listener.get(), videoPool.handle, \
-                 UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-    UT_ASSERT_TRUE(status.isOk()); \
-    UT_ASSERT_NOT_EQUAL(videoPool.handle, Pool::INVALID); \
-    UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-} while (0)
-
-#define VIDEODECODER_GETSTATE(videoDecoder, state) \
-    do { \
-        Status status; \
-        UT_LOG_INFO("Calling getState(OUT:_aidl_return:[state])"); \
-        status = (videoDecoder)->getState(&state); \
-        UT_LOG_INFO("Result getState(OUT:_aidl_return:[state:%d]), status:[isOK:%s, exception:%s]", \
-                    static_cast<int32_t>(state), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()) << "getState binder call failed"; \
-        UT_ASSERT_TRUE((state) == State::UNKNOWN || \
-                       (state) == State::CLOSED || \
-                       (state) == State::OPENING || \
-                       (state) == State::READY || \
-                       (state) == State::STARTING || \
-                       (state) == State::STARTED || \
-                       (state) == State::FLUSHING || \
-                       (state) == State::STOPPING || \
-                       (state) == State::CLOSING) \
-            << "Invalid state returned: " << static_cast<int32_t>(state); \
-    } while (0)
-
-#define VIDEODECODER_WAIT_FOR_STATE(videoDecoder, targetState, lastState) \
-    do { \
-        int32_t sleep_time = 0; \
-        do \
-        { \
-            std::this_thread::sleep_for(std::chrono::milliseconds(MAX_TRANSITORY_STATE_WAIT_MS)); \
-            sleep_time += MAX_TRANSITORY_STATE_WAIT_MS; \
-            /* Check the state of the decoder */ \
-            VIDEODECODER_GETSTATE(videoDecoder, lastState); \
-        } while (sleep_time < MAX_FINAL_STATE_WAIT_MS && lastState != targetState); \
-    } while (0)
-
-#define VIDEODECODER_MANAGER_GETVIDEODECODERIDS(decoderIds) \
-    do { \
-        Status status; \
-        UT_LOG_INFO("Calling getVideoDecoderIds(OUT:decoderIds:[])"); \
-        status = gVideoDecoderManager->getVideoDecoderIds(&decoderIds); \
-        UT_LOG_INFO("Result getVideoDecoderIds(OUT:decoderIds:[size: %d]), status:[isOK:%s, exception:%s]", \
-                                decoderIds.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE_FATAL(status.isOk()); \
-        UT_ASSERT_FALSE_FATAL(decoderIds.empty()); \
-        UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE); \
-    } while (0)
-
-#define VIDEODECODER_MANAGER_GETVIDEODECODER(_decoderId, videoDecoder) \
-    do { \
-        Status status; \
-        UT_LOG_INFO("Calling getVideoDecoder(IN:_decoderId:[%d], OUT:videoDecoder[])", _decoderId.value); \
-        status = gVideoDecoderManager->getVideoDecoder(_decoderId, &videoDecoder); \
-        UT_LOG_INFO("Result getVideoDecoder(IN:_decoderId:[%d], OUT:videoDecoder[0x%X]), status:[isOK:%s, exception:%s]", \
-                                _decoderId.value, videoDecoder.get(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE_FATAL(status.isOk()); \
-        UT_ASSERT_TRUE_FATAL(videoDecoder.get() != nullptr); \
-        UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE); \
-    } while (0)
-
-#define VIDEODECODER_REGISTER_EVENT_SUCCESS(videoDecoder, listener) \
-    do { \
-        Status status; \
-        bool aidl_return; \
-        sp<IVideoDecoderEventListener> tempListener = (listener); \
-        void* listenerPtr = tempListener ? tempListener.get() : nullptr; \
-        UT_LOG_INFO("Calling registerEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return[])", listenerPtr); \
-        status = (videoDecoder)->registerEventListener((listener), &aidl_return); \
-        UT_LOG_INFO("Result registerEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
-                    listenerPtr, UT_Control_GetMapString(bool_mapTable, aidl_return), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()) << "registerEventListener binder call failed"; \
-        UT_ASSERT_TRUE(aidl_return) << "registerEventListener returned false"; \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE) << "registerEventListener returned an exception"; \
-    } while (0)
-
-#define VIDEODECODER_GETCAPABILITIES(videoDecoder, capabilities) \
-     do { \
-         Status status; \
-         UT_LOG_INFO("Calling getCapabilities(OUT:capabilities)"); \
-         status = videoDecoder->getCapabilities(capabilities); \
-         UT_LOG_INFO("Result getCapabilities(OUT:capabilities), status:[isOK:%s, exception:%s]", \
-                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-         UT_ASSERT_TRUE(status.isOk()); \
-         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-     } while (0)
-
-#define VIDEODECODER_UNREGISTER_EVENT_SUCCESS(videoDecoder, listener) \
-    do { \
-        Status status; \
-        bool aidl_return; \
-        sp<IVideoDecoderEventListener> tempListener = (listener); \
-        void* listenerPtr = tempListener ? tempListener.get() : nullptr; \
-        UT_LOG_INFO("Calling unregisterEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return[])", listenerPtr); \
-        status = (videoDecoder)->unregisterEventListener((listener), &aidl_return); \
-        UT_LOG_INFO("Result unregisterEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
-                    listenerPtr, UT_Control_GetMapString(bool_mapTable, aidl_return), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()) << "unregisterEventListener binder call failed"; \
-        UT_ASSERT_TRUE(aidl_return) << "unregisterEventListener returned false"; \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE) << "unregisterEventListener returned an exception"; \
-    } while (0)
-
-#define VIDEODECODER_OPEN_SUCCESS(videoDecoder, codec, secure, listener, controller, stateCheck) \
-    do { \
-        Status status; \
-        UT_LOG_INFO("Calling open(IN:codec:[%d], IN:secure:[%s], IN:listener:[0x%p], OUT:controller[])", \
-                    static_cast<int32_t>(codec), UT_Control_GetMapString(bool_mapTable, (secure)), (listener).get()); \
-        status = (videoDecoder)->open((codec), (secure), (listener), &(controller)); \
-        UT_LOG_INFO("Result open(IN:codec:[%d], IN:secure:[%s], IN:listener:[0x%p], OUT:controller:[0x%X]), status:[isOK:%s, exception:%s]", \
-                    static_cast<int32_t>(codec), UT_Control_GetMapString(bool_mapTable, (secure)), (listener).get(), (controller).get(), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE_FATAL(status.isOk()) << "open binder call failed"; \
-        UT_ASSERT_NOT_EQUAL_FATAL((controller).get(), nullptr) << "Controller is null; codec or secure mode may not be supported"; \
-        UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE) << "open returned an exception"; \
-        if (stateCheck) { \
-            State lastState; \
-            VIDEODECODER_WAIT_FOR_STATE(videoDecoder, State::READY, lastState); \
-            UT_ASSERT_EQUAL(lastState, State::READY) << "Decoder did not reach READY state after open"; \
-        } \
-    } while (0)
-
-#define VIDEODECODER_START_SUCCESS(videoDecoder, videoDecoderController, stateCheck) \
-    do { \
-        Status status; \
-        UT_LOG_INFO("Calling start()"); \
-        status = (videoDecoderController)->start(); \
-        UT_LOG_INFO("Result start(), status:[isOK:%s, exception:%s]", \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()) << "start binder call failed"; \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE) << "start returned an exception"; \
-        if (stateCheck) { \
-            State lastState; \
-            VIDEODECODER_WAIT_FOR_STATE(videoDecoder, State::STARTED, lastState); \
-            UT_ASSERT_EQUAL(lastState, State::STARTED) << "Decoder did not reach STARTED state"; \
-        } \
-    } while (0)
-
-#define VIDEODECODER_DECODEBUFFER_SUCCESS(videoDecoderController, nsPresentationTime, bufferHandle) \
-    do { \
-        ::android::binder::Status status; \
-        bool _aidl_return; \
-        UT_LOG_INFO("Calling decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[])", \
-            nsPresentationTime, bufferHandle); \
-        status = videoDecoderController->decodeBuffer(nsPresentationTime, bufferHandle, &_aidl_return); \
-        UT_LOG_INFO("Result decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
-            nsPresentationTime, bufferHandle, \
-            UT_Control_GetMapString(bool_mapTable, _aidl_return), \
-            UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-    } while (0)
-
-#define VIDEODECODER_DECODEBUFFER_FAILURE(videoDecoderController, nsPresentationTime, bufferHandle, exception) \
-    do { \
-        ::android::binder::Status status; \
-        bool _aidl_return; \
-        UT_LOG_INFO("Calling decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[])", \
-            nsPresentationTime, bufferHandle); \
-        status = videoDecoderController->decodeBuffer(nsPresentationTime, bufferHandle, &_aidl_return); \
-        UT_LOG_INFO("Result decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
-            nsPresentationTime, bufferHandle, \
-            UT_Control_GetMapString(bool_mapTable, _aidl_return), \
-            UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_FALSE(status.isOk()); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-    } while (0)
-
-#define VIDEODECODER_SETPROPERTY_SUCCESS(videoDecoderController, property, propertyValue) \
-    do { \
-        Status status; \
-        bool result; \
-        UT_LOG_INFO("Calling setProperty(IN:property[%d], IN:propertyValue=%d)", \
-                    static_cast<int32_t>(property), propertyValue.value); \
-        status = videoDecoderController->setProperty(property, propertyValue, &result); \
-        UT_LOG_INFO("Result setProperty(IN:property[%d], OUT:result=%s), status:[isOK:%s, exception:%s]", \
-                    static_cast<int32_t>(property), UT_Control_GetMapString(bool_mapTable, result), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-        UT_ASSERT_TRUE(result); \
-    } while (0)
-
-#define VIDEODECODER_STOP_SUCCESS(videoDecoder, videoDecoderController, stateCheck) \
-    do { \
-        Status status; \
-        UT_LOG_INFO("Calling stop()"); \
-        status = videoDecoderController->stop(); \
-        UT_LOG_INFO("Result stop(), status:[isOK:%s, exception:%s]", \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-        if (stateCheck) { \
-            State lastState; \
-            VIDEODECODER_WAIT_FOR_STATE(videoDecoder, State::READY, lastState); \
-            UT_ASSERT_EQUAL(lastState, State::READY) << "Decoder did not reach READY state"; \
-        } \
-    } while (0)
-
-#define VIDEODECODER_CLOSE_SUCCESS(videoDecoder, controller, stateCheck) \
-    do { \
-        Status status; \
-        bool aidl_return; \
-        sp<IVideoDecoderController> tempController = (controller); \
-        void* controllerPtr = tempController ? tempController.get() : nullptr; \
-        UT_LOG_INFO("Calling close(IN:videoDecoderController:[0x%p], OUT:_aidl_return[])", controllerPtr); \
-        status = (videoDecoder)->close((controller), &aidl_return); \
-        UT_LOG_INFO("Result close(IN:videoDecoderController:[0x%p], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
-                    controllerPtr, UT_Control_GetMapString(bool_mapTable, aidl_return), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE_FATAL(status.isOk()) << "close binder call failed"; \
-        UT_ASSERT_TRUE_FATAL(aidl_return) << "close returned false"; \
-        UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE) << "close returned an exception"; \
-        if (stateCheck) { \
-            State lastState; \
-            VIDEODECODER_WAIT_FOR_STATE(videoDecoder, State::CLOSED, lastState); \
-            UT_ASSERT_EQUAL(lastState, State::CLOSED) << "Decoder did not reach CLOSED state after close"; \
-        } \
-    } while (0)
-
-class AVBufferSpaceListener : public BnAVBufferSpaceListener
-{
-public:
-
-    AVBufferSpaceListener() {};
-    virtual ~AVBufferSpaceListener() = default;
-
-    Status onSpaceAvailable() override
-    {
-        return Status::ok();
-    }
-};
 
 class SinkTest
 {
@@ -1075,7 +598,7 @@ public:
         }
     }
 
-    void runSequentialSink(videoTestConfiguration_t& testConfig, bool secure, bool tunnel)
+    void runSequentialSink(videoTestConfiguration_t sinkConfig, testConfiguration_t decoderConfig, bool secure, bool tunnel)
     {
         for (size_t i = 0; i < mVideoSinkList.size(); ++i)
         {
@@ -1083,7 +606,6 @@ public:
             auto& [_decoderId, decoderHandle, decoderControlListener, decoderEventListener, decoderCapabilities] = mVideoDecoderList[i];
 
             HeapMetrics beforeHeapMetrics, afterHeapMetrics;
-
 
             // Skip if the platform doesn't support secure decode
             if (secure && !decoderCapabilities->supportsSecure)
@@ -1095,11 +617,19 @@ public:
 
             AVBUFFER_GETMETRICS(mAVBufferManager, secure, beforeHeapMetrics);
 
+            DecoderTest decoderTest(_decoderId, decoderHandle,
+                                    sp<VideoDecoderControllerListener>::cast(decoderControlListener),
+                                    sp<VideoDecoderEventListener>::cast(decoderEventListener),
+                                    sp<IAVBuffer>::cast(mAVBufferManager)
+                                    , secure, tunnel, decoderConfig);
+
+            decoderTest.decodeAndConsumeVideoStreams();
+
             SinkTest sinkTest(_sinkId, videoSink,
                 videoSinkControlListener, videoSinkEventListener,
                 decoderHandle, _decoderId,
                 decoderControlListener, decoderEventListener,
-                mAVBufferManager, secure, testConfig);
+                mAVBufferManager, secure, sinkConfig);
 
 
             sinkTest.run(tunnel);
@@ -1115,7 +645,7 @@ public:
     }
 
 
-    void runConcurrentSink(videoTestConfiguration_t& testConfig, bool secure, bool tunnel)
+    void runConcurrentSink(videoTestConfiguration_t& testConfig,testConfiguration_t decoderConfig, bool secure, bool tunnel)
     {
         std::vector<std::thread> threads;
         std::vector<SinkTest> sinkTests;  // Store SinkTest objects here
@@ -1178,26 +708,24 @@ public:
 
     void runSingleProcessTest(const char *testName, bool secureMode, bool isTunnel, bool concurrentMode)
     {
-        vector<videoTestConfiguration_t> testConfiguration;
+        vector<videoTestConfiguration_t> sinkConfigs;
+        vector<testConfiguration_t> decoderConfigs;
 
+        vts_videodecoder_parse_testconfig(gTestConfiguration, gModuleName, gTestGroup, testName, decoderConfigs);
+        vts_videosink_parse_testconfig(gTestConfiguration, gModuleName, gTestGroup, testName, sinkConfigs);
 
-
-        vts_videosink_parse_testconfig(gTestConfiguration, gModuleName, gTestGroup, testName, testConfiguration);
-
-        if(concurrentMode)
+        for (auto& sinkConfig : sinkConfigs)
         {
-            for(auto& test: testConfiguration)
+            for (auto& decoderConfig : decoderConfigs)
             {
-                runConcurrentSink(test, secureMode, isTunnel);
-            }
-        }
-        else
-        {
-            for(auto& test: testConfiguration)
-            {
-
-                runSequentialSink(test, secureMode, isTunnel);
-
+                if (concurrentMode)
+                {
+                    runConcurrentSink(sinkConfig, decoderConfig, secureMode, isTunnel);
+                }
+                else
+                {
+                    runSequentialSink(sinkConfig, decoderConfig, secureMode, isTunnel);
+                }
             }
         }
     }

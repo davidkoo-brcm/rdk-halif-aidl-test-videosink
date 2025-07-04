@@ -66,6 +66,7 @@ AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodeco
 AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/PCMFormat.cpp
 AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/Property.cpp
 
+VIDEODECODER_AIDL_SRC += ${VIDEO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/State.cpp
 VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/Capabilities.cpp
 VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/CodecCapabilities.cpp
 VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/Codec.cpp
