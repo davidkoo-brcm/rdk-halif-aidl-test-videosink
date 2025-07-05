@@ -1,29 +1,20 @@
-IVideoSinkManager:
+IVideoDecoderManager:
   L3:
     Render_Sequential_FramesRepeatedFRC_NonTunnel:
       Controls:
-        discardFramesUntilPts: -1
-        underflow_pts: -1
-        resumeTriggerPts: -1
-        repeatPerFrame: 1
-        flush_pts: 40000000
-        flush_reset_pts: -1
-        eos_pts: -1
-        interFrameDelayMs: 0
-        discontinuityPTS: -1
       Inputs:
         Streams:
-          - Name: YCBCR444_720_480_10_1_hlg
-            frameRate: 30
-            PTS:
-              - 0              # Frame 1
-              - 66666666       # Frame 2 (approx double duration, will cause repeats)
-              - 66666666       # Repeat Frame 2 again (exact same PTS to force repeat)
-              - 133333332      # Frame 3
-              - 133333332      # Repeat Frame 3
-              - 200000000      # Frame 4
-              - 266666666      # Frame 5
-              - 266666666      # Repeat Frame 5
-              - 333333332      # Frame 6
-              - 333333332      # Repeat Frame 6
-              - 400000000      # Frame 7
+          - Codec: H264
+            Name: H264_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734_REPEATED_FRC
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_UnderflowCheck: false
+            sink_underflow_pts: -1
+            sink_resumeTriggerPts: -1
+            sink_repeatPerFrame: 1
+            sink_flush_pts: 40000000
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: 0
+            sink_discontinuityPTS: -1

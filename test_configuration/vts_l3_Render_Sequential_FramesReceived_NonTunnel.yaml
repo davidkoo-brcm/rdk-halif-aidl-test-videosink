@@ -1,25 +1,21 @@
-IVideoSinkManager:
+IVideoDecoderManager:
   L3:
     Render_Sequential_FramesReceived_NonTunnel:
       Controls:
-        discardFramesUntilPts: -1
-        underflow_pts: -1
-        resumeTriggerPts: -1
-        repeatPerFrame: 2
-        flush_pts: -1
-        flush_reset_pts: -1
-        eos_pts: -1
-        interFrameDelayMs: 0
-        discontinuityPTS: -1
+        delay_between_decode_calls: 5 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
         Streams:
-          - Name: RGB_1280_720_10_0_hdr10
-            frameRate: 60
-            PTS:
-              - 0           # Frame 1
-              - 16666667    # Frame 2
-              - 33333334    # Frame 3
-              - 50000001    # Frame 4
-              - 66666668    # Frame 5
-              - 83333335    # Frame 6
-              - 100000002   # Frame 7
+          - Codec: VP9
+            Name: VP9_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_UnderflowCheck: false
+            sink_underflow_pts: -1
+            sink_resumeTriggerPts: -1
+            sink_repeatPerFrame: 1
+            sink_flush_pts: -1
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: 0
+            sink_discontinuityPTS: -1

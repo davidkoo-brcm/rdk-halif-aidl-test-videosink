@@ -1,0 +1,434 @@
+VideoStreams:
+  H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734:
+    input: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734.es #Stream Name
+    #reference: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734.yuv #reference decoder output
+    codec: H265  #Video codec information, Refer `Codec` enum
+    codedWidth: 1920
+    codedHeight: 1080
+    colorDepth: 8
+    pixelFormat: YUV
+    dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
+    scanType: PROGRESSIVE_FRAME
+    frameRateNumerator: 60 #Frame Rate
+    frameRateDenominator: 1
+    endOfStream:
+    stop_start_pts: -1 #`pts` value in nano seconds at which the decoder should be stopped and restarted during the test. -1 indicates that decoder should not be restarted
+    signal_discontinuity_pts: -1 #`pts` value in nano seconds at which the test should signal discontinuity to the decoder. -1 indicates that no discontinuity signal should be sent
+    flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
+    flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
+    eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
+    discontinuity:
+    lowLatency:
+    bit_rate: 734
+    no_of_frames: 12
+    frame_size:
+      - 28
+      - 47
+      - 11
+      - 1914
+      - 131765
+      - 1517
+      - 474
+      - 311
+      - 298
+      - 200
+      - 1137
+      - 306
+      - 172
+      - 164
+      - 2434
+      - 327
+    PTS: #List of Presentation Time Stamps (per frame) in nanoseconds
+      - 0
+      - 16667000
+      - 33334000
+      - 50001000
+      - 66668000
+      - 83335000
+      - 100002000
+      - 116669000
+      - 133336000
+      - 150003000
+      - 166670000
+      - 183337000
+  H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734_ERROR:
+    input: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734.es #Stream Name
+    codec: H265  #Video codec information, Refer `Codec` enum
+    codedWidth: 1920
+    codedHeight: 1080
+    colorDepth: 8
+    pixelFormat: YUV
+    dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
+    scanType: PROGRESSIVE_FRAME
+    frameRateNumerator: 60 #Frame Rate
+    frameRateDenominator: 1
+    stop_start_pts: -1 #`pts` value in nano seconds at which the decoder should be stopped and restarted during the test. -1 indicates that decoder should not be restarted
+    signal_discontinuity_pts: -1 #`pts` value in nano seconds at which the test should signal discontinuity to the decoder. -1 indicates that no discontinuity signal should be sent
+    flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
+    flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
+    eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
+    discontinuity:
+    lowLatency:
+    bit_rate: 734
+    no_of_frames: 12
+    frame_size:
+      - 28
+      - 47
+      - 11
+      - 1914
+      - 131765
+      - 1517
+      - 474
+      - 311
+      - 298
+      - 200
+      - 1137
+      - 306
+      - 12
+      - 14
+      - 2434
+      - 327
+    PTS: #List of Presentation Time Stamps (per frame) in nanoseconds
+      - 00000000
+      - 33333000
+      - 66667000
+      - 100000000
+      - 133333000
+      - 166667000
+      - 200000000
+      - 233333000
+      - 266667000
+      - 300000000
+      - 400000000
+      - 466667000
+      - 500000000
+      - 566667000
+      - 600000000
+      - 666667000
+  H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734_Discontinuity:
+    input: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734.es #Stream Name
+    codec: H265  #Video codec information, Refer `Codec` enum
+    codedWidth: 1920
+    codedHeight: 1080
+    colorDepth: 8
+    pixelFormat: YUV
+    dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
+    scanType: PROGRESSIVE_FRAME
+    frameRateNumerator: 60 #Frame Rate
+    frameRateDenominator: 1
+    endOfStream:
+    stop_start_pts: -1 #`pts` value in nano seconds at which the decoder should be stopped and restarted during the test. -1 indicates that decoder should not be restarted
+    signal_discontinuity_pts: 200000000 #`pts` value in nano seconds at which the test should signal discontinuity to the decoder. -1 indicates that no discontinuity signal should be sent
+    flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
+    flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
+    eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
+    lowLatency:
+    bit_rate: 734
+    no_of_frames: 12
+    frame_size:
+      - 28
+      - 47
+      - 11
+      - 1914
+      - 131765
+      - 1517
+      - 474
+      - 311
+      - 298
+      - 200
+      - 1137
+      - 306
+      - 172
+      - 164
+      - 2434
+      - 327
+    PTS: #List of Presentation Time Stamps (per frame) in nanoseconds
+      - 00000000
+      - 33333000
+      - 66667000
+      - 100000000
+      - 133333000
+      - 166667000
+      - 200000000
+      - 233333000
+      - 266667000
+      - 300000000
+      - 400000000
+      - 466667000
+      - 500000000
+      - 566667000
+      - 600000000
+      - 666667000
+  H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734_EOS:
+    input: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734.es #Stream Name
+    codec: H265  #Video codec information, Refer `Codec` enum
+    codedWidth: 1920
+    codedHeight: 1080
+    colorDepth: 8
+    pixelFormat: YUV
+    dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
+    scanType: PROGRESSIVE_FRAME
+    frameRateNumerator: 60 #Frame Rate
+    frameRateDenominator: 1
+    endOfStream:
+    stop_start_pts: -1 #`pts` value in nano seconds at which the decoder should be stopped and restarted during the test. -1 indicates that decoder should not be restarted
+    signal_discontinuity_pts: -1 #`pts` value in nano seconds at which the test should signal discontinuity to the decoder. -1 indicates that no discontinuity signal should be sent
+    flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
+    flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
+    eos_pts: 566667000 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
+    lowLatency:
+    bit_rate: 734
+    no_of_frames: 12
+    frame_size:
+      - 28
+      - 47
+      - 11
+      - 1914
+      - 131765
+      - 1517
+      - 474
+      - 311
+      - 298
+      - 200
+      - 1137
+      - 306
+      - 172
+      - 164
+      - 2434
+      - 327
+    PTS: #List of Presentation Time Stamps (per frame) in nanoseconds
+      - 00000000
+      - 33333000
+      - 66667000
+      - 100000000
+      - 133333000
+      - 166667000
+      - 200000000
+      - 233333000
+      - 266667000
+      - 300000000
+      - 400000000
+      - 466667000
+      - 500000000
+      - 566667000
+      - 600000000
+      - 666667000
+  H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734_FLUSH:
+    input: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734.es #Stream Name
+    codec: H265  #Video codec information, Refer `Codec` enum
+    codedWidth: 1920
+    codedHeight: 1080
+    colorDepth: 8
+    pixelFormat: YUV
+    dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
+    scanType: PROGRESSIVE_FRAME
+    frameRateNumerator: 60 #Frame Rate
+    frameRateDenominator: 1
+    endOfStream:
+    stop_start_pts: -1 #`pts` value in nano seconds at which the decoder should be stopped and restarted during the test. -1 indicates that decoder should not be restarted
+    signal_discontinuity_pts: -1 #`pts` value in nano seconds at which the test should signal discontinuity to the decoder. -1 indicates that no discontinuity signal should be sent
+    flush_pts: 400000000 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
+    flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
+    eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
+    lowLatency:
+    bit_rate: 734
+    no_of_frames: 12
+    frame_size:
+      - 28
+      - 47
+      - 11
+      - 1914
+      - 131765
+      - 1517
+      - 474
+      - 311
+      - 298
+      - 200
+      - 1137
+      - 306
+      - 172
+      - 164
+      - 2434
+      - 327
+    PTS: #List of Presentation Time Stamps (per frame) in nanoseconds
+      - 00000000
+      - 33333000
+      - 66667000
+      - 100000000
+      - 133333000
+      - 166667000
+      - 200000000
+      - 233333000
+      - 266667000
+      - 300000000
+      - 400000000
+      - 466667000
+      - 500000000
+      - 566667000
+      - 600000000
+      - 666667000
+  H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734_FLUSH_RESET:
+    input: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734.es #Stream Name
+    codec: H265  #Video codec information, Refer `Codec` enum
+    codedWidth: 1920
+    codedHeight: 1080
+    colorDepth: 8
+    pixelFormat: YUV
+    dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
+    scanType: PROGRESSIVE_FRAME
+    frameRateNumerator: 60 #Frame Rate
+    frameRateDenominator: 1
+    endOfStream:
+    stop_start_pts: -1 #`pts` value in nano seconds at which the decoder should be stopped and restarted during the test. -1 indicates that decoder should not be restarted
+    signal_discontinuity_pts: -1 #`pts` value in nano seconds at which the test should signal discontinuity to the decoder. -1 indicates that no discontinuity signal should be sent
+    flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
+    flush_reset_pts: 266667000 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
+    eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
+    lowLatency:
+    bit_rate: 734
+    no_of_frames: 12
+    frame_size:
+      - 28
+      - 47
+      - 11
+      - 1914
+      - 131765
+      - 1517
+      - 474
+      - 311
+      - 298
+      - 200
+      - 1137
+      - 306
+      - 172
+      - 164
+      - 2434
+      - 327
+    PTS: #List of Presentation Time Stamps (per frame) in nanoseconds
+      - 00000000
+      - 33333000
+      - 66667000
+      - 100000000
+      - 133333000
+      - 166667000
+      - 200000000
+      - 233333000
+      - 266667000
+      - 300000000
+      - 400000000
+      - 466667000
+      - 500000000
+      - 566667000
+      - 600000000
+      - 666667000
+  H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734_UNDERFLOW:
+    input: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734.es #Stream Name
+    #reference: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734.yuv #reference decoder output
+    codec: H265  #Video codec information, Refer `Codec` enum
+    codedWidth: 1920
+    codedHeight: 1080
+    colorDepth: 8
+    pixelFormat: YUV
+    dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
+    scanType: PROGRESSIVE_FRAME
+    frameRateNumerator: 60 #Frame Rate
+    frameRateDenominator: 1
+    endOfStream:
+    stop_start_pts: -1 #`pts` value in nano seconds at which the decoder should be stopped and restarted during the test. -1 indicates that decoder should not be restarted
+    signal_discontinuity_pts: -1 #`pts` value in nano seconds at which the test should signal discontinuity to the decoder. -1 indicates that no discontinuity signal should be sent
+    flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
+    flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
+    eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
+    discontinuity:
+    lowLatency:
+    bit_rate: 734
+    no_of_frames: 12
+    frame_size:
+      - 28
+      - 47
+      - 11
+      - 1914
+      - 131765
+      - 1517
+      - 474
+      - 311
+      - 298
+      - 200
+      - 1137
+      - 306
+      - 172
+      - 164
+      - 2434
+      - 327
+    PTS: #List of Presentation Time Stamps (per frame) in nanoseconds
+      - 0              # Frame 1
+      - 33333000       # Frame 2
+      - 66667000       # Frame 3
+      - 100000000      # Frame 4
+      - 133333000      # Frame 5
+      - 166667000      # Frame 6
+      - 200000000      # Frame 7
+      - 233333000      # Frame 8
+      - 266667000      # Frame 9
+      - 300000000      # Frame 10 - 🔻 Underflow starts here
+      - 360000000      # Frame 11 - 🕒 After 60ms delay (underflow catch-up)
+      - 393333000      # Frame 12 - Back to 33ms interval
+      # SKIP: 426666000  (would be Frame 13)
+      # SKIP: 460000000  (would be Frame 14)
+      # SKIP: 493333000  (would be Frame 15)
+      - 526666000      # Frame 16 - 🔁 ResumeTriggerPts after 3 skipped PTS
+      - 560000000      # Frame 17 - Normal
+      - 593333000      # Frame 18 - Normal
+      - 626666000      # Frame 19 - Normal
+  H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734_DROPPED_LATE:
+    input: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734.es #Stream Name
+    #reference: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734.yuv #reference decoder output
+    codec: H265  #Video codec information, Refer `Codec` enum
+    codedWidth: 1920
+    codedHeight: 1080
+    colorDepth: 8
+    pixelFormat: YUV
+    dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
+    scanType: PROGRESSIVE_FRAME
+    frameRateNumerator: 60 #Frame Rate
+    frameRateDenominator: 1
+    endOfStream:
+    stop_start_pts: -1 #`pts` value in nano seconds at which the decoder should be stopped and restarted during the test. -1 indicates that decoder should not be restarted
+    signal_discontinuity_pts: -1 #`pts` value in nano seconds at which the test should signal discontinuity to the decoder. -1 indicates that no discontinuity signal should be sent
+    flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
+    flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
+    eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
+    discontinuity:
+    lowLatency:
+    bit_rate: 734
+    no_of_frames: 12
+    frame_size:
+      - 28
+      - 47
+      - 11
+      - 1914
+      - 131765
+      - 1517
+      - 474
+      - 311
+      - 298
+      - 200
+      - 1137
+      - 306
+      - 172
+      - 164
+      - 2434
+      - 327
+    PTS: #List of Presentation Time Stamps (per frame) in nanoseconds
+      - 0            # Frame 0 (valid)
+      - 10           # late drop (too close to frame 0)
+      - 20           # late drop
+      - 30           # late drop
+      - 40           # late drop
+      - 50           # late drop
+      - 60           # late drop
+      - 33333333     # Frame 1 (valid)
+      - 33333343     # late drop (too close to frame 1)
+      - 33333353     # late drop
+      - 66666666     # Frame 2 (valid)
+

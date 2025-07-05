@@ -20,6 +20,7 @@
 
 #include "com/rdk/hal/videodecoder/IVideoDecoder.h"
 #include "com/rdk/hal/avbuffer/IAVBuffer.h"
+#include "IAVBufferHelper.h"
 
 using namespace com::rdk::hal;
 using namespace com::rdk::hal::videodecoder;
@@ -46,30 +47,43 @@ typedef struct InputVideoFrame
 }InputVideoFrame_t;
 
 struct testConfiguration_t {
-    std::string input; // Path to input .es file
-    std::string streamName; //
-    videodecoder::Codec codec; // H264_AVC, HEVC, etc.
-    int32_t codedWidth; // Video width
-    int32_t codedHeight; // Video height
-    uint32_t frameRateNumerator; // Frame rate numerator
-    uint32_t frameRateDenominator; // Frame rate denominator
-    videodecoder::PixelFormat pixelFormat; // YUV, etc.
-    videodecoder::DynamicRange dynamicRange; // SDR, HDR, etc.
-    std::string colourSpace; // BT709, etc.
-    uint32_t colorDepth; // Bit depth
-    uint32_t bitRate; // Bit rate
-    uint32_t no_of_frames; // Total frames
-    std::vector<std::tuple<int32_t, int64_t, bool>> frameDetails; // {size, PTS, isErrorFrame}
-    double rms_diff_threshold; // RMS difference threshold
-    uint32_t decoderDelay; // Delay between decode calls (ms)
-    int64_t stopPts; // Stop/restart PTS
-    int64_t discontinuityPts; // Discontinuity PTS
-    int64_t flushPts; // Flush PTS
-    int64_t flushResetPts; // Flush with reset PTS
-    int64_t eosPts; // EOS PTS
-    int64_t decode_time_threshold; // Decode time budget per frame (ns)
-    double rms_diff_threashold; // RMS difference threshold
+    std::string input;
+    std::string streamName;
+    videodecoder::Codec codec;
+    int32_t codedWidth;
+    int32_t codedHeight;
+    uint32_t frameRateNumerator;
+    uint32_t frameRateDenominator;
+    videodecoder::PixelFormat pixelFormat;
+    videodecoder::DynamicRange dynamicRange;
+    std::string colourSpace;
+    uint32_t colorDepth;
+    uint32_t bitRate;
+    uint32_t no_of_frames;
+    std::vector<std::tuple<int32_t, int64_t, bool>> frameDetails;
+    double rms_diff_threshold;
+    uint32_t decoderDelay;
+    int64_t stopPts;
+    int64_t discontinuityPts;
+    int64_t flushPts;
+    int64_t flushResetPts;
+    int64_t eosPts;
+    int64_t decode_time_threshold;
+
+    // Sink control fields
+    int64_t sink_discardFramesUntilPts;
+    int64_t sink_underflowPts;
+    int64_t sink_resumeTriggerPts;
+    int32_t sink_repeatPerFrame;
+    int64_t sink_flush_pts;
+    int64_t sink_flush_reset_pts;
+    int64_t sink_eos_pts;
+    int64_t sink_interFrameDelayMs;
+    int64_t sink_discontinuityPTS;
+    std::string sink_testName;
+    bool sink_UnderflowCheck;
 };
+
 
 struct videoFrameMetadata {
         PixelFormat pixelFormat;
@@ -102,9 +116,9 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
 #define VIDEODECODER_GETSTATE(videoDecoder, state) \
     do { \
         Status status; \
-        UT_LOG_INFO("Calling getState(OUT:_aidl_return:[state])"); \
+        UT_LOG_DEBUG("Calling getState(OUT:_aidl_return:[state])"); \
         status = (videoDecoder)->getState(&state); \
-        UT_LOG_INFO("Result getState(OUT:_aidl_return:[state:%d]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result getState(OUT:_aidl_return:[state:%d]), status:[isOK:%s, exception:%s]", \
                     static_cast<int32_t>(state), \
                     UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
@@ -136,9 +150,9 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
 #define VIDEODECODER_MANAGER_GETVIDEODECODERIDS(decoderIds) \
     do { \
         Status status; \
-        UT_LOG_INFO("Calling getVideoDecoderIds(OUT:decoderIds:[])"); \
+        UT_LOG_DEBUG("Calling getVideoDecoderIds(OUT:decoderIds:[])"); \
         status = gVideoDecoderManager->getVideoDecoderIds(&decoderIds); \
-        UT_LOG_INFO("Result getVideoDecoderIds(OUT:decoderIds:[size: %d]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result getVideoDecoderIds(OUT:decoderIds:[size: %d]), status:[isOK:%s, exception:%s]", \
                                 decoderIds.size(), UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
         UT_ASSERT_TRUE_FATAL(status.isOk()); \
@@ -149,9 +163,9 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
 #define VIDEODECODER_MANAGER_GETVIDEODECODER(_decoderId, videoDecoder) \
     do { \
         Status status; \
-        UT_LOG_INFO("Calling getVideoDecoder(IN:_decoderId:[%d], OUT:videoDecoder[])", _decoderId.value); \
+        UT_LOG_DEBUG("Calling getVideoDecoder(IN:_decoderId:[%d], OUT:videoDecoder[])", _decoderId.value); \
         status = gVideoDecoderManager->getVideoDecoder(_decoderId, &videoDecoder); \
-        UT_LOG_INFO("Result getVideoDecoder(IN:_decoderId:[%d], OUT:videoDecoder[0x%X]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result getVideoDecoder(IN:_decoderId:[%d], OUT:videoDecoder[0x%X]), status:[isOK:%s, exception:%s]", \
                                 _decoderId.value, videoDecoder.get(), UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
         UT_ASSERT_TRUE_FATAL(status.isOk()); \
@@ -165,9 +179,9 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
         bool aidl_return; \
         sp<IVideoDecoderEventListener> tempListener = (listener); \
         void* listenerPtr = tempListener ? tempListener.get() : nullptr; \
-        UT_LOG_INFO("Calling registerEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return[])", listenerPtr); \
+        UT_LOG_DEBUG("Calling registerEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return[])", listenerPtr); \
         status = (videoDecoder)->registerEventListener((listener), &aidl_return); \
-        UT_LOG_INFO("Result registerEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result registerEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     listenerPtr, UT_Control_GetMapString(bool_mapTable_, aidl_return), \
                     UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
@@ -179,9 +193,9 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
 #define VIDEODECODER_GETCAPABILITIES(videoDecoder, capabilities) \
      do { \
          Status status; \
-         UT_LOG_INFO("Calling getCapabilities(OUT:capabilities)"); \
+         UT_LOG_DEBUG("Calling getCapabilities(OUT:capabilities)"); \
          status = videoDecoder->getCapabilities(capabilities); \
-         UT_LOG_INFO("Result getCapabilities(OUT:capabilities), status:[isOK:%s, exception:%s]", \
+         UT_LOG_DEBUG("Result getCapabilities(OUT:capabilities), status:[isOK:%s, exception:%s]", \
                      UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
                      UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
          UT_ASSERT_TRUE(status.isOk()); \
@@ -194,9 +208,9 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
         bool aidl_return; \
         sp<IVideoDecoderEventListener> tempListener = (listener); \
         void* listenerPtr = tempListener ? tempListener.get() : nullptr; \
-        UT_LOG_INFO("Calling unregisterEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return[])", listenerPtr); \
+        UT_LOG_DEBUG("Calling unregisterEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return[])", listenerPtr); \
         status = (videoDecoder)->unregisterEventListener((listener), &aidl_return); \
-        UT_LOG_INFO("Result unregisterEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result unregisterEventListener(IN:videoDecoderEventListener:[0x%p], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                   listenerPtr, UT_Control_GetMapString(bool_mapTable_, aidl_return), \
                     UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
@@ -208,10 +222,10 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
 #define VIDEODECODER_OPEN_SUCCESS(videoDecoder, codec, secure, listener, controller, stateCheck) \
     do { \
         Status status; \
-        UT_LOG_INFO("Calling open(IN:codec:[%d], IN:secure:[%s], IN:listener:[0x%p], OUT:controller[])", \
+        UT_LOG_DEBUG("Calling open(IN:codec:[%d], IN:secure:[%s], IN:listener:[0x%p], OUT:controller[])", \
                     static_cast<int32_t>(codec), UT_Control_GetMapString(bool_mapTable_, (secure)), (listener).get()); \
         status = (videoDecoder)->open((codec), (secure), (listener), &(controller)); \
-        UT_LOG_INFO("Result open(IN:codec:[%d], IN:secure:[%s], IN:listener:[0x%p], OUT:controller:[0x%X]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result open(IN:codec:[%d], IN:secure:[%s], IN:listener:[0x%p], OUT:controller:[0x%X]), status:[isOK:%s, exception:%s]", \
                     static_cast<int32_t>(codec), UT_Control_GetMapString(bool_mapTable_, (secure)), (listener).get(), (controller).get(), \
                     UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
@@ -228,9 +242,9 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
 #define VIDEODECODER_START_SUCCESS(videoDecoder, videoDecoderController, stateCheck) \
     do { \
         Status status; \
-        UT_LOG_INFO("Calling start()"); \
+        UT_LOG_DEBUG("Calling start()"); \
         status = (videoDecoderController)->start(); \
-        UT_LOG_INFO("Result start(), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result start(), status:[isOK:%s, exception:%s]", \
                     UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()) << "start binder call failed"; \
@@ -246,10 +260,10 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
     do { \
         ::android::binder::Status status; \
         bool _aidl_return; \
-        UT_LOG_INFO("Calling decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[])", \
+        UT_LOG_DEBUG("Calling decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[])", \
             nsPresentationTime, bufferHandle); \
         status = videoDecoderController->decodeBuffer(nsPresentationTime, bufferHandle, &_aidl_return); \
-        UT_LOG_INFO("Result decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
             nsPresentationTime, bufferHandle, \
             UT_Control_GetMapString(bool_mapTable_, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
@@ -262,10 +276,10 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
     do { \
         ::android::binder::Status status; \
         bool _aidl_return; \
-        UT_LOG_INFO("Calling decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[])", \
+        UT_LOG_DEBUG("Calling decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[])", \
             nsPresentationTime, bufferHandle); \
         status = videoDecoderController->decodeBuffer(nsPresentationTime, bufferHandle, &_aidl_return); \
-        UT_LOG_INFO("Result decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result decodeBuffer(IN:nsPresentationTime[%ld], IN:bufferHandle[0x%lX], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
             nsPresentationTime, bufferHandle, \
             UT_Control_GetMapString(bool_mapTable_, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
@@ -278,10 +292,10 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
     do { \
         Status status; \
         bool result; \
-        UT_LOG_INFO("Calling setProperty(IN:property[%d], IN:propertyValue=%d)", \
+        UT_LOG_DEBUG("Calling setProperty(IN:property[%d], IN:propertyValue=%d)", \
                     static_cast<int32_t>(property), propertyValue.value); \
         status = videoDecoderController->setProperty(property, propertyValue, &result); \
-        UT_LOG_INFO("Result setProperty(IN:property[%d], OUT:result=%s), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result setProperty(IN:property[%d], OUT:result=%s), status:[isOK:%s, exception:%s]", \
                     static_cast<int32_t>(property), UT_Control_GetMapString(bool_mapTable_, result), \
                     UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
@@ -293,9 +307,9 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
 #define VIDEODECODER_STOP_SUCCESS(videoDecoder, videoDecoderController, stateCheck) \
     do { \
         Status status; \
-        UT_LOG_INFO("Calling stop()"); \
+        UT_LOG_DEBUG("Calling stop()"); \
         status = videoDecoderController->stop(); \
-        UT_LOG_INFO("Result stop(), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result stop(), status:[isOK:%s, exception:%s]", \
                     UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -313,9 +327,9 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
         bool aidl_return; \
         sp<IVideoDecoderController> tempController = (controller); \
         void* controllerPtr = tempController ? tempController.get() : nullptr; \
-        UT_LOG_INFO("Calling close(IN:videoDecoderController:[0x%p], OUT:_aidl_return[])", controllerPtr); \
+        UT_LOG_DEBUG("Calling close(IN:videoDecoderController:[0x%p], OUT:_aidl_return[])", controllerPtr); \
         status = (videoDecoder)->close((controller), &aidl_return); \
-        UT_LOG_INFO("Result close(IN:videoDecoderController:[0x%p], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result close(IN:videoDecoderController:[0x%p], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     controllerPtr, UT_Control_GetMapString(bool_mapTable_, aidl_return), \
                     UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
@@ -327,6 +341,104 @@ PixelFormat videoDecoderStringToPixelFormat(const std::string& formatStr);
             VIDEODECODER_WAIT_FOR_STATE(videoDecoder, State::CLOSED, lastState); \
             UT_ASSERT_EQUAL(lastState, State::CLOSED) << "Decoder did not reach CLOSED state after close"; \
         } \
+    } while (0)
+
+#define VIDEODECODER_SETPROPERTY_LIST_SUCCESS(videoDecoderController, propertyList, type) \
+    do { \
+        for (const auto& [property, value] : propertyList) \
+        { \
+            PropertyValue propertyValue; \
+            propertyValue.value = PropertyValue::Value::make<PropertyValue::Value::Tag::type>(value); \
+            VIDEODECODER_SETPROPERTY_SUCCESS(videoDecoderController, property, propertyValue); \
+        } \
+    } while (0)
+
+#define VIDEODECODER_GETPROPERTY(videoDecoder, property, aidl_return) \
+do { \
+    Status status; \
+    UT_LOG_DEBUG("Calling getProperty(IN:property:[%d], OUT:_aidl_return[]) ", static_cast<int32_t>(property)); \
+    status = (videoDecoder)->getProperty((property), &(aidl_return)); \
+    UT_LOG_DEBUG("Result getProperty(IN:property:[%d], OUT:_aidl_return[0x%X]), status:[isOK:%s, exception:%s]", \
+                static_cast<int32_t>(property), (aidl_return).has_value(), \
+                UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
+                UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
+    UT_ASSERT_TRUE(status.isOk()) << "getProperty failed for property " << static_cast<int32_t>(property); \
+    UT_ASSERT_TRUE((aidl_return).has_value()) << "No value returned for property " << static_cast<int32_t>(property); \
+} while (0)
+
+#define VIDEODECODER_GET_PROPERTY_SUCCESS(videoDecoder, property, propertyValue) \
+    do { \
+        ::android::binder::Status status; \
+        ::com::rdk::hal::State state; \
+        UT_LOG_DEBUG("Calling getProperty(IN:property[%s], OUT:propertyValue[]", videodecoder::toString(property).c_str()); \
+        status = (videoDecoder)->getProperty(property, &propertyValue); \
+        switch (propertyValue->value.value().getTag()) \
+        { \
+            case PropertyValue::Value::Tag::intValue: \
+                UT_LOG_DEBUG("Result getProperty(IN:property[%s], OUT:propertyValue[%d]), status:[isOK:%s, exception:%s]", videodecoder::toString(property).c_str(), \
+                propertyValue->value->get<PropertyValue::Value::Tag::intValue>(), \
+                UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
+                UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
+                break; \
+            case PropertyValue::Value::Tag::stringValue: \
+                UT_LOG_DEBUG("Result getProperty(IN:property[%s], OUT:propertyValue[%s]), status:[isOK:%s, exception:%s]", videodecoder::toString(property).c_str(), \
+                propertyValue->value->get<PropertyValue::Value::Tag::stringValue>().string(), \
+                UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
+                UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
+                break; \
+        } \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
+#define VIDEODECODER_SIGNAL_DISCONTINUITY_SUCCESS(videoDecoder, videoDecoderController, expectSuccess) \
+    do { \
+        Status status; \
+        UT_LOG_DEBUG("Calling signalDiscontinuity()"); \
+        status = (videoDecoderController)->signalDiscontinuity(); \
+        UT_LOG_DEBUG("Result signalDiscontinuity(), status:[isOK:%s, exception:%s]", \
+                    UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk() == (expectSuccess)) << "signalDiscontinuity " \
+            << ((expectSuccess) ? "failed unexpectedly" : "succeeded unexpectedly"); \
+    } while (0)
+
+#define VIDEODECODER_FLUSH_SUCCESS(videoDecoder, videoDecoderController, reset, stateCheck) \
+    do { \
+        State lastState; \
+        Status status = (videoDecoderController)->flush(reset); \
+        UT_LOG_DEBUG("flush(%s) status=%s", reset ? "true" : "false", UT_Control_GetMapString(bool_mapTable_, status.isOk())); \
+        UT_ASSERT_TRUE(status.isOk()) << "flush(" << reset << ") failed"; \
+        VIDEODECODER_WAIT_FOR_STATE(videoDecoder, State::READY, lastState); \
+        if (stateCheck) { \
+            State lastState; \
+            if (reset){ \
+                VIDEODECODER_WAIT_FOR_STATE(videoDecoder, State::READY, lastState); \
+                UT_ASSERT_EQUAL(lastState, State::READY) << "Decoder did not reach READY state"; \
+            } \
+            else { \
+                VIDEODECODER_WAIT_FOR_STATE(videoDecoder, State::STARTED, lastState); \
+                UT_ASSERT_EQUAL(lastState, State::STARTED) << "Decoder did not reach STARTED state"; \
+            } \
+        } \
+    } while (0)
+
+/**
+ * @brief Tests that signalEOS succeeds in the STARTED state.
+ * @param[in] videoDecoder The IVideoDecoder instance (for state checking).
+ * @param[in] videoDecoderController The IVideoDecoderController instance.
+ * @param[in] expectSuccess Expect the call to succeed (true for positive test).
+ */
+#define VIDEODECODER_SIGNAL_EOS_SUCCESS(videoDecoder, videoDecoderController, expectSuccess) \
+    do { \
+        Status status; \
+        UT_LOG_DEBUG("Calling signalEOS()"); \
+        status = (videoDecoderController)->signalEOS(); \
+        UT_LOG_DEBUG("Result signalEOS(), status:[isOK:%s, exception:%s]", \
+                    UT_Control_GetMapString(bool_mapTable_, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable_, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk() == (expectSuccess)) << "signalEOS " \
+            << ((expectSuccess) ? "failed unexpectedly" : "succeeded unexpectedly"); \
     } while (0)
 
 class VideoDecoderControllerListener : public com::rdk::hal::videodecoder::BnVideoDecoderControllerListener {
@@ -383,6 +495,10 @@ public:
                 testConfiguration_t& config);
 
     void decodeAndConsumeVideoStreams();
+    void decoderThreadFunc();
+    std::vector<std::tuple<uint64_t, uint32_t, int64_t>> parseFrames(const std::vector<uint8_t>& inputBuffer, uint64_t fileSize, com::rdk::hal::videodecoder::Codec codec);
+    bool getDecoderMetrics(int32_t &framesDecoded, int32_t &decodeErrors, int32_t &framesDropped);
+    void run(bool concurrentDecodeConsume);
 
 private:
     std::thread mDecoderThread, mConsumerThread;

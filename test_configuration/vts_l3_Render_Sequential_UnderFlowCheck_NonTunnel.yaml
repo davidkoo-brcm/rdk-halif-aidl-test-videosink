@@ -1,38 +1,21 @@
-IVideoSinkManager:
+IVideoDecoderManager:
   L3:
     Render_Sequential_UnderFlowCheck_NonTunnel:
       Controls:
-        discardFramesUntilPts: -1
-        underflow_pts: -1
-        resumeTriggerPts: -1
-        repeatPerFrame: 1
-        flush_pts: -1
-        flush_reset_pts: -1
-        eos_pts: -1
-        interFrameDelayMs: -1
-        discontinuityPTS: -1
+        delay_between_decode_calls: 5 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
         Streams:
-          - Name: YCBCR444_1280_720_10_1_hdr10plus
-            frameRate: 30
-            PTS:
-              - 0
-              - 33333333
-              - 66666666
-              - 99999999
-              - 133333332
-              - 166666665
-              - 199999998
-              - 233333331
-              - 266666664
-              - 299999997
-              - 333333330
-              - 366666663
-              - 399999996
-              - 433333329
-              - 466666662
-              - 499999995
-              - 533333328
-              - 566666661
-              - 599999994
-              - 633333327
+          - Codec: H264
+            Name: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_UnderflowCheck: true
+            sink_underflow_pts: -1
+            sink_resumeTriggerPts: -1
+            sink_repeatPerFrame: 1
+            sink_flush_pts: -1
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: -1
+            sink_discontinuityPTS: -1

@@ -114,104 +114,39 @@ void vts_kvp_destroy_instance(void *instance)
 
 UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *module, const char *testGroup, const char *testName, vector<videoTestConfiguration_t>& testConfigurations)
 {
-    ut_kvp_status_t status;
     ut_kvp_instance_t* kvpTestInstance = (ut_kvp_instance_t*)pTestInstance;
     string testList = string(module) + "." + string(testGroup) + "." + string(testName);
     string controlList = testList + ".Controls";
-    string streamList = testList + ".Inputs.Streams";
-    int32_t streamCount = ut_kvp_getListCount(kvpTestInstance, streamList.c_str());
 
-    if (streamCount <= 0) {
-        streamCount = 0; // Continue parsing VideoFrame section even if no streams
-    }
+    videoTestConfiguration_t testDetails;
 
-    for (int32_t i = 0; i < streamCount; ++i)
-    {
-        char resultKVP[UT_KVP_MAX_ELEMENT_SIZE] = {0};
-        videoTestConfiguration_t testDetails;
-        string streamNameKey = streamList + "." + to_string(i) + ".Name";
-        if (ut_kvp_getStringField(kvpTestInstance, streamNameKey.c_str(), resultKVP, UT_KVP_MAX_ELEMENT_SIZE) != UT_KVP_STATUS_SUCCESS) {
-            continue;
-        }
-        string streamName = string(resultKVP);
+    // === Only parse Control Parameters ===
+    testDetails.signalDiscontinuityPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".discontinuityPTS").c_str());
+    testDetails.flushPts              = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".flush_pts").c_str());
+    testDetails.flushResetPts        = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".flush_reset_pts").c_str());
+    testDetails.eosPts               = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".eos_pts").c_str());
+    testDetails.repeatPerFrame       = ut_kvp_getUInt32Field(kvpTestInstance, (controlList + ".repeatPerFrame").c_str());
+    testDetails.underflowPts         = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".underflow_pts").c_str());
+    testDetails.resumeTriggerPts     = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".resumeTriggerPts").c_str());
+    testDetails.discardFramesUntilPts= ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".discardFramesUntilPts").c_str());
+    testDetails.interFrameDelayMs    = ut_kvp_getUInt32Field(kvpTestInstance, (controlList + ".interFrameDelayMs").c_str());
+    testDetails.testName             = testName;
 
-        // === Fallback: Try parse VideoFrame section if VideoStreams input not found ===
-        string videoFrameKey = string("VideoFrame.") + streamName;
-        char optionalCheck[UT_KVP_MAX_ELEMENT_SIZE] = {0};
-        if (ut_kvp_getStringField(kvpTestInstance, (videoFrameKey + ".input").c_str(), optionalCheck, UT_KVP_MAX_ELEMENT_SIZE) == UT_KVP_STATUS_SUCCESS) {
-            testDetails.input = optionalCheck;
-            testDetails.frameMetadata.name = streamName;
-            testDetails.frameMetadata.colorDepth = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".color_depth").c_str());
-            testDetails.frameMetadata.scanType = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".scan_type").c_str());
-            testDetails.frameMetadata.dynamicRange = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".dynamic_range").c_str());
-            uint32_t vfWidth = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".width").c_str());
-            if (vfWidth != 0) testDetails.frameMetadata.width = vfWidth;
-            uint32_t vfHeight = ut_kvp_getUInt32Field(kvpTestInstance, (videoFrameKey + ".height").c_str());
-            if (vfHeight != 0) testDetails.frameMetadata.height = vfHeight;
-        }
-        else
-        {
-            // Neither VideoStreams nor VideoFrame section present for this stream; skip it
-            continue;
-        }
+    // No input or frames parsed here — decoder side provides them
+    testConfigurations.push_back(testDetails);
 
-        // === Parse PTS list and generate frames ===
-        string ptsListKey = streamList + "." + to_string(i) + ".PTS";
-        int32_t ptsCount = ut_kvp_getListCount(kvpTestInstance, ptsListKey.c_str());
-        for (int32_t k = 0; k < ptsCount; ++k)
-        {
-            string eachPTS = ptsListKey + "." + to_string(k);
-            int64_t PTS = ut_kvp_getUInt64Field(kvpTestInstance, eachPTS.c_str());
-
-            videoFrame_t frame;
-            frame.pts = PTS;
-
-            if (!testDetails.frameMetadata.frameSizes.empty()) {
-                frame.size = testDetails.frameMetadata.frameSizes[min(k, static_cast<int32_t>(testDetails.frameMetadata.frameSizes.size() - 1))];
-            } else {
-                frame.size = 0;
-            }
-
-            string frameRateKey = streamList + "." + to_string(i) + ".frameRate";
-            int32_t frameRate = ut_kvp_getUInt32Field(kvpTestInstance, frameRateKey.c_str());
-            if (frameRate > 0) {
-                frame.frameRate = static_cast<uint32_t>(frameRate);
-            }
-
-            frame.errorFrame = false;
-            testDetails.frames.push_back(frame);
-        }
-
-        // === Parse Control Parameters ===
-        testDetails.signalDiscontinuityPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".discontinuityPTS").c_str());
-        testDetails.flushPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".flush_pts").c_str());
-        testDetails.flushResetPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".flush_reset_pts").c_str());
-        testDetails.eosPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".eos_pts").c_str());
-        testDetails.repeatPerFrame = ut_kvp_getUInt32Field(kvpTestInstance, (controlList + ".repeatPerFrame").c_str());
-        testDetails.underflowPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".underflow_pts").c_str());
-        testDetails.resumeTriggerPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".resumeTriggerPts").c_str());
-        testDetails.discardFramesUntilPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".discardFramesUntilPts").c_str());
-        testDetails.interFrameDelayMs = ut_kvp_getUInt32Field(kvpTestInstance, (controlList + ".interFrameDelayMs").c_str());
-        testDetails.testName = testName;
-        testConfigurations.push_back(testDetails);
-    }
-
-    // Log all parsed configurations for verification
-    for (const auto& config : testConfigurations) {
-        UT_LOG_INFO("Parsed Config: name=%s, width=%u, height=%u, input=%s, codec=%d, numFrames=%zu, repeatPerFrame=%u eos %d underflowPts=%d",
-                    config.frameMetadata.name.c_str(),
-                    config.frameMetadata.width,
-                    config.frameMetadata.height,
-                    config.input.c_str(),
-                    config.codec,
-                    config.frames.size(),
-                    config.repeatPerFrame,
-                    config.eosPts,
-                    config.underflowPts );
-    }
+    // Optional: log for debug
+    UT_LOG_INFO("Parsed Sink Config: testName=%s, eos=%ld, underflow=%ld, resume=%ld, flush=%ld, interDelay=%d",
+                testDetails.testName.c_str(),
+                testDetails.eosPts,
+                testDetails.underflowPts,
+                testDetails.resumeTriggerPts,
+                testDetails.flushPts,
+                testDetails.interFrameDelayMs);
 
     return UT_STATUS_OK;
 }
+
 
 
 

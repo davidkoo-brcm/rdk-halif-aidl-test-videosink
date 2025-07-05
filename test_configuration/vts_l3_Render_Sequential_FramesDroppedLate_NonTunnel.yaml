@@ -1,29 +1,22 @@
-IVideoSinkManager:
+
+IVideoDecoderManager:
   L3:
     Render_Sequential_FramesDroppedLate_NonTunnel:
       Controls:
-        discardFramesUntilPts: -1
-        underflow_pts: -1
-        resumeTriggerPts: -1
-        repeatPerFrame: 1
-        flush_pts: -1
-        flush_reset_pts: -1
-        eos_pts: -1
-        interFrameDelayMs: 40
-        discontinuityPTS: -1
+        delay_between_decode_calls: 5 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
         Streams:
-          - Name: YCBCR420_1920_1080_10_0_hlg
-            frameRate: 30
-            PTS:
-              - 0            # Frame 0 (valid)
-              - 10           # late drop (too close to frame 0)
-              - 20           # late drop
-              - 30           # late drop
-              - 40           # late drop
-              - 50           # late drop
-              - 60           # late drop
-              - 33333333     # Frame 1 (valid)
-              - 33333343     # late drop (too close to frame 1)
-              - 33333353     # late drop
-              - 66666666     # Frame 2 (valid)
+          - Codec: H265
+            Name: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734_DROPPED_LATE
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_UnderflowCheck: false
+            sink_underflow_pts: -1
+            sink_resumeTriggerPts: -1
+            sink_repeatPerFrame: 1
+            sink_flush_pts: -1
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: 40
+            sink_discontinuityPTS: -1
