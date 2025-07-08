@@ -20,9 +20,10 @@ include_18: test_configuration/vts_l3_Render_Concurrent_UnderflowResumed_NonTunn
 include_19: test_configuration/vts_l3_Render_Concurrent_DiscardFramesUntil_NonTunnel.yaml
 include_20: test_configuration/vts_l3_Render_Sequential_UnderFlowCheck_NonTunnel.yaml
 include_21: test_configuration/vts_l3_Render_Concurrent_UnderFlowCheck_NonTunnel.yaml
-include_22: test_configuration/vts_video_h264_streams.yaml
+include_22: test_configuration/vts_l3_H264_HD_30_YUV420.yaml
 include_23: test_configuration/vts_l3_hevc_streams.yaml
 include_24: test_configuration/vts_l3_vp9_streams.yaml
+include_25: test_configuration/vts_l3_sink_streams.yaml
 
 IVideoDecoderManager:
   stream_download_path: "http://hydra.bskyb.com/shared/Projects/RDK-E/streams/PolarisStreams/Video/" #`URL` path to download the video test streams

@@ -2,11 +2,11 @@ IVideoDecoderManager:
   L3:
     Render_Sequential_QueueDepth_NonTunnel:
       Controls:
-        delay_between_decode_calls: 5 # Insert delay in msec between each `decodeBuffer()` call
+        delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
         Streams:
           - Codec: H264
-            Name: H264_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734
+            Name: H264_HD_30_YUV420
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
@@ -19,29 +19,29 @@ IVideoDecoderManager:
             sink_eos_pts: -1
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
-          # - Codec: H265
-          #   Name: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734
-          #   rms_diff_threshold: 0.5
-          #   decode_time_threshold: 10000000
-          #   sink_discardFramesUntilPts: -1
-          #   sink_underflow_pts: -1
-          #   sink_resumeTriggerPts: -1
-          #   sink_repeatPerFrame: 1
-          #   sink_flush_pts: -1
-          #   sink_flush_reset_pts: -1
-          #   sink_eos_pts: -1
-          #   sink_interFrameDelayMs: -1
-          #   sink_discontinuityPTS: -1
-          # - Codec: VP9
-          #   Name: VP9_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734
-          #   rms_diff_threshold: 0.5
-          #   decode_time_threshold: 10000000
-          #   sink_discardFramesUntilPts: -1
-          #   sink_underflow_pts: -1
-          #   sink_resumeTriggerPts: -1
-          #   sink_repeatPerFrame: 1
-          #   sink_flush_pts: -1
-          #   sink_flush_reset_pts: -1
-          #   sink_eos_pts: -1
-          #   sink_interFrameDelayMs: -1
-          #   sink_discontinuityPTS: -1
+        # - Codec: H265
+        #   Name: H265_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734
+        #   rms_diff_threshold: 0.5
+        #   decode_time_threshold: 10000000
+        #   sink_discardFramesUntilPts: -1
+        #   sink_underflow_pts: -1
+        #   sink_resumeTriggerPts: -1
+        #   sink_repeatPerFrame: 1
+        #   sink_flush_pts: -1
+        #   sink_flush_reset_pts: -1
+        #   sink_eos_pts: -1
+        #   sink_interFrameDelayMs: -1
+        #   sink_discontinuityPTS: -1
+        # - Codec: VP9
+        #   Name: VP9_HIGH_1920x1080_DR_SDR_DR_BT709_60p_PIXEL_FORMAT_YCBCR420_734
+        #   rms_diff_threshold: 0.5
+        #   decode_time_threshold: 10000000
+        #   sink_discardFramesUntilPts: -1
+        #   sink_underflow_pts: -1
+        #   sink_resumeTriggerPts: -1
+        #   sink_repeatPerFrame: 1
+        #   sink_flush_pts: -1
+        #   sink_flush_reset_pts: -1
+        #   sink_eos_pts: -1
+        #   sink_interFrameDelayMs: -1
+        #   sink_discontinuityPTS: -1

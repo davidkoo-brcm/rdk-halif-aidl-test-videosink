@@ -1,3 +1,66 @@
+/**
+ *  If not stated otherwise in this file or this component's LICENSE
+ *  file the following copyright and licenses apply:
+ *
+ *  Copyright 2025 RDK Management
+ *
+ *  Licensed under the Apache License, Version 2.0 (the License);
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an AS IS BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+/**
+ * @addtogroup HPK Hardware Porting Kit
+ * @{
+ * @par The Hardware Porting Kit
+ * HPK is the next evolution of the well-defined Hardware Abstraction Layer
+ * (HAL), but augmented with more comprehensive documentation and test suites
+ * that OEM or SOC vendors can use to self-certify their ports before taking
+ * them to RDKM for validation or to an operator for final integration and
+ * deployment. The Hardware Porting Kit effectively enables an OEM and/or SOC
+ * vendor to self-certify their own Video Accelerator devices, with minimal RDKM
+ * assistance.
+ *
+ */
+
+/**
+ * @addtogroup VIDEO_SINK Video sink Module
+ * @{
+ */
+
+/**
+ * @addtogroup VIDEO_SINK_HALTEST Video sink HAL Tests
+ * @{
+ */
+
+/**
+ * @defgroup VTS_L3_COMMON Video sink HAL Tests parse Hardware feature profile Header File
+ * @{
+ * @parblock
+ *
+ * ### Provides common calls for the Videosink :
+ *
+ * Provide common function calls to call from the videosink.
+ *
+ * **Pre-Conditions:**  None @n
+ * **Dependencies:** None @n
+ *
+ * @endparblock
+ *
+ */
+
+/**
+ * @file vts_l3_common.h
+ *
+ */
 #ifndef VTS_L3_COMMON_H
 #define VTS_L3_COMMON_H
 #include <ut.h>
@@ -36,7 +99,16 @@
 
 using namespace com::rdk::hal::videodecoder;
 
-#define UT_LOG_DEBUG UT_LOG_INFO
+// Undefine UT_LOG_INFO from ut_log.h to avoid redefinition conflicts
+#undef UT_LOG_INFO
+
+#ifdef ENABLE_UT_INFO_LOGGING
+#err
+// Enable INFO logging using ut_log.h's definition
+#define UT_LOG_INFO(format, ...) UT_logPrefix(__FILE__, __LINE__, UT_LOG_ASCII_CYAN "INFO  " UT_LOG_ASCII_NC, format, ## __VA_ARGS__)
+#else
+#define UT_LOG_INFO(format, ...) // Disable INFO logging by default (no-op)
+#endif
 
 struct FrameData {
     int64_t pts;
@@ -97,3 +169,8 @@ private:
 extern FrameQueue gFrameQueue;
 
 #endif // VTS_L3_COMMON
+
+/** @} */ // End of VTS_L3_COMMON_HEADER
+/** @} */ // End of VIDEO_SINK_HALTEST
+/** @} */ // End of VIDEO_SINK
+/** @} */ // End of HPK

@@ -215,25 +215,30 @@ private:
     {
         sp<IVideoSinkController> controller;
 
-        UT_LOG_DEBUG("VIDEOSINK_OPEN_SUCCESS ctrl listener 0x%x", mVideoSinkControlListener);
+        UT_LOG_INFO("VIDEOSINK_OPEN_SUCCESS ctrl listener 0x%x", mVideoSinkControlListener);
         VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
-        UT_LOG_DEBUG("VIDEOSINK_OPEN_SUCCESS ctrl listener 0x%x", mVideoSinkControlListener);
+        UT_LOG_INFO("VIDEOSINK_OPEN_SUCCESS ctrl listener 0x%x", mVideoSinkControlListener);
 
         mVideoSinkControlListener->resetUnderflow();
         mVideoSinkControlListener->resetResumed();
 
         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
-        UT_LOG_DEBUG("Sink opened and started");
+        UT_LOG_INFO("Sink opened and started");
 
-        UT_LOG_DEBUG("Buffer pool created");
+        UT_LOG_INFO("Buffer pool created");
 
-        int64_t frameTimeoutMs = 5000; // Wait up to 5 seconds for a frame
+        int64_t frameTimeoutMs = 500; // Wait up to 5 seconds for a frame
+
+        if (mTestConfiguration.sink_discardFramesUntilPts != static_cast<uint64_t>(-1)) {
+            UT_LOG_INFO("Calling discardFramesUntil with PTS %ld", mTestConfiguration.sink_discardFramesUntilPts);
+            VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, mTestConfiguration.sink_discardFramesUntilPts);
+        }
 
         while (true) {
             auto optFrame = gFrameQueue.waitAndPop(frameTimeoutMs);
 
             if (!optFrame) {
-                UT_LOG_DEBUG("Timeout waiting for frame from decoder, exiting loop");
+                UT_LOG_INFO("Timeout waiting for frame from decoder, exiting loop");
                 break;  // No frame received within timeout - exit or handle accordingly
             }
 
@@ -244,9 +249,12 @@ private:
             metadata.endOfStream = (mTestConfiguration.sink_eos_pts != static_cast<uint64_t>(-1) &&
                         pts == mTestConfiguration.sink_eos_pts);
 
-            UT_LOG_DEBUG("Queueing live frame: PTS=%ld, Handle=%ld, EOS=%d, Discontinuity=%d underFlow_pts=%d sink_UnderflowCheck %d flush %d",
+            UT_LOG_INFO("Queueing live frame: PTS=%ld, Handle=%ld, EOS=%d, Discontinuity=%d underFlow_pts=%d sink_UnderflowCheck %d flush %d",
                         pts, bufferHandle, metadata.endOfStream, metadata.discontinuity,mTestConfiguration.sink_underflowPts,mTestConfiguration.sink_UnderflowCheck, mTestConfiguration.sink_flush_pts);
 
+            auto now = std::chrono::steady_clock::now();
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+            UT_LOG_ERROR("Queuing the frame: %lld ms, pts %lld", ms, pts);
             VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, pts, bufferHandle, metadata);
 
             receivedPtsSet.insert(pts);
@@ -255,7 +263,7 @@ private:
             handleEosFrame(metadata, pts);
 
             if (metadata.endOfStream) {
-                UT_LOG_DEBUG("EOS frame received, stopping video sink input loop");
+                UT_LOG_INFO("EOS frame received, stopping video sink input loop");
                 break;
             }
 
@@ -272,17 +280,13 @@ private:
                 std::this_thread::sleep_for(std::chrono::milliseconds(mTestConfiguration.sink_interFrameDelayMs));
             }
 
-            if(mTestConfiguration.sink_UnderflowCheck == true)
-            {
-                UT_LOG_DEBUG("verifyNoUnexpectedUnderflow call %d",pts);
-                verifyNoUnexpectedUnderflow(pts);
-            }
-
             if (mTestConfiguration.sink_flush_pts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.sink_flush_pts)
             {
                 VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
                 verifyFlushComplete();
             }
+
+            verifyNoUnexpectedUnderflow(pts);
 
         }
 
@@ -291,7 +295,7 @@ private:
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
         VIDEOSINK_STOP_SUCCESS(mSinkHandle, controller, true);
         VIDEOSINK_CLOSE_SUCCESS(mSinkHandle, controller, true);
-        UT_LOG_DEBUG("Video sink test cleanup completed");
+        UT_LOG_INFO("Video sink test cleanup completed");
     }
 
     void videoSinkTunnelMode()
@@ -303,15 +307,15 @@ private:
 
         // Open Sink
         VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
-        UT_LOG_DEBUG("Video sink opened in tunneled mode");
+        UT_LOG_INFO("Video sink opened in tunneled mode");
 
         // Start Sink
         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
-        UT_LOG_DEBUG("Video sink started");
+        UT_LOG_INFO("Video sink started");
 
         // Create buffer pool
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(mAVBufferManager, mSecure, mDecoderId, bufferListener, mVideoPool);
-        UT_LOG_DEBUG("Buffer pool created for tunneled mode");
+        UT_LOG_INFO("Buffer pool created for tunneled mode");
 
         std::ifstream inputFile(mTestConfiguration.input, std::ios::binary);
         if (!inputFile)
@@ -322,18 +326,18 @@ private:
 
         // Open Decoder
         VIDEODECODER_OPEN_SUCCESS(mDecoderHandle, mTestConfiguration.codec, mSecure, mDecoderControllerListener, videoDecoderController, true);
-        UT_LOG_DEBUG("Video decoder opened");
+        UT_LOG_INFO("Video decoder opened");
 
         // Set OPERATIONAL_MODE to TUNNELLED
         PropertyValue propertyValue;
         propertyValue.value = PropertyValue::Value::make<PropertyValue::Value::Tag::intValue>(
             static_cast<int32_t>(OperationalMode::TUNNELLED));
         VIDEODECODER_SETPROPERTY_SUCCESS(videoDecoderController, com::rdk::hal::videodecoder::Property::OPERATIONAL_MODE, propertyValue);
-        UT_LOG_DEBUG("Decoder set to TUNNELLED mode");
+        UT_LOG_INFO("Decoder set to TUNNELLED mode");
 
         // Start Decoder
         VIDEODECODER_START_SUCCESS(mDecoderHandle, videoDecoderController, true);
-        UT_LOG_DEBUG("Video decoder started");
+        UT_LOG_INFO("Video decoder started");
 
         for (const auto& frame : mTestConfiguration.frames)
         {
@@ -344,7 +348,7 @@ private:
             int64_t videoBufferHandle = -1;
 
             AVBUFFER_ALLOC_SUCCESS(mAVBufferManager, mVideoPool, frameSize, videoBufferHandle);
-            UT_LOG_DEBUG("Allocated buffer handle %ld for PTS %ld", videoBufferHandle, pts);
+            UT_LOG_INFO("Allocated buffer handle %ld for PTS %ld", videoBufferHandle, pts);
 
             // Read frame data
             std::vector<uint8_t> inputBuffer(frameSize);
@@ -385,10 +389,10 @@ private:
 
             if (mTestConfiguration.eosPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.eosPts)
             {
-                UT_LOG_DEBUG("Sending EOS frame at PTS %ld", pts);
+                UT_LOG_INFO("Sending EOS frame at PTS %ld", pts);
                 VIDEODECODER_DECODEBUFFER_FAILURE(videoDecoderController, pts, videoBufferHandle, Status::EX_NONE);
 
-                UT_LOG_DEBUG("Restarting decoder after EOS");
+                UT_LOG_INFO("Restarting decoder after EOS");
                 VIDEODECODER_STOP_SUCCESS(mDecoderHandle, videoDecoderController, true);
                 VIDEODECODER_START_SUCCESS(mDecoderHandle, videoDecoderController, true);
             }
@@ -405,13 +409,13 @@ private:
             // Handle flush signals after decode
             if (mTestConfiguration.flushPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushPts)
             {
-                UT_LOG_DEBUG("Flushing video sink at PTS %ld", pts);
+                UT_LOG_INFO("Flushing video sink at PTS %ld", pts);
                 VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
             }
 
             if (mTestConfiguration.flushResetPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.flushResetPts)
             {
-                UT_LOG_DEBUG("Flush+Reset video sink at PTS %ld", pts);
+                UT_LOG_INFO("Flush+Reset video sink at PTS %ld", pts);
                 VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, true);
                 VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
             }
@@ -422,7 +426,7 @@ private:
                 gAVbufferHelper->unmapHandle(videoBufferHandle);
             }
             AVBUFFER_FREE_SUCCESS(mAVBufferManager, videoBufferHandle);
-            UT_LOG_DEBUG("Freed buffer handle %ld", videoBufferHandle);
+            UT_LOG_INFO("Freed buffer handle %ld", videoBufferHandle);
         }
 
         // Teardown and cleanup
@@ -431,7 +435,7 @@ private:
         VIDEOSINK_STOP_SUCCESS(mSinkHandle, controller, true);
         VIDEOSINK_CLOSE_SUCCESS(mSinkHandle, controller, true);
         AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, mVideoPool);
-        UT_LOG_DEBUG("Tunnel mode video sink test cleanup completed");
+        UT_LOG_INFO("Tunnel mode video sink test cleanup completed");
 #endif
     }
 
@@ -582,7 +586,7 @@ public:
             // Skip if the platform doesn't support secure decode
             if (secure && !decoderCapabilities->supportsSecure)
             {
-                UT_LOG_DEBUG("Decoder [%d] doesn't support secure decoding", _decoderId);
+                UT_LOG_INFO("Decoder [%d] doesn't support secure decoding", _decoderId);
                 continue;
             }
 
@@ -595,7 +599,7 @@ public:
 
             if (result == decoderCapabilities->supportedCodecs.end())
             {
-                UT_LOG_DEBUG("Decoder [%d] doesn't support Codec [%s]", _decoderId, videodecoder::toString(decoderConfig.codec).c_str());
+                UT_LOG_INFO("Decoder [%d] doesn't support Codec [%s]", _decoderId, videodecoder::toString(decoderConfig.codec).c_str());
                 continue;
             }
 #endif
@@ -666,6 +670,15 @@ public:
     }
 };
 
+/**
+ * @brief Verifies that no unexpected video underflow events have occurred.
+ *
+ * Checks the underflow event count from the video sink control listener.
+ * If any underflow events are detected, logs an error with the given PTS and
+ * asserts failure.
+ *
+ * @param pts Presentation timestamp at which the check is performed.
+ */
 void SinkTest::verifyNoUnexpectedUnderflow(int64_t pts)
 {
     int count = mVideoSinkControlListener->getUnderflowCount();
@@ -676,6 +689,15 @@ void SinkTest::verifyNoUnexpectedUnderflow(int64_t pts)
     }
 }
 
+/**
+ * @brief Waits for and verifies the occurrence of a video underflow event.
+ *
+ * Logs the time when waiting for the underflow event, waits up to 2 seconds for the event callback,
+ * and asserts failure if not received. Afterward, it waits briefly for metrics to settle,
+ * reads the underflow metric from the sink, and verifies that at least one underflow has occurred.
+ *
+ * Logs success or failure of each step with timestamps for easier debugging.
+ */
 void SinkTest::verifyUnderflow()
 {
     auto now = []() {
@@ -685,7 +707,7 @@ void SinkTest::verifyUnderflow()
         return std::string(mbstr);
     };
 
-    UT_LOG_DEBUG("Waiting for Video Underflow event at %s...", now().c_str());
+    UT_LOG_INFO("Waiting for Video Underflow event at %s...", now().c_str());
     bool underflowOccurred = mVideoSinkControlListener->waitForUnderflowEvent(2);
     if (!underflowOccurred)
     {
@@ -694,7 +716,7 @@ void SinkTest::verifyUnderflow()
     }
     else
     {
-        UT_LOG_DEBUG("Video Underflow event received successfully at %s", now().c_str());
+        UT_LOG_INFO("Video Underflow event received successfully at %s", now().c_str());
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Wait for metric to settle
@@ -708,7 +730,7 @@ void SinkTest::verifyUnderflow()
     }
     else if (actualUnderflowed > 0)
     {
-        UT_LOG_DEBUG("Detected %d underflow events at %s", actualUnderflowed, now().c_str());
+        UT_LOG_INFO("Detected %d underflow events at %s", actualUnderflowed, now().c_str());
     }
     else
     {
@@ -717,6 +739,13 @@ void SinkTest::verifyUnderflow()
     }
 }
 
+/**
+ * @brief Waits for and verifies the video resume event after an underflow condition.
+ *
+ * This function waits up to 2 seconds for the resume event callback from the video sink.
+ * Logs the time of waiting and whether the resume event was successfully received.
+ * Fails the test if the resume event is not received within the timeout.
+ */
 void SinkTest::verifyResume()
 {
     auto now = []() {
@@ -726,7 +755,7 @@ void SinkTest::verifyResume()
         return std::string(mbstr);
     };
 
-    UT_LOG_DEBUG("Waiting for Video Resume event after underflow at %s...", now().c_str());
+    UT_LOG_INFO("Waiting for Video Resume event after underflow at %s...", now().c_str());
     bool resumedOccurred = mVideoSinkControlListener->waitForResumedEvent(2);
     if (!resumedOccurred)
     {
@@ -735,10 +764,19 @@ void SinkTest::verifyResume()
     }
     else
     {
-        UT_LOG_DEBUG("Video Resume event received successfully at %s", now().c_str());
+        UT_LOG_INFO("Video Resume event received successfully at %s", now().c_str());
     }
 }
 
+/**
+ * @brief Handles End-of-Stream (EOS) frame processing and verification.
+ *
+ * Checks if the given frame metadata indicates EOS, waits for the EOS event callback
+ * from the sink, and verifies the EOS presentation timestamp (PTS).
+ *
+ * @param metadata Frame metadata containing EOS flag.
+ * @param pts Presentation timestamp of the frame.
+ */
 void SinkTest::handleEosFrame(const FrameMetadata& metadata, int64_t pts)
 {
     if (!metadata.endOfStream) return;
@@ -754,7 +792,7 @@ void SinkTest::handleEosFrame(const FrameMetadata& metadata, int64_t pts)
     }
 
     int64_t eosPTS = mVideoSinkControlListener->getEosPTS();
-    UT_LOG_DEBUG("EOS received from sink. nsPresentationTime = %ld", eosPTS);
+    UT_LOG_INFO("EOS received from sink. nsPresentationTime = %ld", eosPTS);
 
     // Optional: verify if the PTS matches the frame we pushed
     if (eosPTS != pts) {
@@ -765,10 +803,15 @@ void SinkTest::handleEosFrame(const FrameMetadata& metadata, int64_t pts)
     }
 }
 
-
+/**
+ * @brief Waits for and verifies the flush complete event from the video sink.
+ *
+ * This function blocks for up to 3 seconds waiting for the flush complete event.
+ * The test fails if the event is not received within the timeout.
+ */
 void SinkTest::verifyFlushComplete()
 {
-    UT_LOG_DEBUG("Waiting for flush complete event...");
+    UT_LOG_INFO("Waiting for flush complete event...");
 
     bool flushReceived = mVideoSinkControlListener->waitForFlushComplete(std::chrono::seconds(3));
     if (!flushReceived)
@@ -782,6 +825,13 @@ void SinkTest::verifyFlushComplete()
     }
 }
 
+/**
+ * @brief Verifies the current queue depth reported by the video sink.
+ *
+ * This function retrieves the `SINK_QUEUE_DEPTH` property from the sink and validates
+ * that it is a non-negative value. The test fails if the property cannot be retrieved
+ * or if the value is invalid.
+ */
 void SinkTest::verifyQueueDepth()
 {
     int actualQueueDepth = -1;
@@ -801,11 +851,17 @@ void SinkTest::verifyQueueDepth()
     }
     else
     {
-        UT_LOG_DEBUG("Queue Depth matches expected value.");
+        UT_LOG_INFO("Queue Depth matches expected value.");
     }
 }
 
-
+/**
+ * @brief Verifies the number of frames received by the video sink.
+ *
+ * This function checks the `METRIC_FRAMES_RECEIVED` reported by the sink and compares it
+ * with the actual number of frames tracked by the test. The test fails if there is a mismatch
+ * or if the property cannot be retrieved.
+ */
 void SinkTest::verifyFramesReceived()
 {
     int sinkFramesReported = -1;
@@ -826,11 +882,18 @@ void SinkTest::verifyFramesReceived()
     }
 }
 
+/**
+ * @brief Verifies if any frames were dropped due to late arrival.
+ *
+ * This function retrieves the `METRIC_FRAMES_DROPPED_LATE` property from the video sink
+ * and asserts that one or more frames were dropped because they arrived too late for rendering.
+ * The test fails if the metric cannot be retrieved or if no late drops are detected when expected.
+ */
 void SinkTest::verifyFramesDroppedLate()
 {
     int actualFramesDroppedLate = -1;
 
-    UT_LOG_DEBUG("Waiting briefly to allow metrics to update...");
+    UT_LOG_INFO("Waiting briefly to allow metrics to update...");
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_DROPPED_LATE, actualFramesDroppedLate);
@@ -851,11 +914,19 @@ void SinkTest::verifyFramesDroppedLate()
     }
 }
 
+/**
+ * @brief Verifies if frames were dropped due to Frame Rate Conversion (FRC).
+ *
+ * This function queries the sink for the `METRIC_FRAMES_DROPPED_FRC` property
+ * and checks whether any frames were dropped as a result of FRC behavior.
+ * It fails the test if the metric is unavailable or if no drops are detected
+ * when drops are expected.
+ */
 void SinkTest::verifyFramesDroppedFRC()
 {
     int actualDroppedFRC = -1;
 
-    UT_LOG_DEBUG("Waiting briefly to allow metrics to update...");
+    UT_LOG_INFO("Waiting briefly to allow metrics to update...");
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_DROPPED_FRC, actualDroppedFRC);
@@ -876,11 +947,19 @@ void SinkTest::verifyFramesDroppedFRC()
     }
 }
 
+/**
+ * @brief Verifies if frames were repeated due to Frame Rate Conversion (FRC).
+ *
+ * This function queries the sink for the `METRIC_FRAMES_REPEATED_FRC` property
+ * and validates that frame repetitions occurred due to FRC. It fails the test
+ * if the metric retrieval fails or if no FRC-related repetitions are detected
+ * when they are expected.
+ */
 void SinkTest::verifyFramesRepeatedFRC()
 {
     int actualRepeatedFRC = -1;
 
-    UT_LOG_DEBUG("Waiting briefly to allow metrics to update...");
+    UT_LOG_INFO("Waiting briefly to allow metrics to update...");
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_REPEATED_FRC, actualRepeatedFRC);
@@ -901,11 +980,19 @@ void SinkTest::verifyFramesRepeatedFRC()
     }
 }
 
+/**
+ * @brief Verifies if any frames were repeated due to missing frames.
+ *
+ * This function checks the `METRIC_FRAMES_REPEATED_MISSING_FRAME` sink property
+ * to determine if frames were repeated as a result of missing input frames.
+ * It asserts failure if the metric is unsupported or if no missing frame repetitions
+ * are reported when expected.
+ */
 void SinkTest::verifyFramesMissed()
 {
     int actualRepeatMissing = -1;
 
-    UT_LOG_DEBUG("Waiting briefly to allow metrics to update...");
+    UT_LOG_INFO("Waiting briefly to allow metrics to update...");
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME, actualRepeatMissing);
@@ -925,6 +1012,14 @@ void SinkTest::verifyFramesMissed()
     }
 }
 
+/**
+ * @brief Performs post-verification based on the current sink test name.
+ *
+ * Determines which verification routine to execute depending on the test scenario
+ * defined in `mTestConfiguration.sink_testName`. Handles various cases including
+ * queue depth, frames received, dropped frames, repeated frames, and missed frames,
+ * for both sequential and concurrent non-tunnel modes.
+ */
 void SinkTest::runPostVerification()
 {
     if ( mTestConfiguration.sink_testName == "Render_Sequential_QueueDepth_NonTunnel")
@@ -980,7 +1075,7 @@ void SinkTest::runPostVerification()
 
 /**
  * @brief Test the sink's ability to report correct queue depth
- *        Decoding type: Sequential
+ *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
@@ -998,7 +1093,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_QueueDepth_NonTunnel)
 
 /**
  * @brief Test the number of frames received by video sink
- *        Decoding type: Sequential
+ *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
@@ -1016,7 +1111,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesReceived_NonTunnel)
 
 /**
  * @brief Test for frames dropped due to lateness
- *        Decoding type: Sequential
+ *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
@@ -1034,7 +1129,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesDroppedLate_NonTunnel)
 
 /**
  * @brief Test for frames repeated due to frame rate changes
- *        Decoding type: Sequential
+ *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
@@ -1053,7 +1148,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesRepeatedFRC_NonTunnel)
 
 /**
  * @brief Test for repeated frames due to missing frame detection
- *        Decoding type: Sequential
+ *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
@@ -1070,8 +1165,8 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesMiss_NonTunnel)
 }
 
 /**
- * @brief Test for repeated frames due to missing frame detection
- *        Decoding type: Sequential
+ * @brief Tests repeated frame rendering with dropped frames
+ *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
@@ -1088,7 +1183,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesDroppedFRC_NonTunnel)
 }
 /**
  * @brief Test to verify onFlushComplete is received after flushing sink.
- *        Decoding type: Sequential
+ *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
@@ -1105,8 +1200,8 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_VideoFlush_NonTunnel)
 }
 
 /**
- * @brief Test to verify onFlushComplete is received after flushing sink.
- *        Decoding type: Sequential
+ * @brief Test to verify EOS is received after eos pts to the sink.
+ *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
@@ -1123,7 +1218,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_EndToEnd_NonTunnel)
 }
 /**
  * @brief Video sink playback with underflow detection
+ *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 011@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_UnderflowResumed_NonTunnel)
 {
@@ -1135,11 +1234,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_UnderflowResumed_NonTunnel)
 }
 /**
  * @brief Test to verify discardFramesUntil behavior in video sink
- *        Decoding type: Sequential
+ *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 011@n
+ * **Test Case ID:** 012@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_DiscardFramesUntil_NonTunnel)
 {
@@ -1151,12 +1250,12 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_DiscardFramesUntil_NonTunnel)
 }
 
 /**
- * @brief Test to verify discardFramesUntil behavior in video sink
- *        Decoding type: Sequential
+ * @brief Test to verify underflow in the normal pts flow.
+ *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 011@n
+ * **Test Case ID:** 013@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_UnderFlowCheck_NonTunnel)
 {
@@ -1168,11 +1267,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_UnderFlowCheck_NonTunnel)
 }
 /**
  * @brief Test the sink's ability to report correct queue depth
- *        Decoding type: Sequential
+ *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 012@n
+ * **Test Case ID:** 014@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_QueueDepth_NonTunnel)
 {
@@ -1186,11 +1285,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_QueueDepth_NonTunnel)
 
 /**
  * @brief Test the number of frames received by video sink
- *        Decoding type: Sequential
+ *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 013@n
+ * **Test Case ID:** 015@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesReceived_NonTunnel)
 {
@@ -1204,11 +1303,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesReceived_NonTunnel)
 
 /**
  * @brief Test for frames dropped due to lateness
- *        Decoding type: Sequential
+ *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 014@n
+ * **Test Case ID:** 016@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedLate_NonTunnel)
 {
@@ -1222,11 +1321,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedLate_NonTunnel)
 
 /**
  * @brief Test for frames repeated due to frame rate changes
- *        Decoding type: Sequential
+ *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 015@n
+ * **Test Case ID:** 017@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesRepeatedFRC_NonTunnel)
 {
@@ -1241,11 +1340,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesRepeatedFRC_NonTunnel)
 
 /**
  * @brief Test for repeated frames due to missing frame detection
- *        Decoding type: Sequential
+ *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 016@n
+ * **Test Case ID:** 018@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesMiss_NonTunnel)
 {
@@ -1259,11 +1358,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesMiss_NonTunnel)
 
 /**
  * @brief Test for repeated frames due to missing frame detection
- *        Decoding type: Sequential
+ *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 017@n
+ * **Test Case ID:** 019@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedFRC_NonTunnel)
 {
@@ -1276,11 +1375,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedFRC_NonTunnel)
 }
 /**
  * @brief Test to verify onFlushComplete is received after flushing sink.
- *        Decoding type: Sequential
+ *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 018@n
+ * **Test Case ID:** 020@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_VideoFlush_NonTunnel)
 {
@@ -1293,12 +1392,12 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_VideoFlush_NonTunnel)
 }
 
 /**
- * @brief Test to verify onFlushComplete is received after flushing sink.
- *        Decoding type: Sequential
+ * @brief Test to verify EOS is received after sending eos pts to the sink.
+ *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 010@n
+ * **Test Case ID:** 021@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_EndToEnd_NonTunnel)
 {
@@ -1311,10 +1410,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_EndToEnd_NonTunnel)
 }
 /**
  * @brief Video sink playback with underflow detection
+ *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 011@n
+ * **Test Case ID:** 022@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_UnderflowResumed_NonTunnel)
 {
@@ -1326,11 +1426,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_UnderflowResumed_NonTunnel)
 }
 /**
  * @brief Test to verify discardFramesUntil behavior in video sink
- *        Decoding type: Concurrent
+ *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 012@n
+ * **Test Case ID:** 023@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_DiscardFramesUntil_NonTunnel)
 {
@@ -1342,11 +1442,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_DiscardFramesUntil_NonTunnel)
 }
 /**
  * @brief Test to verify underflow check behavior in the normal video sink scenario
- *        Decoding type: Concurrent
+ *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 013@n
+ * **Test Case ID:** 024@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, vts_l3_Render_Concurrent_UnderFlowCheck_NonTunnel)
 {

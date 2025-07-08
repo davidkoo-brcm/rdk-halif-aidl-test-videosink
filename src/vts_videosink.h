@@ -118,9 +118,6 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define MAX_TRANSITORY_STATE_WAIT_MS  5
 #define MAX_FINAL_STATE_WAIT_MS  500
 
-#define UT_LOG_WARN
-
-
 #define VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds) \
     do { \
         ::android::binder::Status status; \
@@ -582,12 +579,12 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
         auto epoch = now_ms.time_since_epoch(); \
         long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count(); \
         \
-        UT_LOG_WARN("Calling queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[%lld], IN:metadata:[...])", \
+        UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[%lld], IN:metadata:[...])", \
                     nsPresentationTime, ms, frameBufferHandle); \
         \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
         \
-        UT_LOG_WARN("Result queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[%lld], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[%lld], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
                     nsPresentationTime, ms, frameBufferHandle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
