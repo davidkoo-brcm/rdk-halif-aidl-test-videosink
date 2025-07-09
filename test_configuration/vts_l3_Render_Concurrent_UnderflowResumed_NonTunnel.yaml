@@ -1,27 +1,163 @@
-IVideoSinkManager:
+IVideoDecoderManager:
   L3:
     Render_Concurrent_UnderflowResumed_NonTunnel:
       Controls:
-        discardFramesUntilPts: -1
-        underflow_pts: 106666665   # Will delay this PTS by 1s
-        resumeTriggerPts: -1
-        repeatPerFrame: 1
-        flush_pts: -1
-        flush_reset_pts: -1
-        eos_pts: -1
-        interFrameDelayMs: 0
-        discontinuityPTS: -1
+        delay_between_decode_calls: 5 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
         Streams:
-          - Name: YCBCR420_1920_1080_8_0_sdr
-            frameRate: 30
-            PTS:
-              - 0                 # frame 1
-              - 33333333          # frame 2
-              - 66666666          # frame 3
-              - 99999999          # frame 4
-              - 33333333          # frame 5 - delayed by ~1s (goes back to simulate underflow)
-              - 1033333333        # frame 6 - resume here (delayed + ~1s)
-              - 1066666666        # frame 7
-              - 1100000000        # frame 8
-              - 1133333333        # frame 9
+          - Codec: H264
+            Name: H264_HD_30_YUV420_UNDERFLOW_RESUME
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_underflow_pts: 133333332
+            sink_resumeTriggerPts: 366666663
+            sink_repeatPerFrame: 1
+            sink_flush_pts: -1
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: -1
+            sink_discontinuityPTS: -1
+          - Codec: H264
+            Name: H264_HD_30_YUV444_UNDERFLOW_RESUME
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_underflow_pts: 133333332
+            sink_resumeTriggerPts: 366666663
+            sink_repeatPerFrame: 1
+            sink_flush_pts: -1
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: -1
+            sink_discontinuityPTS: -1
+          - Codec: H264
+            Name: H264_HD_60_YUV420_UNDERFLOW_RESUME
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_underflow_pts: 66666664
+            sink_resumeTriggerPts: 199999992
+            sink_repeatPerFrame: 1
+            sink_flush_pts: -1
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: -1
+            sink_discontinuityPTS: -1
+          - Codec: H264
+            Name: H264_HD_60_YUV444_UNDERFLOW_RESUME
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_underflow_pts: 66666664
+            sink_resumeTriggerPts: 199999992
+            sink_repeatPerFrame: 1
+            sink_flush_pts: -1
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: -1
+            sink_discontinuityPTS: -1
+          - Codec: H264
+            Name: H264_SD_30_YUV420_UNDERFLOW_RESUME
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_underflow_pts: 133333332
+            sink_resumeTriggerPts: 366666663
+            sink_repeatPerFrame: 1
+            sink_flush_pts: -1
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: -1
+            sink_discontinuityPTS: -1
+          - Codec: H264
+            Name: H264_SD_30_YUV444_UNDERFLOW_RESUME
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_underflow_pts: 133333332
+            sink_resumeTriggerPts: 366666663
+            sink_repeatPerFrame: 1
+            sink_flush_pts: -1
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: -1
+            sink_discontinuityPTS: -1
+          - Codec: H264
+            Name: H264_SD_60_YUV420_UNDERFLOW_RESUME
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_underflow_pts: 66666664
+            sink_resumeTriggerPts: 199999992
+            sink_repeatPerFrame: 1
+            sink_flush_pts: -1
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: -1
+            sink_discontinuityPTS: -1
+          - Codec: H264
+            Name: H264_SD_60_YUV444_UNDERFLOW_RESUME
+            rms_diff_threshold: 0.5
+            decode_time_threshold: 10000000
+            sink_discardFramesUntilPts: -1
+            sink_underflow_pts: 66666664
+            sink_resumeTriggerPts: -1
+            sink_repeatPerFrame: 1
+            sink_flush_pts: -1
+            sink_flush_reset_pts: -1
+            sink_eos_pts: -1
+            sink_interFrameDelayMs: -1
+            sink_discontinuityPTS: -1
+          # - Codec: H264
+          #   Name: H264_UHD_30_YUV420_UNDERFLOW_RESUME
+          #   rms_diff_threshold: 0.5
+          #   decode_time_threshold: 10000000
+          #   sink_discardFramesUntilPts: -1
+          #   sink_underflow_pts: 133333332
+          #   sink_resumeTriggerPts: 366666663
+          #   sink_repeatPerFrame: 1
+          #   sink_flush_pts: -1
+          #   sink_flush_reset_pts: -1
+          #   sink_eos_pts: -1
+          #   sink_interFrameDelayMs: -1
+          #   sink_discontinuityPTS: -1
+          # - Codec: H264
+          #   Name: H264_UHD_30_YUV444_UNDERFLOW_RESUME
+          #   rms_diff_threshold: 0.5
+          #   decode_time_threshold: 10000000
+          #   sink_discardFramesUntilPts: -1
+          #   sink_underflow_pts: 133333332
+          #   sink_resumeTriggerPts: 366666663
+          #   sink_repeatPerFrame: 1
+          #   sink_flush_pts: -1
+          #   sink_flush_reset_pts: -1
+          #   sink_eos_pts: -1
+          #   sink_interFrameDelayMs: -1
+          #   sink_discontinuityPTS: -1
+          # - Codec: H264
+          #   Name: H264_UHD_60_YUV420_UNDERFLOW_RESUME
+          #   rms_diff_threshold: 0.5
+          #   decode_time_threshold: 10000000
+          #   sink_discardFramesUntilPts: -1
+          #   sink_underflow_pts: 66666664
+          #   sink_resumeTriggerPts: 199999992
+          #   sink_repeatPerFrame: 1
+          #   sink_flush_pts: -1
+          #   sink_flush_reset_pts: -1
+          #   sink_eos_pts: -1
+          #   sink_interFrameDelayMs: -1
+          #   sink_discontinuityPTS: -1
+          # - Codec: H264
+          #   Name: H264_UHD_60_YUV444_UNDERFLOW_RESUME
+          #   rms_diff_threshold: 0.5
+          #   decode_time_threshold: 10000000
+          #   sink_discardFramesUntilPts: -1
+          #   sink_underflow_pts: 66666664
+          #   sink_resumeTriggerPts: 199999992
+          #   sink_repeatPerFrame: 1
+          #   sink_flush_pts: -1
+          #   sink_flush_reset_pts: -1
+          #   sink_eos_pts: -1
+          #   sink_interFrameDelayMs: -1
+          #   sink_discontinuityPTS: -1

@@ -89,6 +89,16 @@ using namespace com::rdk::hal::avbuffer;
 extern sp<IVideoSinkManager> gVideoSinkManager;
 extern void *gTestConfiguration;
 
+// Undefine UT_LOG_INFO from ut_log.h to avoid redefinition conflicts
+#undef UT_LOG_INFO
+
+#ifdef ENABLE_UT_INFO_LOGGING
+// Enable INFO logging using ut_log.h's definition
+#define UT_LOG_INFO(format, ...) UT_logPrefix(__FILE__, __LINE__, UT_LOG_ASCII_CYAN "INFO  " UT_LOG_ASCII_NC, format, ## __VA_ARGS__)
+#else
+#define UT_LOG_INFO(format, ...) // Disable INFO logging by default (no-op)
+#endif
+
 /* Status::Exception */
 const static ut_control_keyStringMapping_t statusException_mapTable[] =
 {
@@ -722,6 +732,7 @@ public:
 
     bool hasResumedReceived();
     void resetResumed();
+    int getResumedCount();
 
     // Wait functions
     bool waitForFlushComplete(std::chrono::seconds timeout);
@@ -765,6 +776,19 @@ public:
     bool hasFlushComplete();
     bool waitForFlushComplete(std::chrono::seconds timeout);
 
+    bool hasEosReceived();
+    int64_t getEosPTS();
+    void resetEos();
+
+    void resetUnderflow();
+    bool hasUnderflowReceived();
+    int getUnderflowCount();
+
+
+    bool hasResumedReceived();
+    void resetResumed();
+    int getResumedCount();
+
     // State transition helpers
     bool waitForState(State desiredState, std::chrono::milliseconds timeout);
     std::vector<std::pair<State, State>> getStateChanges() const;
@@ -772,6 +796,7 @@ public:
     bool checkStateTransistion(State expOldState, State expNewState);
     std::vector<int32_t> getErrors() const;
     void setSinkID(int32_t id);
+    bool waitForEosEvent(int timeoutSeconds);
 private:
     mutable std::mutex mMutex;
     std::condition_variable mCV;
@@ -779,6 +804,11 @@ private:
     State mCurrentState;
     std::vector<std::pair<State, State>> mStateChanges;
     std::vector<int32_t> mErrors;
+
+    bool mEosReceived;
+    int64_t mEosPTS;
+    int mUnderflowCount = 0;
+    int mResumeCount = 0;
 
     bool mFlushComplete;
     int32_t mSinkID;

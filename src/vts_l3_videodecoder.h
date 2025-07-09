@@ -144,7 +144,6 @@ struct testConfiguration_t {
     int64_t sink_interFrameDelayMs;
     int64_t sink_discontinuityPTS;
     std::string sink_testName;
-    bool sink_UnderflowCheck;
 };
 
 

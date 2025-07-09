@@ -103,7 +103,6 @@ using namespace com::rdk::hal::videodecoder;
 #undef UT_LOG_INFO
 
 #ifdef ENABLE_UT_INFO_LOGGING
-#err
 // Enable INFO logging using ut_log.h's definition
 #define UT_LOG_INFO(format, ...) UT_logPrefix(__FILE__, __LINE__, UT_LOG_ASCII_CYAN "INFO  " UT_LOG_ASCII_NC, format, ## __VA_ARGS__)
 #else

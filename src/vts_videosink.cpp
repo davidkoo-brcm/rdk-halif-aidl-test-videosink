@@ -91,6 +91,7 @@
 #include "vts_videosink_parse_testconfig.h"
 #include "vts_videosink.h"
 
+
 #include "IAVBufferHelper.h"
 
 using namespace std::chrono;
@@ -111,7 +112,7 @@ VideoSinkControllerListener::~VideoSinkControllerListener() = default;
 
 android::binder::Status VideoSinkControllerListener::onFirstFrameRendered(int64_t nsPresentationTime)
 {
-    UT_LOG_INFO("\n=======onFirstFrameRendered=============\n");
+    UT_LOG_INFO("[SinkID %d] [PTS %lld] onFirstFrameRendered Callback Received", mSinkID, nsPresentationTime);
     {
         std::lock_guard<std::mutex> lock(mMutex);
         if (!mFirstFrameRendered) {
@@ -156,7 +157,7 @@ bool VideoSinkControllerListener::hasFlushComplete()
 
 android::binder::Status VideoSinkControllerListener::onFlushComplete()
 {
-    UT_LOG_INFO("\n[Sink ID : %d]=======onFlushComplete=============\n",mSinkID);
+    UT_LOG_INFO("[Sink ID : %d] onFlushComplete callback received ",mSinkID);
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mFlushComplete = true;
@@ -167,7 +168,7 @@ android::binder::Status VideoSinkControllerListener::onFlushComplete()
 
 android::binder::Status VideoSinkControllerListener::onEndOfStream(int64_t nsPresentationTime)
 {
-    UT_LOG_INFO("\n[Sink ID : %d]=======onEndOfStream=============\n",mSinkID);
+    UT_LOG_INFO("[Sink ID : %d] onEndOfStream Received",mSinkID);
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mEosReceived = true;
@@ -198,7 +199,7 @@ void VideoSinkControllerListener::resetEos()
 
 android::binder::Status VideoSinkControllerListener::onVideoUnderflow()
 {
-    UT_LOG_INFO("\n[Sink ID : %d]=======onVideoUnderflow=============\n",mSinkID);
+    UT_LOG_INFO("[Sink ID : %d] onVideoUnderflow Callback Received",mSinkID);
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mUnderflowCount++;
@@ -221,7 +222,7 @@ int VideoSinkControllerListener::getUnderflowCount()
 
 android::binder::Status VideoSinkControllerListener::onVideoResumed()
 {
-    UT_LOG_INFO("\n[Sink ID : %d]=======onVideoResumed=============\n",mSinkID);
+    UT_LOG_INFO("[Sink ID : %d] onVideoResumed Callback Received",mSinkID);
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mResumeCount++;
@@ -234,6 +235,12 @@ void VideoSinkControllerListener::resetResumed()
 {
     std::lock_guard<std::mutex> lock(mMutex);
     mResumeCount = 0;
+}
+
+int VideoSinkControllerListener::getResumedCount()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mResumeCount;
 }
 
 android::binder::Status VideoSinkControllerListener::onStateChanged(State /*oldState*/, State /*newState*/)
@@ -287,28 +294,102 @@ VideoSinkEventListener::VideoSinkEventListener()
 {
 }
 
-::android::binder::Status VideoSinkEventListener::onFirstFrameRendered(int64_t /*nsPresentationTime*/) {
-    UT_LOG_INFO("\n=======onFirstFrameRendered:=============\n");
+::android::binder::Status VideoSinkEventListener::onFirstFrameRendered(int64_t /*nsPresentationTime*/)
+{
+    UT_LOG_INFO("[SinkID %d] onFirstFrameRendered Callback Received", mSinkID);
     return ::android::binder::Status::ok();
 }
 
-::android::binder::Status VideoSinkEventListener::onEndOfStream(int64_t /*nsPresentationTime*/) {
-    UT_LOG_INFO("\n=======onEndOfStream:=============\n");
-    return ::android::binder::Status::ok();
+bool VideoSinkEventListener::hasEosReceived()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mEosReceived;
 }
 
-::android::binder::Status VideoSinkEventListener::onVideoUnderflow() {
-    UT_LOG_INFO("\n=======onVideoUnderflow:=============\n");
-    return ::android::binder::Status::ok();
+int64_t VideoSinkEventListener::getEosPTS()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mEosPTS;
 }
 
-::android::binder::Status VideoSinkEventListener::onVideoResumed() {
-    UT_LOG_INFO("\n=======onVideoResumed:=============\n");
-    return ::android::binder::Status::ok();
+void VideoSinkEventListener::resetEos()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    mEosReceived = false;
+    mEosPTS = -1;
 }
 
-::android::binder::Status VideoSinkEventListener::onFlushComplete() {
-    UT_LOG_INFO("\n=======onFlushComplete:=============\n");
+
+::android::binder::Status VideoSinkEventListener::onEndOfStream(int64_t nsPresentationTime)
+{
+    UT_LOG_INFO("[Sink ID : %d] onEndOfStream Received",mSinkID);
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mEosReceived = true;
+        mEosPTS = nsPresentationTime;
+    }
+    mCV.notify_all();
+    return android::binder::Status::ok();
+}
+
+bool VideoSinkEventListener::waitForEosEvent(int timeoutSeconds)
+{
+    std::unique_lock<std::mutex> lock(mMutex);
+    return mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] { return mEosReceived; });
+}
+
+
+void VideoSinkEventListener::resetUnderflow()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    mUnderflowCount = 0;
+}
+
+int VideoSinkEventListener::getUnderflowCount()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mUnderflowCount;
+}
+
+
+::android::binder::Status VideoSinkEventListener::onVideoUnderflow()
+{
+    UT_LOG_INFO("[Sink ID : %d] onVideoUnderflow Callback Received",mSinkID);
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mUnderflowCount++;
+    }
+    mCV.notify_all();
+    return android::binder::Status::ok();
+}
+
+
+void VideoSinkEventListener::resetResumed()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    mResumeCount = 0;
+}
+
+int VideoSinkEventListener::getResumedCount()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mResumeCount;
+}
+
+::android::binder::Status VideoSinkEventListener::onVideoResumed()
+{
+    UT_LOG_INFO("[Sink ID : %d] onVideoResumed Callback Received",mSinkID);
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mResumeCount++;
+    }
+    mCV.notify_all();
+    return android::binder::Status::ok();
+}
+
+::android::binder::Status VideoSinkEventListener::onFlushComplete()
+{
+    UT_LOG_INFO("[Sink ID : %d] onFlushComplete callback received ",mSinkID);
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mFlushComplete = true;
@@ -317,8 +398,9 @@ VideoSinkEventListener::VideoSinkEventListener()
     return ::android::binder::Status::ok();
 }
 
-::android::binder::Status VideoSinkEventListener::onStateChanged(State oldState, State newState) {
-    UT_LOG("\n=======State Change received: %d, %d=============\n", oldState, newState);
+::android::binder::Status VideoSinkEventListener::onStateChanged(State oldState, State newState)
+{
+    UT_LOG_INFO("[SinkId %d] State Change received: %d, %d ", mSinkID, oldState, newState);
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mStateChanges.emplace_back(oldState, newState);
@@ -328,39 +410,44 @@ VideoSinkEventListener::VideoSinkEventListener()
     return ::android::binder::Status::ok();
 }
 
-void VideoSinkEventListener::resetFlushComplete() {
+void VideoSinkEventListener::resetFlushComplete()
+{
     std::lock_guard<std::mutex> lock(mMutex);
     mFlushComplete = false;
 }
 
-bool VideoSinkEventListener::hasFlushComplete() {
+bool VideoSinkEventListener::hasFlushComplete()
+{
     std::lock_guard<std::mutex> lock(mMutex);
     return mFlushComplete;
 }
 
-bool VideoSinkEventListener::waitForFlushComplete(std::chrono::seconds timeout) {
+bool VideoSinkEventListener::waitForFlushComplete(std::chrono::seconds timeout)
+{
     std::unique_lock<std::mutex> lock(mMutex);
-    return mCV.wait_for(lock, timeout, [this]() { return mFlushComplete; });
+    return mCV.wait_for(lock, timeout, [this] { return mFlushComplete; });
 }
 
-bool VideoSinkEventListener::waitForState(State desiredState, std::chrono::milliseconds timeout) {
+bool VideoSinkEventListener::waitForState(State desiredState, std::chrono::milliseconds timeout)
+{
     std::unique_lock<std::mutex> lock(mMutex);
-    return mCV.wait_for(lock, timeout, [this, desiredState]() {
-        return (mCurrentState == desiredState);
-    });
+    return mCV.wait_for(lock, timeout, [this] { return mFlushComplete; });
 }
 
-std::vector<std::pair<State, State>> VideoSinkEventListener::getStateChanges() const {
+std::vector<std::pair<State, State>> VideoSinkEventListener::getStateChanges() const
+{
     std::lock_guard<std::mutex> lock(mMutex);
     return mStateChanges;
 }
 
-void VideoSinkEventListener::resetStateChanges() {
+void VideoSinkEventListener::resetStateChanges()
+{
     std::lock_guard<std::mutex> lock(mMutex);
     mStateChanges.clear();
 }
 
-bool VideoSinkEventListener::checkStateTransistion(State expOldState, State expNewState) {
+bool VideoSinkEventListener::checkStateTransistion(State expOldState, State expNewState)
+{
     std::lock_guard<std::mutex> lock(mMutex);
     for (const auto& [oldState, newState] : mStateChanges) {
         if (oldState == expOldState && newState == expNewState) {
@@ -370,7 +457,8 @@ bool VideoSinkEventListener::checkStateTransistion(State expOldState, State expN
     return false;
 }
 
-std::vector<int32_t> VideoSinkEventListener::getErrors() const {
+std::vector<int32_t> VideoSinkEventListener::getErrors() const
+{
     std::lock_guard<std::mutex> lock(mMutex);
     return mErrors;
 }

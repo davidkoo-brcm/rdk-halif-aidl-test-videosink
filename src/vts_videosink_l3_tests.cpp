@@ -249,12 +249,9 @@ private:
             metadata.endOfStream = (mTestConfiguration.sink_eos_pts != static_cast<uint64_t>(-1) &&
                         pts == mTestConfiguration.sink_eos_pts);
 
-            UT_LOG_INFO("Queueing live frame: PTS=%ld, Handle=%ld, EOS=%d, Discontinuity=%d underFlow_pts=%d sink_UnderflowCheck %d flush %d",
-                        pts, bufferHandle, metadata.endOfStream, metadata.discontinuity,mTestConfiguration.sink_underflowPts,mTestConfiguration.sink_UnderflowCheck, mTestConfiguration.sink_flush_pts);
+            UT_LOG_INFO("Queueing live frame: PTS=%ld, Handle=%ld, EOS=%d, Discontinuity=%d underFlow_pts=%d flush %d",
+                        pts, bufferHandle, metadata.endOfStream, metadata.discontinuity,mTestConfiguration.sink_underflowPts, mTestConfiguration.sink_flush_pts);
 
-            auto now = std::chrono::steady_clock::now();
-            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-            UT_LOG_ERROR("Queuing the frame: %lld ms, pts %lld", ms, pts);
             VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, pts, bufferHandle, metadata);
 
             receivedPtsSet.insert(pts);
@@ -269,6 +266,10 @@ private:
 
             if (mTestConfiguration.sink_underflowPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.sink_underflowPts) {
                 verifyUnderflow();
+            }
+            else
+            {
+                verifyNoUnexpectedUnderflow(pts);
             }
 
             if (mTestConfiguration.sink_resumeTriggerPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.sink_resumeTriggerPts) {
@@ -285,8 +286,6 @@ private:
                 VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
                 verifyFlushComplete();
             }
-
-            verifyNoUnexpectedUnderflow(pts);
 
         }
 
@@ -700,6 +699,7 @@ void SinkTest::verifyNoUnexpectedUnderflow(int64_t pts)
  */
 void SinkTest::verifyUnderflow()
 {
+    int32_t count = 0;
     auto now = []() {
         std::time_t t = std::time(nullptr);
         char mbstr[100];
@@ -707,16 +707,28 @@ void SinkTest::verifyUnderflow()
         return std::string(mbstr);
     };
 
-    UT_LOG_INFO("Waiting for Video Underflow event at %s...", now().c_str());
-    bool underflowOccurred = mVideoSinkControlListener->waitForUnderflowEvent(2);
-    if (!underflowOccurred)
+    UT_LOG_INFO("Waiting for Video Underflow event from control listner at %s...", now().c_str());
+    count = mVideoSinkControlListener->getUnderflowCount();
+    if (count > 0)
     {
         UT_LOG_ERROR("Video Underflow event NOT received within timeout at %s", now().c_str());
         UT_ASSERT_TRUE(false);
     }
     else
     {
-        UT_LOG_INFO("Video Underflow event received successfully at %s", now().c_str());
+        UT_LOG_DEBUG("Video Underflow event received successfully from control listener at %s", now().c_str());
+    }
+
+    UT_LOG_INFO("Waiting for Video Underflow event from event listner at %s...", now().c_str());
+    count = mVideoSinkEventListner->getUnderflowCount();
+    if (count > 0)
+    {
+        UT_LOG_ERROR("Video Underflow event NOT received within timeout at %s", now().c_str());
+        UT_ASSERT_TRUE(false);
+    }
+    else
+    {
+        UT_LOG_DEBUG("Video Underflow event received successfully from event listener at %s", now().c_str());
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Wait for metric to settle
@@ -748,6 +760,7 @@ void SinkTest::verifyUnderflow()
  */
 void SinkTest::verifyResume()
 {
+    int32_t count = 0;
     auto now = []() {
         std::time_t t = std::time(nullptr);
         char mbstr[100];
@@ -755,16 +768,28 @@ void SinkTest::verifyResume()
         return std::string(mbstr);
     };
 
-    UT_LOG_INFO("Waiting for Video Resume event after underflow at %s...", now().c_str());
-    bool resumedOccurred = mVideoSinkControlListener->waitForResumedEvent(2);
-    if (!resumedOccurred)
+    UT_LOG_INFO("Waiting for Video Resume event after underflow from control listner at %s...", now().c_str());
+    count = mVideoSinkControlListener->getResumedCount();
+    if (count > 0)
     {
         UT_LOG_ERROR("Video Resume event NOT received within timeout at %s", now().c_str());
         UT_ASSERT_TRUE(false);
     }
     else
     {
-        UT_LOG_INFO("Video Resume event received successfully at %s", now().c_str());
+        UT_LOG_DEBUG("Video Resume event received successfully at %s", now().c_str());
+    }
+
+    UT_LOG_INFO("Waiting for Video Resume event after underflow from event listener at %s...", now().c_str());
+    count = mVideoSinkEventListner->getResumedCount();
+    if (count > 0)
+    {
+        UT_LOG_ERROR("Video Resume event NOT received within timeout at %s", now().c_str());
+        UT_ASSERT_TRUE(false);
+    }
+    else
+    {
+        UT_LOG_DEBUG("Video Resume event received successfully at %s", now().c_str());
     }
 }
 
@@ -779,11 +804,13 @@ void SinkTest::verifyResume()
  */
 void SinkTest::handleEosFrame(const FrameMetadata& metadata, int64_t pts)
 {
+    bool eosArrived = false;
+    int64_t eosPTS = -1;
     if (!metadata.endOfStream) return;
 
-    UT_LOG_DEBUG("EOS flag detected. Waiting for EOS callback...");
+    UT_LOG_DEBUG("EOS flag detected. Waiting for control listener EOS callback...");
 
-    bool eosArrived = mVideoSinkControlListener->waitForEosEvent(2);  // 2 sec timeout
+    eosArrived = mVideoSinkControlListener->waitForEosEvent(2);  // 2 sec timeout
 
     if (!eosArrived) {
         UT_LOG_ERROR("EOS callback not received within timeout.");
@@ -791,7 +818,28 @@ void SinkTest::handleEosFrame(const FrameMetadata& metadata, int64_t pts)
         return;
     }
 
-    int64_t eosPTS = mVideoSinkControlListener->getEosPTS();
+    eosPTS = mVideoSinkControlListener->getEosPTS();
+    UT_LOG_INFO("EOS received from sink. nsPresentationTime = %ld", eosPTS);
+
+    // Optional: verify if the PTS matches the frame we pushed
+    if (eosPTS != pts) {
+        UT_LOG_ERROR("Mismatch in EOS PTS. Expected: %ld, Got: %ld", pts, eosPTS);
+        UT_ASSERT_TRUE(false);
+    } else {
+        UT_LOG_DEBUG("EOS PTS match confirmed: %ld", pts);
+    }
+
+    UT_LOG_DEBUG("EOS flag detected. Waiting for EOS event listener callback...");
+
+    eosArrived = mVideoSinkEventListner->waitForEosEvent(2);  // 2 sec timeout
+
+    if (!eosArrived) {
+        UT_LOG_ERROR("EOS callback not received within timeout.");
+        UT_ASSERT_TRUE(false);
+        return;
+    }
+
+    eosPTS = mVideoSinkEventListner->getEosPTS();
     UT_LOG_INFO("EOS received from sink. nsPresentationTime = %ld", eosPTS);
 
     // Optional: verify if the PTS matches the frame we pushed
@@ -811,9 +859,11 @@ void SinkTest::handleEosFrame(const FrameMetadata& metadata, int64_t pts)
  */
 void SinkTest::verifyFlushComplete()
 {
-    UT_LOG_INFO("Waiting for flush complete event...");
+    bool flushReceived = false;
 
-    bool flushReceived = mVideoSinkControlListener->waitForFlushComplete(std::chrono::seconds(3));
+    UT_LOG_INFO("Waiting for flush complete controllistner event...");
+
+    flushReceived = mVideoSinkControlListener->waitForFlushComplete(std::chrono::seconds(3));
     if (!flushReceived)
     {
         UT_LOG_ERROR("Flush complete event not received within timeout.");
@@ -821,8 +871,22 @@ void SinkTest::verifyFlushComplete()
     }
     else
     {
-        UT_LOG_DEBUG("Flush complete event received.");
+        UT_LOG_DEBUG("Control listener Flush complete event received.");
     }
+
+    UT_LOG_INFO("Waiting for flush complete event listner...");
+
+    flushReceived = mVideoSinkEventListner->waitForFlushComplete(std::chrono::seconds(3));
+    if (!flushReceived)
+    {
+        UT_LOG_ERROR("Flush complete event not received within timeout.");
+        UT_ASSERT_TRUE(false);
+    }
+    else
+    {
+        UT_LOG_DEBUG("Event listner Flush complete event received.");
+    }
+
 }
 
 /**
@@ -851,7 +915,7 @@ void SinkTest::verifyQueueDepth()
     }
     else
     {
-        UT_LOG_INFO("Queue Depth matches expected value.");
+        UT_LOG_DEBUG("Queue Depth matches expected value.");
     }
 }
 
@@ -1250,28 +1314,12 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_DiscardFramesUntil_NonTunnel)
 }
 
 /**
- * @brief Test to verify underflow in the normal pts flow.
- *        Type: Sequential
- *        Modes: Non-Tunnel, Non-Secure
- *
- * **Test Group ID:** 003@n
- * **Test Case ID:** 013@n
- */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_UnderFlowCheck_NonTunnel)
-{
-    const char *testName = "Render_Sequential_UnderFlowCheck_NonTunnel";
-    bool secureMode = false;
-    bool isTunnel = false;
-    bool isConcurrent = false;
-    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
-}
-/**
  * @brief Test the sink's ability to report correct queue depth
  *        Type: Concurrent
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 014@n
+ * **Test Case ID:** 013@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_QueueDepth_NonTunnel)
 {
@@ -1289,7 +1337,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_QueueDepth_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 015@n
+ * **Test Case ID:** 014@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesReceived_NonTunnel)
 {
@@ -1307,7 +1355,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesReceived_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 016@n
+ * **Test Case ID:** 015@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedLate_NonTunnel)
 {
@@ -1325,7 +1373,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedLate_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 017@n
+ * **Test Case ID:** 016@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesRepeatedFRC_NonTunnel)
 {
@@ -1344,7 +1392,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesRepeatedFRC_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 018@n
+ * **Test Case ID:** 017@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesMiss_NonTunnel)
 {
@@ -1362,7 +1410,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesMiss_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 019@n
+ * **Test Case ID:** 018@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedFRC_NonTunnel)
 {
@@ -1379,7 +1427,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedFRC_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 020@n
+ * **Test Case ID:** 019@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_VideoFlush_NonTunnel)
 {
@@ -1397,7 +1445,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_VideoFlush_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 021@n
+ * **Test Case ID:** 020@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_EndToEnd_NonTunnel)
 {
@@ -1414,7 +1462,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_EndToEnd_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 022@n
+ * **Test Case ID:** 021@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_UnderflowResumed_NonTunnel)
 {
@@ -1430,27 +1478,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_UnderflowResumed_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 023@n
+ * **Test Case ID:** 022@n
  */
 UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_DiscardFramesUntil_NonTunnel)
 {
     const char *testName = "Render_Concurrent_DiscardFramesUntil_NonTunnel";
-    bool secureMode = false;
-    bool isTunnel = false;
-    bool isConcurrent = true;
-    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
-}
-/**
- * @brief Test to verify underflow check behavior in the normal video sink scenario
- *        Type: Concurrent
- *        Modes: Non-Tunnel, Non-Secure
- *
- * **Test Group ID:** 003@n
- * **Test Case ID:** 024@n
- */
-UT_ADD_TEST(VTS_L3_VideoSink, vts_l3_Render_Concurrent_UnderFlowCheck_NonTunnel)
-{
-    const char *testName = "vts_l3_Render_Concurrent_UnderFlowCheck_NonTunnel";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = true;

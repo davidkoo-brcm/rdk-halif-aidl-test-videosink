@@ -98,9 +98,6 @@ Status VideoDecoderControllerListener::onFrameOutput(int64_t nsPresentationTime,
 {
 
     UT_LOG_INFO("onFrameOutputtt is received nsPresentationTime %lld FrameBufferHandle = 0x%llx ", nsPresentationTime, frameBufferHandle);
-    auto now = std::chrono::steady_clock::now();
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-    UT_LOG_ERROR("onFrameOutput time: %lld ms , pts [%lld]", ms , nsPresentationTime);
     FrameMetadata metaCopy;  // Default-constructed
 
     if (metadata.has_value()) {
@@ -406,7 +403,6 @@ UT_status_t vts_videodecoder_parse_testconfig(void* pTestInstance, const char *m
         string sink_eos_pts               = streamList + "." + to_string(i) + ".sink_eos_pts";
         string sink_interFrameDelayMs     = streamList + "." + to_string(i) + ".sink_interFrameDelayMs";
         string sink_discontinuityPTS      = streamList + "." + to_string(i) + ".sink_discontinuityPTS";
-        string sink_UnderflowCheck        = streamList + "." + to_string(i) + ".sink_UnderflowCheck";
 
         // Input stream path
         status = ut_kvp_getStringField(kvpTestInstance, input.c_str(), tempBuffer, UT_KVP_MAX_ELEMENT_SIZE);
@@ -545,7 +541,6 @@ UT_status_t vts_videodecoder_parse_testconfig(void* pTestInstance, const char *m
         testDetails.sink_eos_pts               = ut_kvp_getUInt64Field(kvpTestInstance, sink_eos_pts.c_str());
         testDetails.sink_interFrameDelayMs     = ut_kvp_getUInt64Field(kvpTestInstance, sink_interFrameDelayMs.c_str());
         testDetails.sink_discontinuityPTS      = ut_kvp_getUInt64Field(kvpTestInstance, sink_discontinuityPTS.c_str());
-        testDetails.sink_UnderflowCheck        = ut_kvp_getBoolField(kvpTestInstance, sink_UnderflowCheck.c_str());
         testDetails.sink_testName              = testName;
 
         testConfiguration.push_back(testDetails);
@@ -668,12 +663,18 @@ void DecoderTest::decoderThreadFunc()
     if (!std::filesystem::exists(mTestConfiguration.input)) {
         UT_LOG_ERROR("Input file does not exist: %s", mTestConfiguration.input.c_str());
         mDecodingStream = false;
+        UT_LOG_INFO("Destroying video pool handle:%lld", videoPool.handle);
+        AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, videoPool);
+
         return;
     }
     std::ifstream inputFile(mTestConfiguration.input, std::ios::binary);
     if (!inputFile.is_open()) {
         UT_LOG_ERROR("Failed to open file: %s", mTestConfiguration.input.c_str());
         mDecodingStream = false;
+        UT_LOG_INFO("Destroying video pool handle:%lld", videoPool.handle);
+        AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, videoPool);
+
         return;
     }
 
@@ -683,18 +684,27 @@ void DecoderTest::decoderThreadFunc()
         UT_LOG_ERROR("Failed to get file size for %s: tellg returned %lld",
                     mTestConfiguration.input.c_str(), static_cast<int64_t>(fileSizePos));
         mDecodingStream = false;
+        UT_LOG_INFO("Destroying video pool handle:%lld", videoPool.handle);
+        AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, videoPool);
+
         return;
     }
     uint64_t fileSize = static_cast<uint64_t>(fileSizePos);
     if (fileSize == 0) {
         UT_LOG_ERROR("Input file is empty: %s", mTestConfiguration.input.c_str());
         mDecodingStream = false;
+        UT_LOG_INFO("Destroying video pool handle:%lld", videoPool.handle);
+        AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, videoPool);
+
         return;
     }
     if (fileSize > std::numeric_limits<uint32_t>::max()) {
         UT_LOG_ERROR("File size too large: %llu bytes, max allowed: %u bytes",
                     fileSize, std::numeric_limits<uint32_t>::max());
         mDecodingStream = false;
+        UT_LOG_INFO("Destroying video pool handle:%lld", videoPool.handle);
+        AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, videoPool);
+
         return;
     }
     UT_LOG_INFO("Input file size: %llu bytes", fileSize);
@@ -706,6 +716,9 @@ void DecoderTest::decoderThreadFunc()
         if (!inputFile) {
             UT_LOG_ERROR("Failed to read file data: only %zu bytes read", inputFile.gcount());
             mDecodingStream = false;
+            UT_LOG_INFO("Destroying video pool handle:%lld", videoPool.handle);
+            AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, videoPool);
+
             return;
         }
         uint64_t actualSize = static_cast<uint64_t>(inputFile.gcount());
@@ -716,6 +729,9 @@ void DecoderTest::decoderThreadFunc()
     } catch (const std::exception& e) {
         UT_LOG_ERROR("Exception reading file: %s", e.what());
         mDecodingStream = false;
+        UT_LOG_INFO("Destroying video pool handle:%lld", videoPool.handle);
+        AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, videoPool);
+
         return;
     }
 
@@ -726,6 +742,9 @@ void DecoderTest::decoderThreadFunc()
         if (mTestConfiguration.frameDetails.empty()) {
             UT_LOG_ERROR("frameDetails is empty for H.264/H.265");
             mDecodingStream = false;
+            UT_LOG_INFO("Destroying video pool handle:%lld", videoPool.handle);
+            AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, videoPool);
+
             return;
         }
         uint64_t offset = 0;
@@ -733,6 +752,9 @@ void DecoderTest::decoderThreadFunc()
             if (offset + size > fileSize) {
                 UT_LOG_ERROR("Frame size at offset %llu exceeds file size %llu", offset + size, fileSize);
                 mDecodingStream = false;
+                UT_LOG_INFO("Destroying video pool handle:%lld", videoPool.handle);
+                AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, videoPool);
+
                 return;
             }
             frameData.emplace_back(offset, size, pts, isErrorFrame);
@@ -746,6 +768,9 @@ void DecoderTest::decoderThreadFunc()
         if (parsedFrames.empty()) {
             UT_LOG_ERROR("No frames parsed for codec: %d", static_cast<int>(mTestConfiguration.codec));
             mDecodingStream = false;
+            UT_LOG_INFO("Destroying video pool handle:%lld", videoPool.handle);
+            AVBUFFER_DESTROY_POOL_SUCCESS(mAVBufferManager, videoPool);
+
             return;
         }
         for (size_t i = 0; i < parsedFrames.size(); ++i) {
