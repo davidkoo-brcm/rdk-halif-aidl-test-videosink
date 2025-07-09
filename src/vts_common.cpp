@@ -36,13 +36,13 @@
  */
 
 /**
- * @defgroup VTS_L3_AVBUFFER Video Sink HAL Tests L3 File
+ * @defgroup VTS_COMMON Video Sink HAL Tests L3 File
  * @{
  * @parblock
  *
- * ### AVBUFFER CALLS FOR L3:
+ * ### COMMON QUEUE CALLS FOR L3:
  *
- * This module includes av buffer calls *
+ * This module includes common calls and queue to use between decoder and sink *
  * **Pre-Conditions:** @n
  * **Dependencies:** None@n
  *
@@ -51,39 +51,13 @@
  */
 
 /**
- * @file vts_l3_avbuffer.cpp
+ * @file vts_common.cpp
  *
  */
-#include "vts_l3_avbuffer.h"
+#include "vts_common.h"
 
-using android::sp;
-using com::rdk::hal::avbuffer::IAVBuffer;
-using android::binder::Status;
-
-sp<IAVBuffer> vts_avbuffer_getService()
-{
-    return
-        android::interface_cast<IAVBuffer>(
-            android::defaultServiceManager()->getService(
-                android::String16(IAVBuffer::serviceName().c_str())
-            )
-        );
-}
-
-// Constructor
-AVBufferSpaceListener::AVBufferSpaceListener() = default;
-
-// onSpaceAvailable implementation
-Status AVBufferSpaceListener::onSpaceAvailable()
-{
-    // Add log if needed
-    return Status::ok();
-}
-
-// Destructor
-AVBufferSpaceListener::~AVBufferSpaceListener() = default;
-
-/** @} */ // End of VTS_L3_AVBUFFER
+FrameQueue gFrameQueue;
+/** @} */ // End of VTS_COMMON
 /** @} */ // End of VIDEO_SINK_HALTEST
 /** @} */ // End of VIDEO_SINK
 /** @} */ // End of HPK

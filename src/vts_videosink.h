@@ -89,18 +89,6 @@ using namespace com::rdk::hal::avbuffer;
 extern sp<IVideoSinkManager> gVideoSinkManager;
 extern void *gTestConfiguration;
 
-// Undefine UT_LOG_INFO from ut_log.h to avoid redefinition conflicts
-#undef UT_LOG_INFO
-
-//#define ENABLE_UT_INFO_LOGGING
-
-#ifdef ENABLE_UT_INFO_LOGGING
-// Enable INFO logging using ut_log.h's definition
-#define UT_LOG_INFO(format, ...) UT_logPrefix(__FILE__, __LINE__, UT_LOG_ASCII_CYAN "INFO  " UT_LOG_ASCII_NC, format, ## __VA_ARGS__)
-#else
-#define UT_LOG_INFO(format, ...) // Disable INFO logging by default (no-op)
-#endif
-
 /* Status::Exception */
 const static ut_control_keyStringMapping_t statusException_mapTable[] =
 {
@@ -130,12 +118,17 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define MAX_TRANSITORY_STATE_WAIT_MS  5
 #define MAX_FINAL_STATE_WAIT_MS  500
 
+#ifdef DISABLE_UT_DEBUG_LOGGING
+#define UT_LOG_DEBUG(...)
+#define UT_LOG_INFO(...)
+#endif
+
 #define VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getVideoSinkIds(OUT:sinkIds:[])"); \
+        UT_LOG_DEBUG("Calling getVideoSinkIds(OUT:sinkIds:[])"); \
         status = gVideoSinkManager->getVideoSinkIds(&sinkIds); \
-        UT_LOG_INFO("Result getVideoSinkIds(OUT:sinkIds:[size: %d]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result getVideoSinkIds(OUT:sinkIds:[size: %d]), status:[isOK:%s, exception:%s]", \
                                 sinkIds.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE_FATAL(status.isOk()); \
@@ -145,9 +138,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_MANAGER_GETVIDEOSINKIDS_FAILURE(sinkIds,exception) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getVideoSinkIds(OUT:sinkIds:[])"); \
+        UT_LOG_DEBUG("Calling getVideoSinkIds(OUT:sinkIds:[])"); \
         status = gVideoSinkManager->getVideoSinkIds(sinkIds); \
-        UT_LOG_INFO("Result getVideoSinkIds(OUT: status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result getVideoSinkIds(OUT: status:[isOK:%s, exception:%s]", \
                                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
@@ -157,9 +150,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_MANAGER_GETVIDEOSINK(_sinkId, videoSink) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getVideoSink(IN:_sinkId:[%d], OUT:videoSink[])", _sinkId.value); \
+        UT_LOG_DEBUG("Calling getVideoSink(IN:_sinkId:[%d], OUT:videoSink[])", _sinkId.value); \
         status = gVideoSinkManager->getVideoSink(_sinkId, &videoSink); \
-        UT_LOG_INFO("Result getVideoSink(IN:_sinkId:[%d], OUT:videoSink[0x%X]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result getVideoSink(IN:_sinkId:[%d], OUT:videoSink[0x%X]), status:[isOK:%s, exception:%s]", \
                                 _sinkId.value, videoSink.get(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE_FATAL(status.isOk()); \
@@ -170,9 +163,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(_sinkId, videoSink) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getVideoSink(IN:_sinkId:[%d], OUT:videoSink[])", _sinkId.value); \
+        UT_LOG_DEBUG("Calling getVideoSink(IN:_sinkId:[%d], OUT:videoSink[])", _sinkId.value); \
         status = gVideoSinkManager->getVideoSink(_sinkId, &videoSink); \
-        UT_LOG_INFO("Result getVideoSink(IN:_sinkId:[%d], OUT:videoSink[0x%X]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result getVideoSink(IN:_sinkId:[%d], OUT:videoSink[0x%X]), status:[isOK:%s, exception:%s]", \
                                 _sinkId.value, videoSink.get(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
@@ -183,9 +176,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool aidl_return = false;\
-        UT_LOG_INFO("Calling setVideoDecoder(IN:videodecoderId:[%d], OUT:aidl_return)", videodecoderId.value);\
+        UT_LOG_DEBUG("Calling setVideoDecoder(IN:videodecoderId:[%d], OUT:aidl_return)", videodecoderId.value);\
         status = videoSinkController->setVideoDecoder(videodecoderId, &aidl_return);\
-        UT_LOG_INFO("Result setVideoDecoder(IN:videosinkId:[%d], OUT:aidl_return:[%s]), status:[isOK:%s, exception:%s]",\
+        UT_LOG_DEBUG("Result setVideoDecoder(IN:videosinkId:[%d], OUT:aidl_return:[%s]), status:[isOK:%s, exception:%s]",\
                     videodecoderId.value, aidl_return ? "true" : "false",\
                     UT_Control_GetMapString(bool_mapTable, status.isOk()),\
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));\
@@ -198,9 +191,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool aidl_return = false;\
-        UT_LOG_INFO("Calling setVideoDecoder(IN:videodecoderId:[%d], OUT:_aidl_return)", videodecoderID.value);\
+        UT_LOG_DEBUG("Calling setVideoDecoder(IN:videodecoderId:[%d], OUT:_aidl_return)", videodecoderID.value);\
         status = videoSinkController->setVideoDecoder(videodecoderID, &aidl_return);\
-        UT_LOG_INFO("Result setVideoDecoder(IN:videodecoderId:[%d], OUT:_aidl_return:[%d]), status:[isOK:%s, exception:%s]",\
+        UT_LOG_DEBUG("Result setVideoDecoder(IN:videodecoderId:[%d], OUT:_aidl_return:[%d]), status:[isOK:%s, exception:%s]",\
                     videodecoderID.value, aidl_return, UT_Control_GetMapString(bool_mapTable, status.isOk()),\
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));\
         UT_ASSERT_FALSE(aidl_return);\
@@ -211,9 +204,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_CONTROLLER_GETVIDEODECODER_SUCCESS(videoSinkController,videodecoderID) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getVideoDecoder(OUT:videoDecoderId:[%d], OUT:aidl_return)", videodecoderId.value);\
+        UT_LOG_DEBUG("Calling getVideoDecoder(OUT:videoDecoderId:[%d], OUT:aidl_return)", videodecoderId.value);\
         status = videoSinkController->getVideoDecoder(&videodecoderId);\
-        UT_LOG_INFO("Result getVideoDecoder(OUT:videodecoderId:[%d]), status:[isOK:%s, exception:%s]",\
+        UT_LOG_DEBUG("Result getVideoDecoder(OUT:videodecoderId:[%d]), status:[isOK:%s, exception:%s]",\
                     videodecoderId.value,\
                     UT_Control_GetMapString(bool_mapTable, status.isOk()),\
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));\
@@ -224,9 +217,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_CONTROLLER_GETVIDEODECODER_FAILURE(videoSinkController,videodecoderID,exception) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getVideoDecoder(OUT:videodecoderId)");\
+        UT_LOG_DEBUG("Calling getVideoDecoder(OUT:videodecoderId)");\
         status = videoSinkController->getVideoDecoder(videodecoderID);\
-        UT_LOG_INFO("Result getVideoDecoder(out:videodecoderId:[]), status:[isOK:%s, exception:%s]",\
+        UT_LOG_DEBUG("Result getVideoDecoder(out:videodecoderId:[]), status:[isOK:%s, exception:%s]",\
                     UT_Control_GetMapString(bool_mapTable, status.isOk()),\
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));\
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
@@ -235,9 +228,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_GETCAPABILITIES(videoSink, capabilities) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getCapabilities(OUT:capabilities)"); \
+        UT_LOG_DEBUG("Calling getCapabilities(OUT:capabilities)"); \
             videoSink->getCapabilities(capabilities); \
-        UT_LOG_INFO("Result getCapabilities(OUT:capabilities), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result getCapabilities(OUT:capabilities), status:[isOK:%s, exception:%s]", \
                                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -247,9 +240,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_GETCAPABILITIES_FAILURE(videoSink, capabilities,exception) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getCapabilities(OUT:capabilities)"); \
+        UT_LOG_DEBUG("Calling getCapabilities(OUT:capabilities)"); \
             videoSink->getCapabilities(capabilities); \
-        UT_LOG_INFO("Result getCapabilities(OUT:capabilities), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result getCapabilities(OUT:capabilities), status:[isOK:%s, exception:%s]", \
                                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
@@ -259,18 +252,18 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         ::com::rdk::hal::State state; \
-        UT_LOG_INFO("Calling getProperty(IN:property[%s], OUT:propertyValue[]", videosink::toString(property).c_str()); \
+        UT_LOG_DEBUG("Calling getProperty(IN:property[%s], OUT:propertyValue[]", videosink::toString(property).c_str()); \
         status = (videoSink)->getProperty(property, &propertyValue); \
         switch (propertyValue->value.value().getTag()) \
         { \
             case PropertyValue::Value::Tag::intValue: \
-                UT_LOG_INFO("Result getProperty(IN:property[%s], OUT:propertyValue[%d]), status:[isOK:%s, exception:%s]", videosink::toString(property).c_str(), \
+                UT_LOG_DEBUG("Result getProperty(IN:property[%s], OUT:propertyValue[%d]), status:[isOK:%s, exception:%s]", videosink::toString(property).c_str(), \
                 propertyValue->value->get<PropertyValue::Value::Tag::intValue>(), \
                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
                 break; \
             case PropertyValue::Value::Tag::stringValue: \
-                UT_LOG_INFO("Result getProperty(IN:property[%s], OUT:propertyValue[%s]), status:[isOK:%s, exception:%s]", videosink::toString(property).c_str(), \
+                UT_LOG_DEBUG("Result getProperty(IN:property[%s], OUT:propertyValue[%s]), status:[isOK:%s, exception:%s]", videosink::toString(property).c_str(), \
                 propertyValue->value->get<PropertyValue::Value::Tag::stringValue>().string(), \
                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -284,9 +277,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         ::com::rdk::hal::State state; \
-        UT_LOG_INFO("Calling getProperty(IN:property[%s], OUT:propertyValue[]", videosink::toString(property).c_str()); \
+        UT_LOG_DEBUG("Calling getProperty(IN:property[%s], OUT:propertyValue[]", videosink::toString(property).c_str()); \
         status = (videoSink)->getProperty(property, &propertyValue); \
-        UT_LOG_INFO("Result getProperty(IN:property[%s], OUT:propertyValue[]), status:[isOK:%s, exception:%s]", videosink::toString(property).c_str(), \
+        UT_LOG_DEBUG("Result getProperty(IN:property[%s], OUT:propertyValue[]), status:[isOK:%s, exception:%s]", videosink::toString(property).c_str(), \
                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
@@ -296,9 +289,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_GET_STATE(videoSink, state) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getState(OUT:state[]"); \
+        UT_LOG_DEBUG("Calling getState(OUT:state[]"); \
         status = (videoSink)->getState(&state); \
-        UT_LOG_INFO("Result getState(OUT:state[%s]), status:[isOK:%s, exception:%s]", com::rdk::hal::toString(state).c_str(), \
+        UT_LOG_DEBUG("Result getState(OUT:state[%s]), status:[isOK:%s, exception:%s]", com::rdk::hal::toString(state).c_str(), \
                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -308,9 +301,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_GET_STATE_FAILURE(videoSink, state, exception) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getState(OUT:state[]"); \
+        UT_LOG_DEBUG("Calling getState(OUT:state[]"); \
         status = (videoSink)->getState(state); \
-        UT_LOG_INFO("Result getState(OUT:state[]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result getState(OUT:state[]), status:[isOK:%s, exception:%s]", \
                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
@@ -333,10 +326,10 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling open(IN:controllerListener[0x%p], OUT:videoSinkController[])", \
+        UT_LOG_DEBUG("Calling open(IN:controllerListener[0x%p], OUT:videoSinkController[])", \
             controllerListener); \
         status = (videoSink)->open(controllerListener,&videoSinkController); \
-        UT_LOG_INFO("Result open(IN:controllerListener[0x%p], OUT:videoSinkController[0x%X]), status:[exception:%s]", \
+        UT_LOG_DEBUG("Result open(IN:controllerListener[0x%p], OUT:videoSinkController[0x%X]), status:[exception:%s]", \
             controllerListener, videoSinkController.get(), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_NOT_EQUAL_FATAL(videoSinkController, nullptr); \
@@ -354,10 +347,10 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_OPEN_FAILURE(videoSink, controllerListener, videoSinkController, exception) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling open(IN:controllerListener[0x%p])", \
+        UT_LOG_DEBUG("Calling open(IN:controllerListener[0x%p])", \
             controllerListener); \
         status = videoSink->open(controllerListener, &videoSinkController); \
-        UT_LOG_INFO("Result open(IN:controllerListener[0x%p], OUT:videoSinkController[0x%X]), status:[exception:%s]", \
+        UT_LOG_DEBUG("Result open(IN:controllerListener[0x%p], OUT:videoSinkController[0x%X]), status:[exception:%s]", \
             controllerListener, videoSinkController.get(), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
@@ -368,9 +361,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling close(IN:videoSinkController[0x%p])", videoSinkController.get()); \
+        UT_LOG_DEBUG("Calling close(IN:videoSinkController[0x%p])", videoSinkController.get()); \
         status = videoSink->close(videoSinkController,&_aidl_return); \
-        UT_LOG_INFO("Result close(IN:videoSinkController[0x%p]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result close(IN:videoSinkController[0x%p]), status:[isOK:%s, exception:%s]", \
             videoSinkController.get(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE_FATAL(status.isOk()); \
@@ -388,9 +381,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool _aidl_return; \
-        UT_LOG_INFO("Calling close(IN:videoSinkController[0x%p], OUT:_aidl_return[])", videoSinkController.get()); \
+        UT_LOG_DEBUG("Calling close(IN:videoSinkController[0x%p], OUT:_aidl_return[])", videoSinkController.get()); \
         status = videoSink->close(videoSinkController, &_aidl_return); \
-        UT_LOG_INFO("Result close(IN:videoSinkController[0x%p], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result close(IN:videoSinkController[0x%p], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
             videoSinkController.get(), UT_Control_GetMapString(bool_mapTable, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -403,9 +396,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool _aidl_return; \
-        UT_LOG_INFO("Calling registerEventListener(IN:eventListener[0x%p], OUT:_aidl_return[])", eventListener.get()); \
+        UT_LOG_DEBUG("Calling registerEventListener(IN:eventListener[0x%p], OUT:_aidl_return[])", eventListener.get()); \
         status = videoSink->registerEventListener(eventListener, &_aidl_return); \
-        UT_LOG_INFO("Result registerEventListener(IN:eventListener[0x%p], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result registerEventListener(IN:eventListener[0x%p], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
             eventListener.get(), UT_Control_GetMapString(bool_mapTable, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -418,9 +411,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool _aidl_return=false; \
-        UT_LOG_INFO("Calling registerEventListener(IN:eventListener[0x%p], OUT:_aidl_return[])", eventListener.get()); \
+        UT_LOG_DEBUG("Calling registerEventListener(IN:eventListener[0x%p], OUT:_aidl_return[])", eventListener.get()); \
         status = videoSink->registerEventListener(eventListener, &_aidl_return); \
-        UT_LOG_INFO("Result registerEventListener(IN:eventListener[0x%p], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result registerEventListener(IN:eventListener[0x%p], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
             eventListener.get(), UT_Control_GetMapString(bool_mapTable, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -436,9 +429,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool _aidl_return; \
-        UT_LOG_INFO("Calling unregisterEventListener(IN:eventListener[0x%p], OUT:_aidl_return[])", eventListener.get()); \
+        UT_LOG_DEBUG("Calling unregisterEventListener(IN:eventListener[0x%p], OUT:_aidl_return[])", eventListener.get()); \
         status = videoSink->unregisterEventListener(eventListener, &_aidl_return); \
-        UT_LOG_INFO("Result unregisterEventListener(IN:eventListener[0x%p], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result unregisterEventListener(IN:eventListener[0x%p], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
             eventListener.get(), UT_Control_GetMapString(bool_mapTable, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -451,9 +444,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling unregisterEventListener(IN:eventListener[0x%p], OUT:_aidl_return[])", eventListener.get()); \
+        UT_LOG_DEBUG("Calling unregisterEventListener(IN:eventListener[0x%p], OUT:_aidl_return[])", eventListener.get()); \
         status = videoSink->unregisterEventListener(eventListener, &_aidl_return); \
-        UT_LOG_INFO("Result unregisterEventListener(IN:eventListener[0x%p], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result unregisterEventListener(IN:eventListener[0x%p], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
             eventListener.get(), UT_Control_GetMapString(bool_mapTable, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -464,9 +457,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, stateCheck) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling start()"); \
+        UT_LOG_DEBUG("Calling start()"); \
         status = videoSinkController->start(); \
-        UT_LOG_INFO("Result start(), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result start(), status:[isOK:%s, exception:%s]", \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -482,9 +475,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_START_FAILURE(videoSinkController, exception) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling start()"); \
+        UT_LOG_DEBUG("Calling start()"); \
         status = videoSinkController->start(); \
-        UT_LOG_INFO("Result start(), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result start(), status:[isOK:%s, exception:%s]", \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
@@ -494,9 +487,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, stateCheck) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling stop()"); \
+        UT_LOG_DEBUG("Calling stop()"); \
         status = videoSinkController->stop(); \
-        UT_LOG_INFO("Result stop(), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result stop(), status:[isOK:%s, exception:%s]", \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -512,9 +505,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_STOP_FAILURE(videoSinkController, exception) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling stop()"); \
+        UT_LOG_DEBUG("Calling stop()"); \
         status = videoSinkController->stop(); \
-        UT_LOG_INFO("Result stop(), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result stop(), status:[isOK:%s, exception:%s]", \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
@@ -524,9 +517,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_FLUSH_SUCCESS(videoSink, videoSinkController, holdLastFrame) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling flush(IN: holdLastFrame[%s])", UT_Control_GetMapString(bool_mapTable, holdLastFrame)); \
+        UT_LOG_DEBUG("Calling flush(IN: holdLastFrame[%s])", UT_Control_GetMapString(bool_mapTable, holdLastFrame)); \
         status = videoSinkController->flush(holdLastFrame); \
-        UT_LOG_INFO("Result flush(IN: holdLastFrame[%s]), status:[isOK:%s, exception:%s]", UT_Control_GetMapString(bool_mapTable, holdLastFrame), \
+        UT_LOG_DEBUG("Result flush(IN: holdLastFrame[%s]), status:[isOK:%s, exception:%s]", UT_Control_GetMapString(bool_mapTable, holdLastFrame), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -536,9 +529,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_FLUSH_FAILURE(videoSinkController, holdLastFrame, exception) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling flush(IN: holdLastFrame[%s])", UT_Control_GetMapString(bool_mapTable, holdLastFrame)); \
+        UT_LOG_DEBUG("Calling flush(IN: holdLastFrame[%s])", UT_Control_GetMapString(bool_mapTable, holdLastFrame)); \
         status = videoSinkController->flush(holdLastFrame); \
-        UT_LOG_INFO("Result flush(IN: holdLastFrame[%s]), status:[isOK:%s, exception:%s]", UT_Control_GetMapString(bool_mapTable, holdLastFrame), \
+        UT_LOG_DEBUG("Result flush(IN: holdLastFrame[%s]), status:[isOK:%s, exception:%s]", UT_Control_GetMapString(bool_mapTable, holdLastFrame), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
@@ -548,9 +541,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(videoSinkController, nsPresentationTime) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling discardFramesUntil(IN:nsPresentationTime:[%lld])", nsPresentationTime);\
+        UT_LOG_DEBUG("Calling discardFramesUntil(IN:nsPresentationTime:[%lld])", nsPresentationTime);\
         status = videoSinkController->discardFramesUntil(nsPresentationTime);\
-        UT_LOG_INFO("Result discardFramesUntil(IN:nsPresentationTime:[%lld]), status:[isOK:%s, exception:%s]",\
+        UT_LOG_DEBUG("Result discardFramesUntil(IN:nsPresentationTime:[%lld]), status:[isOK:%s, exception:%s]",\
                     nsPresentationTime, UT_Control_GetMapString(bool_mapTable, status.isOk()),\
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));\
         UT_ASSERT_TRUE(status.isOk());\
@@ -560,9 +553,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 #define VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_FAILURE(videoSinkController, nsPresentationTime, exception) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_INFO("Calling discardFramesUntil(IN:nsPresentationTime:[%lld])", nsPresentationTime); \
+        UT_LOG_DEBUG("Calling discardFramesUntil(IN:nsPresentationTime:[%lld])", nsPresentationTime); \
         status = videoSinkController->discardFramesUntil(nsPresentationTime); \
-        UT_LOG_INFO("Result discardFramesUntil(IN:nsPresentationTime:[%lld]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result discardFramesUntil(IN:nsPresentationTime:[%lld]), status:[isOK:%s, exception:%s]", \
                     nsPresentationTime, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
@@ -572,9 +565,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool _aidl_return=false; \
-        UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[%lld], IN:metadata:[...])", nsPresentationTime, frameBufferHandle); \
+        UT_LOG_DEBUG("Calling queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[%lld], IN:metadata:[...])", nsPresentationTime, frameBufferHandle); \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
-        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[%lld], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[%lld], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
                     nsPresentationTime, frameBufferHandle,\
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(_aidl_return); \
@@ -590,12 +583,12 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
         auto epoch = now_ms.time_since_epoch(); \
         long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count(); \
         \
-        UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[%lld], IN:metadata:[...])", \
+        UT_LOG_DEBUG("Calling queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[%lld], IN:metadata:[...])", \
                     nsPresentationTime, ms, frameBufferHandle); \
         \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
         \
-        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[%lld], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[%lld], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
                     nsPresentationTime, ms, frameBufferHandle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -610,9 +603,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool _aidl_return=false; \
-        UT_LOG_INFO("Calling setProperty(IN:property[%s], IN:propertyValue[0x%X], OUT:_aidl_return[])", com::rdk::hal::videosink::toString(property).c_str(), propertyValue.value); \
+        UT_LOG_DEBUG("Calling setProperty(IN:property[%s], IN:propertyValue[0x%X], OUT:_aidl_return[])", com::rdk::hal::videosink::toString(property).c_str(), propertyValue.value); \
         status = videoSinkController->setProperty(property, propertyValue, &_aidl_return); \
-        UT_LOG_INFO("Result setProperty(IN:property[%s], IN:propertyValue[0x%X], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", com::rdk::hal::videosink::toString(property).c_str(), propertyValue.value, \
+        UT_LOG_DEBUG("Result setProperty(IN:property[%s], IN:propertyValue[0x%X], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", com::rdk::hal::videosink::toString(property).c_str(), propertyValue.value, \
             UT_Control_GetMapString(bool_mapTable, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -625,9 +618,9 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling setProperty(IN:property[%s], IN:propertyValue[0x%X], OUT:_aidl_return[])", com::rdk::hal::videosink::toString(property).c_str(), propertyValue.value); \
+        UT_LOG_DEBUG("Calling setProperty(IN:property[%s], IN:propertyValue[0x%X], OUT:_aidl_return[])", com::rdk::hal::videosink::toString(property).c_str(), propertyValue.value); \
         status = videoSinkController->setProperty(property, propertyValue, &_aidl_return); \
-        UT_LOG_INFO("Result setProperty(IN:property[%s], IN:propertyValue[0x%X], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", com::rdk::hal::videosink::toString(property).c_str(), propertyValue.value, \
+        UT_LOG_DEBUG("Result setProperty(IN:property[%s], IN:propertyValue[0x%X], OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", com::rdk::hal::videosink::toString(property).c_str(), propertyValue.value, \
             UT_Control_GetMapString(bool_mapTable, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -680,10 +673,10 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     do { \
         ::android::binder::Status status; \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime[%ld], IN:frameBufferHandle[0x%lX], IN:metadata{width:%d, height:%d, format:%d}, OUT:_aidl_return[])", \
+        UT_LOG_DEBUG("Calling queueVideoFrame(IN:nsPresentationTime[%ld], IN:frameBufferHandle[0x%lX], IN:metadata{width:%d, height:%d, format:%d}, OUT:_aidl_return[])", \
             nsPresentationTime, frameBufferHandle, metadata.width, metadata.height, metadata.format); \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
-        UT_LOG_INFO("Result queueVideoFrame(..., OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result queueVideoFrame(..., OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
             UT_Control_GetMapString(bool_mapTable, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -737,7 +730,6 @@ public:
 
     // Wait functions
     bool waitForFlushComplete(std::chrono::seconds timeout);
-    bool waitForFlushCompleteEvent(std::chrono::seconds timeout);
     bool waitForEosEvent(int timeoutSeconds);
     bool waitForUnderflowEvent(int timeoutSeconds);
     bool waitForResumedEvent(int timeoutSeconds);
@@ -746,6 +738,8 @@ private:
     mutable std::mutex mMutex;
     std::condition_variable mCV;
 
+    State mCurrentState;
+    std::vector<std::pair<State, State>> mStateChanges;
     bool mFirstFrameRendered;
     int64_t mFirstPTS;
 
@@ -804,6 +798,8 @@ public:
 private:
     mutable std::mutex mMutex;
     std::condition_variable mCV;
+    bool mFirstFrameRendered;
+    int64_t mFirstPTS;
 
     State mCurrentState;
     std::vector<std::pair<State, State>> mStateChanges;

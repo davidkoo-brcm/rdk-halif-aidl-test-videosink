@@ -56,9 +56,9 @@
  * @file vts_videosink_l3_tests.c
  *
  */
-#include "vts_l3_common.h"
-#include "vts_l3_avbuffer.h"
-#include "vts_l3_videodecoder.h"
+#include "vts_common.h"
+#include "vts_avbuffer.h"
+#include "vts_videodecoder.h"
 
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
@@ -218,14 +218,18 @@ private:
         try {
             sp<IVideoSinkController> controller;
 
+            UT_LOG_WARNING("[SinkID: %d] Start of Testing Stream: %s", mSinkId.value, mTestConfiguration.input.c_str());
+
             /*Open the Video Sink*/
             VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
 
-            /*Reset the Underflow and Resume Counts*/
+            /*Reset the EOS, Underflow and Resume Counts*/
             mVideoSinkControlListener->resetUnderflow();
             mVideoSinkControlListener->resetResumed();
             mVideoSinkEventListner->resetUnderflow();
             mVideoSinkEventListner->resetResumed();
+            mVideoSinkControlListener->resetEos();
+            mVideoSinkEventListner->resetEos();
 
             /*Start the Video Sink*/
             VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
@@ -235,7 +239,6 @@ private:
             /*Set the "discard until PTS" value for the relevant test cases*/
             if (mTestConfiguration.sink_discardFramesUntilPts != static_cast<uint64_t>(-1))
             {
-                UT_LOG_INFO("Calling discardFramesUntil with PTS %ld", mTestConfiguration.sink_discardFramesUntilPts);
                 VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, mTestConfiguration.sink_discardFramesUntilPts);
             }
 
@@ -245,7 +248,7 @@ private:
 
                 if (!optFrame)
                 {
-                    UT_LOG_INFO("Timeout waiting for frame from decoder, exiting loop");
+                    UT_LOG_WARNING("[SinkID: %d]Timeout waiting for frame from decoder, exiting loop",mSinkId.value);
                     break;  // No frame received within timeout - exit or handle accordingly
                 }
 
@@ -256,14 +259,20 @@ private:
                 metadata.endOfStream = (mTestConfiguration.sink_eos_pts != static_cast<uint64_t>(-1) &&
                             pts == mTestConfiguration.sink_eos_pts);
 
-                UT_LOG_INFO("Queueing live frame: PTS=%ld, Handle=%ld, EOS=%d, Discontinuity=%d underFlow_pts=%d flush %d",
-                            pts, bufferHandle, metadata.endOfStream, metadata.discontinuity,mTestConfiguration.sink_underflowPts, mTestConfiguration.sink_flush_pts);
+                UT_LOG_DEBUG("[SinkID: %d]Queueing live frame: PTS=%ld, Handle=%ld, EOS=%d, Discontinuity=%d underFlow_pts=%d flush %d",
+                                                                                                                                mSinkId.value,
+                                                                                                                                pts,
+                                                                                                                                bufferHandle,
+                                                                                                                                metadata.endOfStream,
+                                                                                                                                metadata.discontinuity,
+                                                                                                                                mTestConfiguration.sink_underflowPts,
+                                                                                                                                mTestConfiguration.sink_flush_pts);
 
                 /*Introducing a delay to simulate an underflow event in the sink queue.*/
                 if (mTestConfiguration.sink_underflowPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.sink_underflowPts)
                 {
                     uint32_t frameDurationMs = static_cast<uint32_t>( 1000.0 * metadata.frameRateDenominator / metadata.frameRateNumerator);
-                    UT_LOG_INFO("Injecting delay at PTS %ld to simulate underflow", pts);
+                    UT_LOG_DEBUG("[SinkID: %d]Injecting delay at PTS %ld to simulate underflow",mSinkId.value, pts);
                     std::this_thread::sleep_for(std::chrono::milliseconds(frameDurationMs));
                 }
 
@@ -276,7 +285,7 @@ private:
                 handleEosFrame(metadata, pts);
 
                 if (metadata.endOfStream) {
-                    UT_LOG_INFO("EOS frame received, stopping video sink input loop");
+                    UT_LOG_WARNING("EOS frame received, stopping video sink input loop");
                     break;
                 }
 
@@ -769,7 +778,7 @@ void SinkTest::verifyNoUnexpectedUnderflow(int64_t pts)
     int count = mVideoSinkControlListener->getUnderflowCount();
     if (count > 0)
     {
-        UT_LOG_ERROR("[SinkID: %d] Unexpected underflow at PTS %ld! Count: %d", mSinkId, pts, count);
+        UT_LOG_ERROR("[SinkID: %d] Unexpected underflow at PTS %ld! Count: %d", mSinkId.value, pts, count);
         UT_ASSERT_TRUE(false);
     }
 }
@@ -787,52 +796,50 @@ void SinkTest::verifyUnderflow()
 {
     constexpr int timeoutSeconds = 3;
 
-    /*Control Listener Underflow Callback Validation*/
-    UT_LOG_INFO("[SinkID: %d]Waiting for Video Underflow event from control listener",mSinkId);
+    /* Control Listener Underflow Callback Validation */
     bool controlUnderflowed = mVideoSinkControlListener->waitForUnderflowEvent(timeoutSeconds);
     if (!controlUnderflowed)
     {
-        UT_LOG_ERROR("[SinkID: %d]Video Underflow event NOT received from control listener",mSinkId);
+        UT_LOG_ERROR("[SinkID: %d] Video Underflow event NOT received from control listener", mSinkId.value);
         UT_ASSERT_TRUE(false);
-    }
-    else
-    {
-        UT_LOG_DEBUG("[SinkID: %d]Video Underflow event received successfully from control listener",mSinkId);
+        return;
     }
 
-    /*Event Listener Underflow Callback Validation*/
-    UT_LOG_INFO("[SinkID: %d]Waiting for Video Underflow event from event listener",mSinkId);
+     UT_LOG_WARNING("[SinkID: %d] Video Underflow event received from control listener", mSinkId.value);
+
+    /* Event Listener Underflow Callback Validation */
     bool eventUnderflowed = mVideoSinkEventListner->waitForUnderflowEvent(timeoutSeconds);
     if (!eventUnderflowed)
     {
-        UT_LOG_ERROR("[SinkID: %d] Video Underflow event NOT received from event listener",mSinkId);
+        UT_LOG_ERROR("[SinkID: %d] Video Underflow event NOT received from event listener", mSinkId.value);
         UT_ASSERT_TRUE(false);
-    }
-    else
-    {
-        UT_LOG_DEBUG("[SinkID: %d]Video Underflow event received successfully from event listener",mSinkId);
+        return;
     }
 
-    /*Metrics Underflow Validation*/
+    UT_LOG_WARNING("[SinkID: %d] Video Underflow event received from event listener", mSinkId.value);
+
+    /* Metrics Underflow Validation */
     std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Wait for metric to settle
 
     int actualUnderflowed = -1;
     bool success = getSinkPropertyInt(videosink::Property::METRIC_UNDERFLOWED, actualUnderflowed);
     if (!success || actualUnderflowed == -1)
     {
-        UT_LOG_ERROR("[SinkID: %d]Failed to read METRIC_UNDERFLOWED",mSinkId);
+        UT_LOG_ERROR("[SinkID: %d] Failed to read METRIC_UNDERFLOWED", mSinkId.value);
         UT_ASSERT_TRUE(false);
+        return;
     }
     else if (actualUnderflowed > 0)
     {
-        UT_LOG_INFO("[SinkID: %d]Detected %d underflow events", actualUnderflowed,mSinkId);
+        UT_LOG_WARNING("[SinkID: %d] Detected %d underflow event(s)", mSinkId.value, actualUnderflowed);
     }
     else
     {
-        UT_LOG_ERROR("[SinkID: %d]Expected at least 1 underflow, got 0",mSinkId);
+        UT_LOG_ERROR("[SinkID: %d] Expected at least 1 underflow, got 0", mSinkId.value);
         UT_ASSERT_TRUE(false);
     }
 }
+
 
 
 /**
@@ -845,31 +852,26 @@ void SinkTest::verifyUnderflow()
 void SinkTest::verifyResume()
 {
     constexpr int timeoutSeconds = 5;
-
-    UT_LOG_INFO("[SinkID: %d]Waiting for Video Resume event after underflow from control listener...",mSinkId);
+    // video sink control listener
     bool controlResumed = mVideoSinkControlListener->waitForResumedEvent(timeoutSeconds);
     if (!controlResumed)
     {
-        UT_LOG_ERROR("[SinkID: %d]Video Resume event NOT received from control listener");
+        UT_LOG_ERROR("[SinkID: %d] Video Resume event NOT received from control listener", mSinkId.value);
         UT_ASSERT_TRUE(false);
+        return;
     }
-    else
-    {
-        UT_LOG_DEBUG("[SinkID: %d]Video Resume event received successfully from control listener",mSinkId);
-    }
-
-    UT_LOG_INFO("[SinkID: %d]Waiting for Video Resume event after underflow from event listener",mSinkId);
+    // video sink event listener
     bool eventResumed = mVideoSinkEventListner->waitForResumedEvent(timeoutSeconds);
     if (!eventResumed)
     {
-        UT_LOG_ERROR("[SinkID: %d]Video Resume event NOT received from event listener",mSinkId);
+        UT_LOG_ERROR("[SinkID: %d] Video Resume event NOT received from event listener", mSinkId.value);
         UT_ASSERT_TRUE(false);
+        return;
     }
-    else
-    {
-        UT_LOG_DEBUG("[SinkID: %d]Video Resume event received successfully from event listener",mSinkId);
-    }
+
+    UT_LOG_WARNING("[SinkID: %d] Video Resume event received successfully from both control and event listeners", mSinkId.value);
 }
+
 
 /**
  * @brief Handles End-of-Stream (EOS) frame processing and verification.
@@ -885,56 +887,44 @@ void SinkTest::handleEosFrame(const FrameMetadata& metadata, int64_t pts)
     if (!metadata.endOfStream)
         return;
 
-    /*Verifying EOS callback from control listener*/
-    UT_LOG_DEBUG("[SinkID: %d] EOS flag detected. Waiting for control listener EOS callback...", mSinkId);
-
+    // Wait for EOS callback from control listener
     bool eosArrived = mVideoSinkControlListener->waitForEosEvent(2);
-
     if (!eosArrived)
     {
-        UT_LOG_ERROR("[SinkID: %d] EOS callback not received within timeout.", mSinkId);
+        UT_LOG_ERROR("[SinkID: %d] Timeout waiting for EOS callback from control listener.", mSinkId.value);
         UT_ASSERT_TRUE(false);
         return;
     }
 
     int64_t eosPTS = mVideoSinkControlListener->getEosPTS();
-    UT_LOG_INFO("[SinkID: %d] EOS received from sink. nsPresentationTime = %ld", mSinkId, eosPTS);
-
     if (eosPTS != pts)
     {
-        UT_LOG_ERROR("[SinkID: %d] Mismatch in EOS PTS. Expected: %ld, Got: %ld", mSinkId, pts, eosPTS);
+        UT_LOG_ERROR("[SinkID: %d] EOS PTS mismatch from control listener. Expected: %ld, Got: %ld", mSinkId.value, pts, eosPTS);
         UT_ASSERT_TRUE(false);
-    }
-    else
-    {
-        UT_LOG_DEBUG("[SinkID: %d] EOS PTS match confirmed: %ld", mSinkId, pts);
+        return;
     }
 
-    /*Verifying EOS callback from Event listener*/
-    UT_LOG_DEBUG("[SinkID: %d] EOS flag detected. Waiting for EOS event listener callback...", mSinkId);
-
-    eosArrived = mVideoSinkEventListner->waitForEosEvent(2);  // 2 sec timeout
-
+    // Wait for EOS callback from event listener
+    eosArrived = mVideoSinkEventListner->waitForEosEvent(2);
     if (!eosArrived)
     {
-        UT_LOG_ERROR("[SinkID: %d] EOS callback not received within timeout.", mSinkId);
+        UT_LOG_ERROR("[SinkID: %d] Timeout waiting for EOS callback from event listener.", mSinkId.value);
         UT_ASSERT_TRUE(false);
         return;
     }
 
     eosPTS = mVideoSinkEventListner->getEosPTS();
-    UT_LOG_INFO("[SinkID: %d] EOS received from sink. nsPresentationTime = %ld", mSinkId, eosPTS);
-
     if (eosPTS != pts)
     {
-        UT_LOG_ERROR("[SinkID: %d] Mismatch in EOS PTS. Expected: %ld, Got: %ld", mSinkId, pts, eosPTS);
+        UT_LOG_ERROR("[SinkID: %d] EOS PTS mismatch from event listener. Expected: %ld, Got: %ld", mSinkId.value, pts, eosPTS);
         UT_ASSERT_TRUE(false);
+        return;
     }
-    else
-    {
-        UT_LOG_DEBUG("[SinkID: %d] EOS PTS match confirmed: %ld", mSinkId, pts);
-    }
+
+    // Confirm EOS PTS match
+    UT_LOG_WARNING("[SinkID: %d] EOS PTS match confirmed: %ld", mSinkId.value, pts);
 }
+
 
 /**
  * @brief Waits for and verifies the flush complete event from the video sink.
@@ -946,34 +936,27 @@ void SinkTest::verifyFlushComplete()
 {
     bool flushReceived = false;
 
-    /*Verifying Flush complete callback from Control listener*/
-    UT_LOG_INFO("[SinkID: %d] Waiting for flush complete control listener event...", mSinkId);
-
+    /* Verifying Flush complete callback from Control listener */
     flushReceived = mVideoSinkControlListener->waitForFlushComplete(std::chrono::seconds(3));
     if (!flushReceived)
     {
-        UT_LOG_ERROR("[SinkID: %d] Flush complete event not received within timeout.", mSinkId);
+        UT_LOG_ERROR("[SinkID: %d] Flush complete event NOT received from control listener within timeout.", mSinkId.value);
         UT_ASSERT_TRUE(false);
+        return;
     }
-    else
-    {
-        UT_LOG_DEBUG("[SinkID: %d] Control listener flush complete event received.", mSinkId);
-    }
+    UT_LOG_INFO("[SinkID: %d] Flush complete event received from control listener.", mSinkId.value);
 
-    /*Verifying Flush complete callback from Event listener*/
-    UT_LOG_INFO("[SinkID: %d] Waiting for flush complete event listener...", mSinkId);
-
+    /* Verifying Flush complete callback from Event listener */
     flushReceived = mVideoSinkEventListner->waitForFlushComplete(std::chrono::seconds(3));
     if (!flushReceived)
     {
-        UT_LOG_ERROR("[SinkID: %d] Flush complete event not received within timeout.", mSinkId);
+        UT_LOG_ERROR("[SinkID: %d] Flush complete event NOT received from event listener within timeout.", mSinkId.value);
         UT_ASSERT_TRUE(false);
+        return;
     }
-    else
-    {
-        UT_LOG_DEBUG("[SinkID: %d] Event listener flush complete event received.", mSinkId);
-    }
+    UT_LOG_WARNING("[SinkID: %d] Flush complete event received from event listener.", mSinkId.value);
 }
+
 
 
 /**
@@ -987,25 +970,24 @@ void SinkTest::verifyQueueDepth()
 {
     int actualQueueDepth = -1;
 
-    /*Verifying Video Sink QueueDepth Metrics*/
+    /* Verifying Video Sink QueueDepth Metrics */
     bool success = getSinkPropertyInt(videosink::Property::SINK_QUEUE_DEPTH, actualQueueDepth);
     if (!success)
     {
-        UT_LOG_ERROR("Failed to get SINK_QUEUE_DEPTH property");
+        UT_LOG_ERROR("[SinkID: %d] Failed to get SINK_QUEUE_DEPTH property", mSinkId.value);
         UT_ASSERT_TRUE(false);
+        return;
     }
 
-    UT_LOG_DEBUG(" Actual Queue Depth: %d", actualQueueDepth);
+    UT_LOG_WARNING("[SinkID: %d] Actual Queue Depth: %d", mSinkId.value, actualQueueDepth);
+
     if (actualQueueDepth < 0)
     {
-        UT_LOG_ERROR("No Queue Depth value!: %d", actualQueueDepth);
+        UT_LOG_ERROR("[SinkID: %d] No Queue Depth value!: %d", mSinkId.value, actualQueueDepth);
         UT_ASSERT_TRUE(false);
     }
-    else
-    {
-        UT_LOG_DEBUG("Queue Depth matches expected value.");
-    }
 }
+
 
 /**
  * @brief Verifies the number of frames received by the video sink.
@@ -1018,20 +1000,22 @@ void SinkTest::verifyFramesReceived()
 {
     int sinkFramesReported = -1;
 
-    /*Verifying Video Sink Frame received Metrics*/
+    /* Verifying Video Sink Frame received Metrics */
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_RECEIVED, sinkFramesReported);
     if (!success)
     {
-        UT_LOG_ERROR("Failed to get METRIC_FRAMES_RECEIVED property");
+        UT_LOG_ERROR("[SinkID: %d] Failed to get METRIC_FRAMES_RECEIVED property", mSinkId.value);
         UT_ASSERT_TRUE(false);
+        return;
     }
 
-    UT_LOG_DEBUG("Sink reported %d frames, Actually tracked: %d, Unique PTSs: %zu",
-                sinkFramesReported, actualFramesReceived, receivedPtsSet.size());
+    UT_LOG_WARNING("[SinkID: %d] Sink reported %d frames, Actually tracked: %d, Unique PTSs: %zu",
+                mSinkId.value, sinkFramesReported, actualFramesReceived, receivedPtsSet.size());
 
     if (sinkFramesReported != actualFramesReceived)
     {
-        UT_LOG_ERROR("Mismatch in received frames: Sink=%d, Counted=%d", sinkFramesReported, actualFramesReceived);
+        UT_LOG_ERROR("[SinkID: %d] Mismatch in received frames: Sink=%d, Counted=%d",
+                     mSinkId.value, sinkFramesReported, actualFramesReceived);
         UT_ASSERT_TRUE(false);
     }
 }
@@ -1047,25 +1031,26 @@ void SinkTest::verifyFramesDroppedLate()
 {
     int actualFramesDroppedLate = -1;
 
-    /*Verifying Video Sink Frame Dropped Metrics*/
+    /* Verifying Video Sink Frame Dropped Metrics */
 
-    UT_LOG_INFO("Waiting briefly to allow metrics to update...");
+    UT_LOG_DEBUG("[SinkID: %d] Waiting briefly to allow metrics to update...", mSinkId.value);
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_DROPPED_LATE, actualFramesDroppedLate);
     if (!success)
     {
-        UT_LOG_ERROR("Failed to get METRIC_FRAMES_DROPPED_LATE property");
+        UT_LOG_ERROR("[SinkID: %d] Failed to get METRIC_FRAMES_DROPPED_LATE property", mSinkId.value);
         UT_ASSERT_TRUE(false);
+        return;
     }
 
     if (actualFramesDroppedLate >= 1)
     {
-        UT_LOG_DEBUG("Detected late frame drops as expected: %d", actualFramesDroppedLate);
+        UT_LOG_WARNING("[SinkID: %d] Detected late frame drops as expected: %d", mSinkId.value, actualFramesDroppedLate);
     }
     else
     {
-        UT_LOG_ERROR("Expected late frame drops, but got: %d", actualFramesDroppedLate);
+        UT_LOG_ERROR("[SinkID: %d] Expected late frame drops, but got: %d", mSinkId.value, actualFramesDroppedLate);
         UT_ASSERT_TRUE(false);
     }
 }
@@ -1082,28 +1067,30 @@ void SinkTest::verifyFramesDroppedFRC()
 {
     int actualDroppedFRC = -1;
 
-    /*Verifying Video Sink Frames Dropped FRC Metrics*/
+    /* Verifying Video Sink Frames Dropped FRC Metrics */
 
-    UT_LOG_INFO("Waiting briefly to allow metrics to update...");
+    UT_LOG_DEBUG("[SinkID: %d] Waiting briefly to allow metrics to update...", mSinkId.value);
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_DROPPED_FRC, actualDroppedFRC);
     if (!success)
     {
-        UT_LOG_ERROR("Failed to get METRIC_FRAMES_DROPPED_FRC property");
+        UT_LOG_ERROR("[SinkID: %d] Failed to get METRIC_FRAMES_DROPPED_FRC property", mSinkId.value);
         UT_ASSERT_TRUE(false);
+        return;
     }
 
     if (actualDroppedFRC > 0)
     {
-        UT_LOG_DEBUG("Detected frame drops due to FRC as expected: %d", actualDroppedFRC);
+        UT_LOG_WARNING("[SinkID: %d] Detected frame drops due to FRC as expected: %d", mSinkId.value, actualDroppedFRC);
     }
     else
     {
-        UT_LOG_ERROR("Expected frame drops due to FRC, but got: %d", actualDroppedFRC);
+        UT_LOG_ERROR("[SinkID: %d] Expected frame drops due to FRC, but got: %d", mSinkId.value, actualDroppedFRC);
         UT_ASSERT_TRUE(false);
     }
 }
+
 
 /**
  * @brief Verifies if frames were repeated due to Frame Rate Conversion (FRC).
@@ -1117,28 +1104,30 @@ void SinkTest::verifyFramesRepeatedFRC()
 {
     int actualRepeatedFRC = -1;
 
-    /*Verifying Video Sink Frames Repeated FRC Metrics*/
+    /* Verifying Video Sink Frames Repeated FRC Metrics */
 
-    UT_LOG_INFO("Waiting briefly to allow metrics to update...");
+    UT_LOG_DEBUG("[SinkID: %d] Waiting briefly to allow metrics to update...", mSinkId.value);
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_REPEATED_FRC, actualRepeatedFRC);
     if (!success)
     {
-        UT_LOG_ERROR("Failed to get METRIC_FRAMES_REPEATED_FRC property");
+        UT_LOG_ERROR("[SinkID: %d] Failed to get METRIC_FRAMES_REPEATED_FRC property", mSinkId.value);
         UT_ASSERT_TRUE(false);
+        return;
     }
 
     if (actualRepeatedFRC > 0)
     {
-        UT_LOG_DEBUG("Detected frame repetitions due to FRC as expected: %d", actualRepeatedFRC);
+        UT_LOG_WARNING("[SinkID: %d] Detected frame repetitions due to FRC as expected: %d", mSinkId.value, actualRepeatedFRC);
     }
     else
     {
-        UT_LOG_ERROR("Expected frame repetitions due to FRC, but got: %d", actualRepeatedFRC);
+        UT_LOG_ERROR("[SinkID: %d] Expected frame repetitions due to FRC, but got: %d", mSinkId.value, actualRepeatedFRC);
         UT_ASSERT_TRUE(false);
     }
 }
+
 
 /**
  * @brief Verifies if any frames were repeated due to missing frames.
@@ -1152,27 +1141,30 @@ void SinkTest::verifyFramesMissed()
 {
     int actualRepeatMissing = -1;
 
-    /*Verifying Video Sink Frames Missed Metrics*/
+    /* Verifying Video Sink Frames Missed Metrics */
 
-    UT_LOG_INFO("Waiting briefly to allow metrics to update...");
+    UT_LOG_DEBUG("[SinkID: %d] Waiting briefly to allow metrics to update...", mSinkId.value);
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME, actualRepeatMissing);
     if (!success || actualRepeatMissing == -1)
     {
-        UT_LOG_ERROR("METRIC_FRAMES_REPEATED_MISSING_FRAME not supported or fetch failed.");
+        UT_LOG_ERROR("[SinkID: %d] METRIC_FRAMES_REPEATED_MISSING_FRAME not supported or fetch failed.", mSinkId.value);
         UT_ASSERT_TRUE(false);
+        return;
     }
-    else if (actualRepeatMissing > 0)
+
+    if (actualRepeatMissing > 0)
     {
-        UT_LOG_DEBUG("Frames repeated due to missing frame: %d", actualRepeatMissing);
+        UT_LOG_WARNING("[SinkID: %d] Frames repeated due to missing frame: %d", mSinkId.value, actualRepeatMissing);
     }
     else
     {
-        UT_LOG_ERROR("Expected some frames to be repeated due to missing frame, but got 0");
+        UT_LOG_ERROR("[SinkID: %d] Expected some frames to be repeated due to missing frame, but got 0", mSinkId.value);
         UT_ASSERT_TRUE(false);
     }
 }
+
 
 /**
  * @brief Performs post-verification based on the current sink test name.

@@ -75,9 +75,9 @@ com::rdk::hal::videodecoder::Codec vts_videodecoder_helper_StringTocodec(const s
     using Codec = com::rdk::hal::videodecoder::Codec;
 
     static const std::unordered_map<std::string, Codec> formatMap = {
-        {"MPEG", Codec::MPEG2_VIDEO},
-        {"H264", Codec::H264_AVC},
-        {"H265", Codec::H265_HEVC},
+        {"MPEG", Codec::MPEG},
+        {"H264", Codec::H264},
+        {"H265", Codec::H265},
         {"VP9",  Codec::VP9},
         {"AV1",  Codec::AV1}
     };
