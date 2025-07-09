@@ -1,6 +1,6 @@
 IVideoDecoderManager:
   L3:
-    Render_Concurrent_NonTunnel_NonSecure_FramesMiss:
+    Sink_Sequential_NonTunnel_NonSecure_FramesMiss:
       Controls:
       Inputs:
         Streams:

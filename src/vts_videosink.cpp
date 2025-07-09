@@ -135,59 +135,12 @@ android::binder::Status VideoSinkControllerListener::onFirstFrameRendered(int64_
 }
 
 /**
- * @brief Resets the first frame rendered tracking state.
- *
- * Clears the internal flag and timestamp used to track whether the first
- * frame has been rendered. Typically used before starting a new test case
- * or playback session.
- */
-void VideoSinkControllerListener::resetFirstFrameRendered()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    mFirstFrameRendered = false;
-    mFirstPTS = -1;
-}
-
-/**
- * @brief Checks if the first frame has been rendered.
- *
- * @return true if the first frame has been rendered, false otherwise.
- */
-bool VideoSinkControllerListener::hasFirstFrameRendered()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    return mFirstFrameRendered;
-}
-
-/**
- * @brief Retrieves the presentation timestamp (PTS) of the first rendered frame.
- *
- * @return The PTS of the first frame rendered, or -1 if no frame has been rendered yet.
- */
-int64_t VideoSinkControllerListener::getFirstFrameRenderedPTS()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    return mFirstPTS;
-}
-
-/**
  * @brief Resets the flush complete flag to false.
  */
 void VideoSinkControllerListener::resetFlushComplete()
 {
     std::lock_guard<std::mutex> lock(mMutex);
     mFlushComplete = false;
-}
-
-/**
- * @brief Checks whether the flush complete event has occurred.
- *
- * @return true if flush is complete, false otherwise.
- */
-bool VideoSinkControllerListener::hasFlushComplete()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    return mFlushComplete;
 }
 
 /**
@@ -199,13 +152,29 @@ bool VideoSinkControllerListener::hasFlushComplete()
  */
 android::binder::Status VideoSinkControllerListener::onFlushComplete()
 {
-    UT_LOG_INFO("[Sink ID : %d] VideoSinkControllerListener: onFlushComplete callback received ",mSinkID);
+    UT_LOG_INFO("[Sink ID : %d] VideoSinkEventListener: onFlushComplete callback received ", mSinkID);
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        mFlushComplete = true;
+        mFlushCompleteCount++;   // increment the count
+        mFlushComplete = true;   // optionally keep this flag if needed
     }
     mCV.notify_all();
-    return android::binder::Status::ok();
+    return ::android::binder::Status::ok();
+}
+
+/**
+ * @brief Retrieves the number of flush complete events received.
+ *
+ * This method returns the internal counter indicating how many times the
+ * flush complete callback (`onFlushComplete()`) was invoked on the video sink
+ * control listener. It uses a mutex to ensure thread-safe access.
+ *
+ * @return The number of flush complete events observed so far.
+ */
+int VideoSinkControllerListener::getFlushCompleteCount()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mFlushCompleteCount;
 }
 
 /**
@@ -226,17 +195,6 @@ android::binder::Status VideoSinkControllerListener::onEndOfStream(int64_t nsPre
     }
     mCV.notify_all();
     return android::binder::Status::ok();
-}
-
-/**
- * @brief Checks if End of Stream (EOS) has been received.
- *
- * @return true if EOS received, false otherwise.
- */
-bool VideoSinkControllerListener::hasEosReceived()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    return mEosReceived;
 }
 
 /**
@@ -465,18 +423,6 @@ VideoSinkEventListener::VideoSinkEventListener()
 }
 
 /**
- * @brief Checks if the End-Of-Stream (EOS) event has been received.
- *
- * @return true If EOS event has been received.
- * @return false Otherwise.
- */
-bool VideoSinkEventListener::hasEosReceived()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    return mEosReceived;
-}
-
-/**
  * @brief Retrieves the Presentation Timestamp (PTS) of the End-Of-Stream (EOS) event.
  *
  * @return int64_t The EOS PTS value.
@@ -629,13 +575,29 @@ int VideoSinkEventListener::getResumedCount()
  */
 ::android::binder::Status VideoSinkEventListener::onFlushComplete()
 {
-    UT_LOG_INFO("[Sink ID : %d] VideoSinkEventListener: onFlushComplete callback received ",mSinkID);
+    UT_LOG_INFO("[Sink ID : %d] VideoSinkEventListener: onFlushComplete callback received ", mSinkID);
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        mFlushComplete = true;
+        mFlushCompleteCount++;   // increment the count
+        mFlushComplete = true;   // optionally keep this flag if needed
     }
     mCV.notify_all();
     return ::android::binder::Status::ok();
+}
+
+/**
+ * @brief Retrieves the number of flush complete events received.
+ *
+ * This method returns the internal counter indicating how many times the
+ * flush complete callback (`onFlushComplete()`) was invoked on the video sink
+ * control listener. It uses a mutex to ensure thread-safe access.
+ *
+ * @return The number of flush complete events observed so far.
+ */
+int VideoSinkEventListener::getFlushCompleteCount()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mFlushCompleteCount;
 }
 
 /**
@@ -667,18 +629,7 @@ void VideoSinkEventListener::resetFlushComplete()
 {
     std::lock_guard<std::mutex> lock(mMutex);
     mFlushComplete = false;
-}
-
-/**
- * @brief Checks whether the flush complete event has been received.
- *        Thread-safe operation with mutex locking.
- *
- * @return true if flush is complete, false otherwise.
- */
-bool VideoSinkEventListener::hasFlushComplete()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    return mFlushComplete;
+    mFlushCompleteCount = 0;
 }
 
 /**

@@ -701,6 +701,7 @@ public:
     VideoSinkControllerListener();
     virtual ~VideoSinkControllerListener();
 
+    // Override methods from BnVideoSinkControllerListener
     android::binder::Status onFirstFrameRendered(int64_t nsPresentationTime) override;
     android::binder::Status onFlushComplete() override;
     android::binder::Status onEndOfStream(int64_t nsPresentationTime) override;
@@ -708,50 +709,59 @@ public:
     android::binder::Status onVideoResumed() override;
     android::binder::Status onStateChanged(State oldState, State newState) override;
 
-    // Utility functions
-    void resetFirstFrameRendered();
-    bool hasFirstFrameRendered();
-    int64_t getFirstFrameRenderedPTS();
-
+    // Utility functions: Flush complete
     void resetFlushComplete();
-    bool hasFlushComplete();
+    int getFlushCompleteCount();
 
-    bool hasEosReceived();
-    int64_t getEosPTS();
+
+    // Utility functions: End of stream (EOS)
     void resetEos();
+    int64_t getEosPTS();
 
+    // Utility functions: Underflow
     void resetUnderflow();
-    bool hasUnderflowReceived();
     int getUnderflowCount();
 
-    bool hasResumedReceived();
+    // Utility functions: Resume
     void resetResumed();
     int getResumedCount();
 
-    // Wait functions
+    // Wait functions (blocking with timeout)
     bool waitForFlushComplete(std::chrono::seconds timeout);
     bool waitForEosEvent(int timeoutSeconds);
     bool waitForUnderflowEvent(int timeoutSeconds);
     bool waitForResumedEvent(int timeoutSeconds);
+
     void setSinkID(int32_t id);
+
 private:
     mutable std::mutex mMutex;
     std::condition_variable mCV;
 
+    // Current state and history
     State mCurrentState;
     std::vector<std::pair<State, State>> mStateChanges;
+
+    // First frame rendered info
     bool mFirstFrameRendered;
     int64_t mFirstPTS;
 
+    // Flush complete flag
     bool mFlushComplete;
+    int mFlushCompleteCount = 0;
 
+    // EOS info
     bool mEosReceived;
     int64_t mEosPTS;
 
+    // Counters for events
     int mUnderflowCount = 0;
     int mResumeCount = 0;
+
+    // Sink ID
     int32_t mSinkID;
 };
+
 
 class VideoSinkEventListener : public BnVideoSinkEventListener
 {
@@ -759,6 +769,7 @@ public:
     VideoSinkEventListener();
     virtual ~VideoSinkEventListener() = default;
 
+    // Override methods from BnVideoSinkEventListener
     ::android::binder::Status onFirstFrameRendered(int64_t nsPresentationTime) override;
     ::android::binder::Status onEndOfStream(int64_t nsPresentationTime) override;
     ::android::binder::Status onVideoUnderflow() override;
@@ -768,49 +779,65 @@ public:
 
     // Flush helpers
     void resetFlushComplete();
-    bool hasFlushComplete();
     bool waitForFlushComplete(std::chrono::seconds timeout);
+    int getFlushCompleteCount();
 
-    bool hasEosReceived();
-    int64_t getEosPTS();
+    // End of stream (EOS) helpers
     void resetEos();
+    int64_t getEosPTS();
 
+    // Underflow helpers
     void resetUnderflow();
-    bool hasUnderflowReceived();
     int getUnderflowCount();
 
-
-    bool hasResumedReceived();
+    // Resume helpers
     void resetResumed();
     int getResumedCount();
 
     // State transition helpers
-    bool waitForState(State desiredState, std::chrono::milliseconds timeout);
     std::vector<std::pair<State, State>> getStateChanges() const;
     void resetStateChanges();
     bool checkStateTransistion(State expOldState, State expNewState);
-    std::vector<int32_t> getErrors() const;
-    void setSinkID(int32_t id);
+
+    // Wait functions (blocking with timeout)
+    bool waitForState(State desiredState, std::chrono::milliseconds timeout);
+    bool waitForResumedEvent(int timeoutSeconds);
     bool waitForEosEvent(int timeoutSeconds);
     bool waitForUnderflowEvent(int timeoutSeconds);
-    bool waitForResumedEvent(int timeoutSeconds);
+
+    // Error helpers
+    std::vector<int32_t> getErrors() const;
+
+    void setSinkID(int32_t id);
 
 private:
     mutable std::mutex mMutex;
     std::condition_variable mCV;
+
+    // Frame info
     bool mFirstFrameRendered;
     int64_t mFirstPTS;
 
+    // State info
     State mCurrentState;
     std::vector<std::pair<State, State>> mStateChanges;
+
+    // Errors
     std::vector<int32_t> mErrors;
 
+    // EOS info
     bool mEosReceived;
     int64_t mEosPTS;
+
+    // Event counters
     int mUnderflowCount = 0;
     int mResumeCount = 0;
 
+    // Flush flag
     bool mFlushComplete;
+    int mFlushCompleteCount = 0;
+
+    // Sink ID
     int32_t mSinkID;
 };
 
