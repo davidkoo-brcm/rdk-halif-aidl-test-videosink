@@ -80,7 +80,7 @@ else
         # Prompt user to start RDKVideoSinkService
         if prompt_yes_no "Do you want to start RDKVideoSinkService instead?"; then
             echo "Execute [RDKVideoSinkService]"
-            RDKVideoSinkService &
+            RDKVideoSinkAndPCService &
             VideoSinkService_pid=$!
             # Wait for service to be ready
             sleep 2
@@ -95,8 +95,6 @@ else
     fi
 fi
 
-echo "Eexecute [vts-videosink]"
-pushd "$(dirname "$0")" > /dev/null
-./vts-videosink $@
-popd > /dev/null
+echo "Eexecute [vts_videosink]"
+${RUN_DIR}/vts_videosink $@
 

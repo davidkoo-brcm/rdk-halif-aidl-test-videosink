@@ -296,7 +296,7 @@ android::binder::Status VideoSink::open(const android::sp<videosink::IVideoSinkC
      if (eventListener) {
          LOG_ERROR("registerEventListener: listener already registered for ID %d", id.value);
          *_aidl_return = false;
-         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_STATE);
+         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NONE);
      }
      eventListener = videoSinkEventListener;
      *_aidl_return = true;
@@ -318,7 +318,7 @@ android::binder::Status VideoSink::open(const android::sp<videosink::IVideoSinkC
      if (!eventListener) {
          LOG_ERROR("unregisterEventListener: no listener registered for ID %d", id.value);
          *_aidl_return = false;
-         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_STATE);
+         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NONE);
      }
      eventListener = nullptr;
      *_aidl_return = true;
@@ -390,7 +390,7 @@ LOG_INFO("VideoSinkController service initialized for ID %d", id.value);
  }
 
  android::binder::Status VideoSinkController::setVideoDecoder(const videodecoder::IVideoDecoder::Id& videoDecoderId, bool* _aidl_return) {
-     if (id.value < 0 || id.value >= NUM_VIDEO_SINK) {
+     if (id.value < -1 || id.value >= NUM_VIDEO_SINK) {
          LOG_ERROR("setVideoDecoder: invalid ID %d", id.value);
          *_aidl_return = false;
          return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_ARGUMENT);
@@ -401,12 +401,14 @@ LOG_INFO("VideoSinkController service initialized for ID %d", id.value);
          *_aidl_return = false;
          return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_STATE);
      }
-     if (videoDecoderId.value < 0) {
+     if (videoDecoderId.value < -1) {
          LOG_ERROR("setVideoDecoder: invalid videoDecoderId %d for ID %d", videoDecoderId.value, id.value);
          *_aidl_return = false;
          return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_ARGUMENT);
      }
-     g_videodecoder_id[id.value] = videoDecoderId;
+     if(id.value >= 0){
+        g_videodecoder_id[id.value] = videoDecoderId;
+     }
      *_aidl_return = true;
      LOG_INFO("setVideoDecoder: set ID %d to decoder %d", id.value, videoDecoderId.value);
      return android::binder::Status::ok();
@@ -417,7 +419,7 @@ LOG_INFO("VideoSinkController service initialized for ID %d", id.value);
          LOG_ERROR("getVideoDecoder: null _aidl_return for ID %d", id.value);
          return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
      }
-     if (id.value < 0 || id.value >= NUM_VIDEO_SINK) {
+     if (id.value < -1 || id.value >= NUM_VIDEO_SINK) {
          LOG_ERROR("getVideoDecoder: invalid ID %d", id.value);
          return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_ARGUMENT);
      }

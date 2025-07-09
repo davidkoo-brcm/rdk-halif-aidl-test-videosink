@@ -22,7 +22,21 @@
 TARGET ?= linux
 VARIANT := CPP
 
-TARGET_EXEC := vts-videosink
+TARGET_EXEC := vts_videosink
+
+VERSION := $(shell git describe --tags | head -n1 || echo "undefine")
+ifeq ($(VERSION),undefine)
+$(warning No tags found in repository. Using VERSION=unknown)
+endif
+$(info VERSION: $(VERSION))
+
+# Read RDK_HALIF_AIDL_VERSION from environment, default to 'main' if not set
+RDK_HALIF_AIDL_VERSION ?= main
+$(info RDK_HALIF_AIDL_VERSION: $(RDK_HALIF_AIDL_VERSION))
+
+# Assign VERSION and RDK_HALIF_AIDL_VERSION to CXXFLAGS
+CXXFLAGS := -DHALIF_TEST_TAG_VERSION=\"$(VERSION)\" -DRDK_HALIF_AIDL_VERSION=\"$(RDK_HALIF_AIDL_VERSION)\"
+$(info CXXFLAGS: $(CXXFLAGS))
 
 ROOT_DIR := $(CURDIR)
 SRC_DIRS := $(ROOT_DIR)/src
@@ -52,7 +66,7 @@ CXXFLAGS += -DDISABLE_UT_DEBUG_LOGGING
 endif
 
 # required for std::optional
-CXXFLAGS := -std=c++17
+CXXFLAGS += -std=c++17
 
 UT_CORE_DIR := $(CURDIR)/ut-core
 

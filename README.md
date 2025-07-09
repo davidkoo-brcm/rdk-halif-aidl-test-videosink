@@ -36,15 +36,15 @@ Addition environment variables can be used:
 
 - LINUX_BINDER_OUT_DIR: Path to the Linux binder output directory (e.g., /path/to/linux_binder_idl/local).
 
-- UT_CORE_VERSION: Specific version of the UT-Core framework (e.g., 4.6.0). Defaults to the latest tagged version.
+- UT_CORE_VERSION: Specific version of the UT-Core framework (e.g., 4.7.0). Defaults to the latest tagged version.
 
-- RDK_HAL_VERSION: Specific version of the HAL Specification (e.g, 0.7.1). Defaults to the latest HEAD.
+- RDK_HALIF_AIDL_VERSION: Specific version of the AIDL HAL Specification (e.g, 0.7.1). Defaults to the latest HEAD.
 
 Example:
 
 ```bash
-export UT_CORE_VERSION=4.6.0
-export RDK_HAL_VERSION=0.7.1
+export UT_CORE_VERSION=4.7.0
+export RDK_HALIF_AIDL_VERSION=0.7.1
 export AIDL_BIN=/path/linux_binder_idl/out/aidl
 export LINUX_BINDER_OUT_DIR=/path//linux_binder_idl/local/
 ```
@@ -83,7 +83,7 @@ build/bin/
 │   └── hfp-videosink.yaml
 ├── run.sh
 ├── servicemanager
-└── vts-videoSInk
+└── vts_videoSInk
 ```
 
 ## Run test
