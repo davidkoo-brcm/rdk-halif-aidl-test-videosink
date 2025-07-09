@@ -78,6 +78,8 @@ static const char *gVideoDecoderModuleName = "IVideoDecoderManager";
 static const char *gTestGroup = "L3";
 IAVBufferHelper* gAVbufferHelper;
 
+extern std::vector<int32_t> gAvailableVideosinks_hfp;
+
 class SinkTest
 {
 public:
@@ -213,92 +215,118 @@ private:
 
     void videoSinkNonTunnelMode()
     {
-        sp<IVideoSinkController> controller;
+        try {
+            sp<IVideoSinkController> controller;
 
-        UT_LOG_INFO("VIDEOSINK_OPEN_SUCCESS ctrl listener 0x%x", mVideoSinkControlListener);
-        VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
-        UT_LOG_INFO("VIDEOSINK_OPEN_SUCCESS ctrl listener 0x%x", mVideoSinkControlListener);
+            /*Open the Video Sink*/
+            VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
 
-        mVideoSinkControlListener->resetUnderflow();
-        mVideoSinkControlListener->resetResumed();
+            /*Reset the Underflow and Resume Counts*/
+            mVideoSinkControlListener->resetUnderflow();
+            mVideoSinkControlListener->resetResumed();
+            mVideoSinkEventListner->resetUnderflow();
+            mVideoSinkEventListner->resetResumed();
 
-        VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
-        UT_LOG_INFO("Sink opened and started");
+            /*Start the Video Sink*/
+            VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
 
-        UT_LOG_INFO("Buffer pool created");
+            int64_t frameTimeoutMs = 500; // Wait up to 5 seconds for a frame
 
-        int64_t frameTimeoutMs = 500; // Wait up to 5 seconds for a frame
-
-        if (mTestConfiguration.sink_discardFramesUntilPts != static_cast<uint64_t>(-1)) {
-            UT_LOG_INFO("Calling discardFramesUntil with PTS %ld", mTestConfiguration.sink_discardFramesUntilPts);
-            VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, mTestConfiguration.sink_discardFramesUntilPts);
-        }
-
-        while (true) {
-            auto optFrame = gFrameQueue.waitAndPop(frameTimeoutMs);
-
-            if (!optFrame) {
-                UT_LOG_INFO("Timeout waiting for frame from decoder, exiting loop");
-                break;  // No frame received within timeout - exit or handle accordingly
-            }
-
-            FrameData& frame = *optFrame;
-            int64_t pts = frame.pts;
-            int64_t bufferHandle = frame.bufferHandle;
-            FrameMetadata& metadata = frame.metadata;
-            metadata.endOfStream = (mTestConfiguration.sink_eos_pts != static_cast<uint64_t>(-1) &&
-                        pts == mTestConfiguration.sink_eos_pts);
-
-            UT_LOG_INFO("Queueing live frame: PTS=%ld, Handle=%ld, EOS=%d, Discontinuity=%d underFlow_pts=%d flush %d",
-                        pts, bufferHandle, metadata.endOfStream, metadata.discontinuity,mTestConfiguration.sink_underflowPts, mTestConfiguration.sink_flush_pts);
-
-            VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, pts, bufferHandle, metadata);
-
-            receivedPtsSet.insert(pts);
-            ++actualFramesReceived;
-
-            handleEosFrame(metadata, pts);
-
-            if (metadata.endOfStream) {
-                UT_LOG_INFO("EOS frame received, stopping video sink input loop");
-                break;
-            }
-
-            if (mTestConfiguration.sink_underflowPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.sink_underflowPts) {
-                verifyUnderflow();
-            }
-            else
+            /*Set the "discard until PTS" value for the relevant test cases*/
+            if (mTestConfiguration.sink_discardFramesUntilPts != static_cast<uint64_t>(-1))
             {
-                verifyNoUnexpectedUnderflow(pts);
+                UT_LOG_INFO("Calling discardFramesUntil with PTS %ld", mTestConfiguration.sink_discardFramesUntilPts);
+                VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, mTestConfiguration.sink_discardFramesUntilPts);
             }
 
-            if (mTestConfiguration.sink_resumeTriggerPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.sink_resumeTriggerPts) {
-                verifyResume();
-                mVideoSinkControlListener->resetUnderflow();
-            }
-
-            if (mTestConfiguration.sink_interFrameDelayMs > 0) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(mTestConfiguration.sink_interFrameDelayMs));
-            }
-
-            if (mTestConfiguration.sink_flush_pts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.sink_flush_pts)
+            while (true)
             {
-                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
-                verifyFlushComplete();
+                auto optFrame = gFrameQueue.waitAndPop(frameTimeoutMs);
+
+                if (!optFrame)
+                {
+                    UT_LOG_INFO("Timeout waiting for frame from decoder, exiting loop");
+                    break;  // No frame received within timeout - exit or handle accordingly
+                }
+
+                FrameData& frame = *optFrame;
+                int64_t pts = frame.pts;
+                int64_t bufferHandle = frame.bufferHandle;
+                FrameMetadata& metadata = frame.metadata;
+                metadata.endOfStream = (mTestConfiguration.sink_eos_pts != static_cast<uint64_t>(-1) &&
+                            pts == mTestConfiguration.sink_eos_pts);
+
+                UT_LOG_INFO("Queueing live frame: PTS=%ld, Handle=%ld, EOS=%d, Discontinuity=%d underFlow_pts=%d flush %d",
+                            pts, bufferHandle, metadata.endOfStream, metadata.discontinuity,mTestConfiguration.sink_underflowPts, mTestConfiguration.sink_flush_pts);
+
+                /*Introducing a delay to simulate an underflow event in the sink queue.*/
+                if (mTestConfiguration.sink_underflowPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.sink_underflowPts)
+                {
+                    uint32_t frameDurationMs = static_cast<uint32_t>( 1000.0 * metadata.frameRateDenominator / metadata.frameRateNumerator);
+                    UT_LOG_INFO("Injecting delay at PTS %ld to simulate underflow", pts);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(frameDurationMs));
+                }
+
+                VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, pts, bufferHandle, metadata);
+
+                receivedPtsSet.insert(pts);
+                ++actualFramesReceived;
+
+                /* Validating the end-of-stream (EOS) callback from the video sink.*/
+                handleEosFrame(metadata, pts);
+
+                if (metadata.endOfStream) {
+                    UT_LOG_INFO("EOS frame received, stopping video sink input loop");
+                    break;
+                }
+
+                /*Verifying the underflow event callback and corresponding metrics from the video sink.*/
+                if (mTestConfiguration.sink_underflowPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.sink_underflowPts) {
+                    verifyUnderflow();
+                }
+                else
+                {
+                    /* Validating underflow in non-simulated scenarios and marking the test as failed if it occurs unexpectedly.*/
+                    verifyNoUnexpectedUnderflow(pts);
+                }
+
+                /* Validating the video sink’s callback for resuming after an underflow event. */
+                if (mTestConfiguration.sink_resumeTriggerPts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.sink_resumeTriggerPts) {
+                    verifyResume();
+                    mVideoSinkControlListener->resetUnderflow();
+                }
+
+                if (mTestConfiguration.sink_interFrameDelayMs > 0) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(mTestConfiguration.sink_interFrameDelayMs));
+                }
+
+                /*Verifying the flush PTS callback received from the video sink.*/
+                if (mTestConfiguration.sink_flush_pts != static_cast<uint64_t>(-1) && pts == mTestConfiguration.sink_flush_pts)
+                {
+                    VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
+                    verifyFlushComplete();
+                }
+
             }
+            /* Validating the metrics data after the queuing process is complete. */
+            runPostVerification();
 
+            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+            VIDEOSINK_STOP_SUCCESS(mSinkHandle, controller, true);
+            VIDEOSINK_CLOSE_SUCCESS(mSinkHandle, controller, true);
         }
-
-        runPostVerification();
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(30));
-        VIDEOSINK_STOP_SUCCESS(mSinkHandle, controller, true);
-        VIDEOSINK_CLOSE_SUCCESS(mSinkHandle, controller, true);
-        UT_LOG_INFO("Video sink test cleanup completed");
+        catch (const std::exception& ex) {
+            UT_LOG_ERROR("[SinkID: %d] Exception in videoSinkNonTunnelMode: %s", mSinkId.value, ex.what());
+            UT_ASSERT_TRUE(false);
+        } catch (...) {
+            UT_LOG_ERROR("[SinkID: %d] Unknown exception in videoSinkNonTunnelMode", mSinkId.value);
+            UT_ASSERT_TRUE(false);
+        }
     }
 
     void videoSinkTunnelMode()
     {
+    //TODO: Need to implement the tunnel test.
 #if 0
         sp<IVideoSinkController> controller;
         sp<IVideoDecoderController> videoDecoderController;
@@ -451,7 +479,6 @@ public:
 
     vector<tuple<IVideoSink::Id, sp<IVideoSink>, sp<VideoSinkControllerListener>, sp<VideoSinkEventListener>>> mVideoSinkList;
     vector<tuple<IVideoDecoder::Id, sp<IVideoDecoder>, sp<IVideoDecoderControllerListener>, sp<IVideoDecoderEventListener>, videodecoder::Capabilities*>> mVideoDecoderList;
-
     sp<IAVBuffer> mAVBufferManager;
 
     void SetUp() override
@@ -465,9 +492,7 @@ public:
         gAVbufferHelper = getAVBufferHelperInstance();
 
         /*Get the Video Sink IDs*/
-
         VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
-
 
         if(getVideoDecoderService() != UT_STATUS_OK)
         {
@@ -476,9 +501,7 @@ public:
         else
         {
             /*Get the Video Decoder IDs*/
-
             VIDEODECODER_MANAGER_GETVIDEODECODERIDS(videoDecoderIds);
-
 
             android::ProcessState::self()->startThreadPool();
 
@@ -492,8 +515,11 @@ public:
 
                 sp<IVideoDecoderControllerListener> videoDecoderControlListener = new VideoDecoderControllerListener();
 
+                /*Get Video Decoder details*/
                 VIDEODECODER_MANAGER_GETVIDEODECODER(_videoDecoderId, videoDecoder);
+                /*Register the events */
                 VIDEODECODER_REGISTER_EVENT_SUCCESS(videoDecoder, videoDecoderEventListener);
+                /*Get Capabilities of Video Decoder */
                 VIDEODECODER_GETCAPABILITIES(videoDecoder, videoDecoderCapabilities);
 
                 mVideoDecoderList.push_back({_videoDecoderId, videoDecoder, videoDecoderControlListener, videoDecoderEventListener, videoDecoderCapabilities});
@@ -508,7 +534,6 @@ public:
 
             sp<VideoSinkControllerListener> videoSinkControlListener = new VideoSinkControllerListener();
 
-
             videoSinkControlListener->setSinkID(_sinkId.value);
             videoSinkEventListener->setSinkID(_sinkId.value);
 
@@ -518,114 +543,164 @@ public:
             /* Register events */
             VIDEOSINK_REGISTER_EVENT_SUCCESS(videoSink, videoSinkEventListener);
 
+            //TODO: VideoSink Get capabilities are yet to implement in the video sink
+
             mVideoSinkList.push_back({_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener});
 
         }
     }
 
-    void runSequentialSink(testConfiguration_t decoderConfig, bool secure, bool tunnel)
+    bool isVideoSinkUsable(const IVideoSink::Id& sinkId)
     {
-        auto& [_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener] = mVideoSinkList[0];  // adjust if multiple sinks
-        auto& [_decoderId, decoderHandle, decoderControlListener, decoderEventListener, decoderCapabilities] = mVideoDecoderList[0];
-
-        HeapMetrics beforeHeapMetrics, afterHeapMetrics;
-        AVBUFFER_GETMETRICS(mAVBufferManager, secure, beforeHeapMetrics);
-
-        // Create decoder test object
-        DecoderTest decoderTest(_decoderId, decoderHandle,
-                                sp<VideoDecoderControllerListener>::cast(decoderControlListener),
-                                sp<VideoDecoderEventListener>::cast(decoderEventListener),
-                                sp<IAVBuffer>::cast(mAVBufferManager),
-                                secure, tunnel, decoderConfig);
-
-        // Create sink test object - pass decoderConfig instead of sinkConfig
-        SinkTest sinkTest(_sinkId, videoSink,
-                        videoSinkControlListener, videoSinkEventListener,
-                        decoderHandle, _decoderId,
-                        decoderControlListener, decoderEventListener,
-                        mAVBufferManager, secure, decoderConfig);
-
-        // Clear frame queue before start (optional but recommended)
-        gFrameQueue.clear();
-
-        // Run decoder and sink concurrently in separate threads
-        std::thread decoderThread([&decoderTest]() {
-            decoderTest.run(true); // internally calls decoderThreadFunc -> onFrameOutput pushes frames
-        });
-
-        std::thread sinkThread([&sinkTest, tunnel]() {
-            sinkTest.run(tunnel);  // calls videoSinkNonTunnelMode(), waits on gFrameQueue and queues frames
-        });
-
-        // Wait for both threads to complete
-        decoderThread.join();
-        sinkThread.join();
-
-        AVBUFFER_GETMETRICS(mAVBufferManager, secure, afterHeapMetrics);
-
-        UT_ASSERT_TRUE(beforeHeapMetrics.secure == afterHeapMetrics.secure);
-        UT_ASSERT_TRUE(beforeHeapMetrics.bytesUsed == afterHeapMetrics.bytesUsed);
-        UT_ASSERT_TRUE(beforeHeapMetrics.bytesTotal == afterHeapMetrics.bytesTotal);
+        return std::find(gAvailableVideosinks_hfp.begin(), gAvailableVideosinks_hfp.end(), sinkId.value) != gAvailableVideosinks_hfp.end();
     }
 
-    void runConcurrentSink(testConfiguration_t decoderConfig, bool secure, bool tunnel)
+    void runSequentialSink(testConfiguration_t decoderConfig, bool secure, bool tunnel)
     {
-        std::vector<std::thread> threads;
-        std::vector<SinkTest> sinkTests;  // Store SinkTest objects here
 
-        HeapMetrics beforeHeapMetrics, afterHeapMetrics;
-        AVBUFFER_GETMETRICS(mAVBufferManager, secure, beforeHeapMetrics);
-
-        for (size_t i = 0; i < mVideoSinkList.size(); ++i)
-        {
-            auto& [_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener] = mVideoSinkList[i];
-            auto& [_decoderId, decoderHandle, decoderControlListener, decoderEventListener, decoderCapabilities] = mVideoDecoderList[i];
-
-#if 0 /*Need to enable during tunnel mode implementation*/
-            // Skip if the platform doesn't support secure decode
-            if (secure && !decoderCapabilities->supportsSecure)
+        try{
+            for (size_t i = 0; i < mVideoSinkList.size(); ++i)
             {
-                UT_LOG_INFO("Decoder [%d] doesn't support secure decoding", _decoderId);
-                continue;
-            }
+                auto& [_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener] = mVideoSinkList[i];  // adjust if multiple sinks
+                auto& [_decoderId, decoderHandle, decoderControlListener, decoderEventListener, decoderCapabilities] = mVideoDecoderList[i];
 
-            // Find if codec supported by this decoder
-            auto result = std::find_if(decoderCapabilities->supportedCodecs.begin(),
-                                    decoderCapabilities->supportedCodecs.end(),
-                                    [&](const com::rdk::hal::videodecoder::CodecCapabilities& cap) {
-                                        return cap.codec == decoderConfig.codec;
-                                    });
+                if (!isVideoSinkUsable(_sinkId))
+                {
+                    UT_LOG_INFO("[SinkID: %d] is not usable for this test configuration, skipping.", _sinkId.value);
+                    continue;
+                }
 
-            if (result == decoderCapabilities->supportedCodecs.end())
-            {
-                UT_LOG_INFO("Decoder [%d] doesn't support Codec [%s]", _decoderId, videodecoder::toString(decoderConfig.codec).c_str());
-                continue;
-            }
-#endif
-            // Construct SinkTest object and keep it alive
-            sinkTests.emplace_back(_sinkId, videoSink,
+                HeapMetrics beforeHeapMetrics, afterHeapMetrics;
+                AVBUFFER_GETMETRICS(mAVBufferManager, secure, beforeHeapMetrics);
+
+                // Create decoder test object
+                DecoderTest decoderTest(_decoderId, decoderHandle,
+                                        sp<VideoDecoderControllerListener>::cast(decoderControlListener),
+                                        sp<VideoDecoderEventListener>::cast(decoderEventListener),
+                                        sp<IAVBuffer>::cast(mAVBufferManager),
+                                        secure, tunnel, decoderConfig);
+
+                // Create sink test object - pass decoderConfig instead of sinkConfig
+                SinkTest sinkTest(_sinkId, videoSink,
                                 videoSinkControlListener, videoSinkEventListener,
                                 decoderHandle, _decoderId,
                                 decoderControlListener, decoderEventListener,
                                 mAVBufferManager, secure, decoderConfig);
+
+                // Clear frame queue before start (optional but recommended)
+                gFrameQueue.clear();
+
+                // Run decoder and sink concurrently in separate threads
+                std::thread decoderThread([&decoderTest]() {
+                    decoderTest.run(true); // internally calls decoderThreadFunc -> onFrameOutput pushes frames
+                });
+
+                std::thread sinkThread([&sinkTest, tunnel]() {
+                    sinkTest.run(tunnel);  // calls videoSinkNonTunnelMode(), waits on gFrameQueue and queues frames
+                });
+
+                // Wait for both threads to complete
+                decoderThread.join();
+                sinkThread.join();
+
+                AVBUFFER_GETMETRICS(mAVBufferManager, secure, afterHeapMetrics);
+
+                UT_ASSERT_TRUE(beforeHeapMetrics.secure == afterHeapMetrics.secure);
+                UT_ASSERT_TRUE(beforeHeapMetrics.bytesUsed == afterHeapMetrics.bytesUsed);
+                UT_ASSERT_TRUE(beforeHeapMetrics.bytesTotal == afterHeapMetrics.bytesTotal);
+            }
+        } catch (const std::exception& ex) {
+            UT_LOG_ERROR("Exception in runSequentialSink: %s", ex.what());
+            UT_ASSERT_TRUE(false);
+        } catch (...) {
+            UT_LOG_ERROR("Unknown exception in runSequentialSink");
+            UT_ASSERT_TRUE(false);
         }
+    }
 
-        // Launch threads after creating all SinkTest objects
-        for (auto& sinkTest : sinkTests)
-        {
-            threads.emplace_back(&SinkTest::run, &sinkTest, tunnel);
+    void runConcurrentSink(testConfiguration_t decoderConfig, bool secure, bool tunnel)
+    {
+
+        try{
+            std::vector<std::thread> threads;
+            vector<thread> decoderThreads;
+            vector<unique_ptr<SinkTest>> sinkTests;
+            vector<thread> sinkThreads;
+            vector<unique_ptr<DecoderTest>> decoderTests;
+            HeapMetrics beforeHeapMetrics, afterHeapMetrics;
+            vector<std::tuple<IVideoDecoder::Id, sp<IVideoDecoder>, sp<VideoDecoderControllerListener>, sp<VideoDecoderEventListener>>> availableDecoderList;
+
+            /* Get heap metrics */
+            AVBUFFER_GETMETRICS(mAVBufferManager, secure, beforeHeapMetrics);
+
+            for (const auto& [_decoderId, decoderHandle, decoderControlListener, decoderEventListener, decoderCapabilities] : mVideoDecoderList)
+            {
+
+                auto decoderTest = make_unique<DecoderTest>(_decoderId, decoderHandle,
+                        sp<VideoDecoderControllerListener>::cast(decoderControlListener),
+                        sp<VideoDecoderEventListener>::cast(decoderEventListener),
+                        sp<IAVBuffer>::cast(mAVBufferManager),
+                        secure, tunnel, decoderConfig);
+
+                decoderThreads.emplace_back(&DecoderTest::run, decoderTest.get(), true);
+
+                decoderTests.push_back(move(decoderTest));
+
+                availableDecoderList.push_back({
+                                                _decoderId,
+                                                decoderHandle,
+                                                sp<VideoDecoderControllerListener>::cast(decoderControlListener),
+                                                sp<VideoDecoderEventListener>::cast(decoderEventListener)
+                                            });
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            for(int32_t i = 0; i < availableDecoderList.size(); i++)
+            {
+                auto& [_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener] = mVideoSinkList[i];
+
+                if(!isVideoSinkUsable(_sinkId))
+                {
+                    UT_LOG_INFO("[SinkID: %d] is not usable for this test configuration, skipping.", _sinkId.value);
+                    continue;
+                }
+
+                auto& [_decoderId, decoderHandle, decoderControlListener, decoderEventListener] = availableDecoderList[i];
+
+                auto sinkTest = std::make_unique<SinkTest>(_sinkId, videoSink,
+                                    videoSinkControlListener, videoSinkEventListener,
+                                    decoderHandle, _decoderId,
+                                    decoderControlListener, decoderEventListener,
+                                    mAVBufferManager, secure, decoderConfig);
+
+                sinkThreads.emplace_back(&SinkTest::run, sinkTest.get(), tunnel);
+
+                sinkTests.push_back(std::move(sinkTest));
+            }
+
+            for (auto& t : decoderThreads)
+            {
+                if (t.joinable())
+                    t.join();
+            }
+            for (auto& t : sinkThreads)
+            {
+                if (t.joinable())
+                    t.join();
+            }
+            /* Get heap metrics */
+            AVBUFFER_GETMETRICS(mAVBufferManager, secure, afterHeapMetrics);
+
+            /* check if the decoder freed all the buffer pools */
+            UT_ASSERT_TRUE(beforeHeapMetrics.secure == afterHeapMetrics.secure);
+            UT_ASSERT_TRUE(beforeHeapMetrics.bytesUsed == afterHeapMetrics.bytesUsed);
+            UT_ASSERT_TRUE(beforeHeapMetrics.bytesTotal == afterHeapMetrics.bytesTotal);
+        } catch (const std::exception& ex) {
+            UT_LOG_ERROR("Exception in runConcurrentSink: %s", ex.what());
+            UT_ASSERT_TRUE(false);
+        } catch (...) {
+            UT_LOG_ERROR("Unknown exception in runConcurrentSink");
+            UT_ASSERT_TRUE(false);
         }
-
-        for (auto& t : threads)
-        {
-            t.join();
-        }
-
-        AVBUFFER_GETMETRICS(mAVBufferManager, secure, afterHeapMetrics);
-
-        UT_ASSERT_TRUE(beforeHeapMetrics.secure == afterHeapMetrics.secure);
-        UT_ASSERT_TRUE(beforeHeapMetrics.bytesUsed == afterHeapMetrics.bytesUsed);
-        UT_ASSERT_TRUE(beforeHeapMetrics.bytesTotal == afterHeapMetrics.bytesTotal);
     }
 
     void runSingleProcessTest(const char *testName, bool secureMode, bool isTunnel, bool concurrentMode)
@@ -633,6 +708,18 @@ public:
         vector<testConfiguration_t> decoderConfigs;
 
         vts_videodecoder_parse_testconfig(gTestConfiguration, gVideoDecoderModuleName, gTestGroup, testName, decoderConfigs);
+
+        if(secureMode)
+        {
+            UT_LOG_WARNING("Video Sink does not support secure mode, skipping test");
+            return;
+        }
+
+        if(isTunnel)
+        {
+            UT_LOG_WARNING("Video Sink does not support tunnel mode, skipping test");
+            return;
+        }
 
         for (auto& decoderConfig : decoderConfigs)
         {
@@ -661,9 +748,8 @@ public:
             /* Un-register the events */
             VIDEOSINK_UNREGISTER_EVENT_SUCCESS(sink, videoSinkEventListener);
         }
-        mVideoSinkList.clear();
 
-        // TODO: need to clear capabilities and control listener
+        mVideoSinkList.clear();
         //TODO: check right place to call joinThreadPool
         //android::IPCThreadState::self()->joinThreadPool();
     }
@@ -683,7 +769,7 @@ void SinkTest::verifyNoUnexpectedUnderflow(int64_t pts)
     int count = mVideoSinkControlListener->getUnderflowCount();
     if (count > 0)
     {
-        UT_LOG_ERROR("Unexpected underflow at PTS %ld! Count: %d", pts, count);
+        UT_LOG_ERROR("[SinkID: %d] Unexpected underflow at PTS %ld! Count: %d", mSinkId, pts, count);
         UT_ASSERT_TRUE(false);
     }
 }
@@ -691,7 +777,7 @@ void SinkTest::verifyNoUnexpectedUnderflow(int64_t pts)
 /**
  * @brief Waits for and verifies the occurrence of a video underflow event.
  *
- * Logs the time when waiting for the underflow event, waits up to 2 seconds for the event callback,
+ * Logs the time when waiting for the underflow event, waits up to n seconds for the event callback,
  * and asserts failure if not received. Afterward, it waits briefly for metrics to settle,
  * reads the underflow metric from the sink, and verifies that at least one underflow has occurred.
  *
@@ -699,97 +785,89 @@ void SinkTest::verifyNoUnexpectedUnderflow(int64_t pts)
  */
 void SinkTest::verifyUnderflow()
 {
-    int32_t count = 0;
-    auto now = []() {
-        std::time_t t = std::time(nullptr);
-        char mbstr[100];
-        std::strftime(mbstr, sizeof(mbstr), "%H:%M:%S", std::localtime(&t));
-        return std::string(mbstr);
-    };
+    constexpr int timeoutSeconds = 3;
 
-    UT_LOG_INFO("Waiting for Video Underflow event from control listner at %s...", now().c_str());
-    count = mVideoSinkControlListener->getUnderflowCount();
-    if (count > 0)
+    /*Control Listener Underflow Callback Validation*/
+    UT_LOG_INFO("[SinkID: %d]Waiting for Video Underflow event from control listener",mSinkId);
+    bool controlUnderflowed = mVideoSinkControlListener->waitForUnderflowEvent(timeoutSeconds);
+    if (!controlUnderflowed)
     {
-        UT_LOG_ERROR("Video Underflow event NOT received within timeout at %s", now().c_str());
+        UT_LOG_ERROR("[SinkID: %d]Video Underflow event NOT received from control listener",mSinkId);
         UT_ASSERT_TRUE(false);
     }
     else
     {
-        UT_LOG_DEBUG("Video Underflow event received successfully from control listener at %s", now().c_str());
+        UT_LOG_DEBUG("[SinkID: %d]Video Underflow event received successfully from control listener",mSinkId);
     }
 
-    UT_LOG_INFO("Waiting for Video Underflow event from event listner at %s...", now().c_str());
-    count = mVideoSinkEventListner->getUnderflowCount();
-    if (count > 0)
+    /*Event Listener Underflow Callback Validation*/
+    UT_LOG_INFO("[SinkID: %d]Waiting for Video Underflow event from event listener",mSinkId);
+    bool eventUnderflowed = mVideoSinkEventListner->waitForUnderflowEvent(timeoutSeconds);
+    if (!eventUnderflowed)
     {
-        UT_LOG_ERROR("Video Underflow event NOT received within timeout at %s", now().c_str());
+        UT_LOG_ERROR("[SinkID: %d] Video Underflow event NOT received from event listener",mSinkId);
         UT_ASSERT_TRUE(false);
     }
     else
     {
-        UT_LOG_DEBUG("Video Underflow event received successfully from event listener at %s", now().c_str());
+        UT_LOG_DEBUG("[SinkID: %d]Video Underflow event received successfully from event listener",mSinkId);
     }
 
+    /*Metrics Underflow Validation*/
     std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Wait for metric to settle
 
     int actualUnderflowed = -1;
     bool success = getSinkPropertyInt(videosink::Property::METRIC_UNDERFLOWED, actualUnderflowed);
     if (!success || actualUnderflowed == -1)
     {
-        UT_LOG_ERROR("Failed to read METRIC_UNDERFLOWED at %s", now().c_str());
+        UT_LOG_ERROR("[SinkID: %d]Failed to read METRIC_UNDERFLOWED",mSinkId);
         UT_ASSERT_TRUE(false);
     }
     else if (actualUnderflowed > 0)
     {
-        UT_LOG_INFO("Detected %d underflow events at %s", actualUnderflowed, now().c_str());
+        UT_LOG_INFO("[SinkID: %d]Detected %d underflow events", actualUnderflowed,mSinkId);
     }
     else
     {
-        UT_LOG_ERROR("Expected at least 1 underflow, got 0 at %s", now().c_str());
+        UT_LOG_ERROR("[SinkID: %d]Expected at least 1 underflow, got 0",mSinkId);
         UT_ASSERT_TRUE(false);
     }
 }
 
+
 /**
  * @brief Waits for and verifies the video resume event after an underflow condition.
  *
- * This function waits up to 2 seconds for the resume event callback from the video sink.
+ * This function waits up to n seconds for the resume event callback from the video sink.
  * Logs the time of waiting and whether the resume event was successfully received.
  * Fails the test if the resume event is not received within the timeout.
  */
 void SinkTest::verifyResume()
 {
-    int32_t count = 0;
-    auto now = []() {
-        std::time_t t = std::time(nullptr);
-        char mbstr[100];
-        std::strftime(mbstr, sizeof(mbstr), "%H:%M:%S", std::localtime(&t));
-        return std::string(mbstr);
-    };
+    constexpr int timeoutSeconds = 5;
 
-    UT_LOG_INFO("Waiting for Video Resume event after underflow from control listner at %s...", now().c_str());
-    count = mVideoSinkControlListener->getResumedCount();
-    if (count > 0)
+    UT_LOG_INFO("[SinkID: %d]Waiting for Video Resume event after underflow from control listener...",mSinkId);
+    bool controlResumed = mVideoSinkControlListener->waitForResumedEvent(timeoutSeconds);
+    if (!controlResumed)
     {
-        UT_LOG_ERROR("Video Resume event NOT received within timeout at %s", now().c_str());
+        UT_LOG_ERROR("[SinkID: %d]Video Resume event NOT received from control listener");
         UT_ASSERT_TRUE(false);
     }
     else
     {
-        UT_LOG_DEBUG("Video Resume event received successfully at %s", now().c_str());
+        UT_LOG_DEBUG("[SinkID: %d]Video Resume event received successfully from control listener",mSinkId);
     }
 
-    UT_LOG_INFO("Waiting for Video Resume event after underflow from event listener at %s...", now().c_str());
-    count = mVideoSinkEventListner->getResumedCount();
-    if (count > 0)
+    UT_LOG_INFO("[SinkID: %d]Waiting for Video Resume event after underflow from event listener",mSinkId);
+    bool eventResumed = mVideoSinkEventListner->waitForResumedEvent(timeoutSeconds);
+    if (!eventResumed)
     {
-        UT_LOG_ERROR("Video Resume event NOT received within timeout at %s", now().c_str());
+        UT_LOG_ERROR("[SinkID: %d]Video Resume event NOT received from event listener",mSinkId);
         UT_ASSERT_TRUE(false);
     }
     else
     {
-        UT_LOG_DEBUG("Video Resume event received successfully at %s", now().c_str());
+        UT_LOG_DEBUG("[SinkID: %d]Video Resume event received successfully from event listener",mSinkId);
     }
 }
 
@@ -804,50 +882,57 @@ void SinkTest::verifyResume()
  */
 void SinkTest::handleEosFrame(const FrameMetadata& metadata, int64_t pts)
 {
-    bool eosArrived = false;
-    int64_t eosPTS = -1;
-    if (!metadata.endOfStream) return;
+    if (!metadata.endOfStream)
+        return;
 
-    UT_LOG_DEBUG("EOS flag detected. Waiting for control listener EOS callback...");
+    /*Verifying EOS callback from control listener*/
+    UT_LOG_DEBUG("[SinkID: %d] EOS flag detected. Waiting for control listener EOS callback...", mSinkId);
 
-    eosArrived = mVideoSinkControlListener->waitForEosEvent(2);  // 2 sec timeout
+    bool eosArrived = mVideoSinkControlListener->waitForEosEvent(2);
 
-    if (!eosArrived) {
-        UT_LOG_ERROR("EOS callback not received within timeout.");
+    if (!eosArrived)
+    {
+        UT_LOG_ERROR("[SinkID: %d] EOS callback not received within timeout.", mSinkId);
         UT_ASSERT_TRUE(false);
         return;
     }
 
-    eosPTS = mVideoSinkControlListener->getEosPTS();
-    UT_LOG_INFO("EOS received from sink. nsPresentationTime = %ld", eosPTS);
+    int64_t eosPTS = mVideoSinkControlListener->getEosPTS();
+    UT_LOG_INFO("[SinkID: %d] EOS received from sink. nsPresentationTime = %ld", mSinkId, eosPTS);
 
-    // Optional: verify if the PTS matches the frame we pushed
-    if (eosPTS != pts) {
-        UT_LOG_ERROR("Mismatch in EOS PTS. Expected: %ld, Got: %ld", pts, eosPTS);
+    if (eosPTS != pts)
+    {
+        UT_LOG_ERROR("[SinkID: %d] Mismatch in EOS PTS. Expected: %ld, Got: %ld", mSinkId, pts, eosPTS);
         UT_ASSERT_TRUE(false);
-    } else {
-        UT_LOG_DEBUG("EOS PTS match confirmed: %ld", pts);
+    }
+    else
+    {
+        UT_LOG_DEBUG("[SinkID: %d] EOS PTS match confirmed: %ld", mSinkId, pts);
     }
 
-    UT_LOG_DEBUG("EOS flag detected. Waiting for EOS event listener callback...");
+    /*Verifying EOS callback from Event listener*/
+    UT_LOG_DEBUG("[SinkID: %d] EOS flag detected. Waiting for EOS event listener callback...", mSinkId);
 
     eosArrived = mVideoSinkEventListner->waitForEosEvent(2);  // 2 sec timeout
 
-    if (!eosArrived) {
-        UT_LOG_ERROR("EOS callback not received within timeout.");
+    if (!eosArrived)
+    {
+        UT_LOG_ERROR("[SinkID: %d] EOS callback not received within timeout.", mSinkId);
         UT_ASSERT_TRUE(false);
         return;
     }
 
     eosPTS = mVideoSinkEventListner->getEosPTS();
-    UT_LOG_INFO("EOS received from sink. nsPresentationTime = %ld", eosPTS);
+    UT_LOG_INFO("[SinkID: %d] EOS received from sink. nsPresentationTime = %ld", mSinkId, eosPTS);
 
-    // Optional: verify if the PTS matches the frame we pushed
-    if (eosPTS != pts) {
-        UT_LOG_ERROR("Mismatch in EOS PTS. Expected: %ld, Got: %ld", pts, eosPTS);
+    if (eosPTS != pts)
+    {
+        UT_LOG_ERROR("[SinkID: %d] Mismatch in EOS PTS. Expected: %ld, Got: %ld", mSinkId, pts, eosPTS);
         UT_ASSERT_TRUE(false);
-    } else {
-        UT_LOG_DEBUG("EOS PTS match confirmed: %ld", pts);
+    }
+    else
+    {
+        UT_LOG_DEBUG("[SinkID: %d] EOS PTS match confirmed: %ld", mSinkId, pts);
     }
 }
 
@@ -861,33 +946,35 @@ void SinkTest::verifyFlushComplete()
 {
     bool flushReceived = false;
 
-    UT_LOG_INFO("Waiting for flush complete controllistner event...");
+    /*Verifying Flush complete callback from Control listener*/
+    UT_LOG_INFO("[SinkID: %d] Waiting for flush complete control listener event...", mSinkId);
 
     flushReceived = mVideoSinkControlListener->waitForFlushComplete(std::chrono::seconds(3));
     if (!flushReceived)
     {
-        UT_LOG_ERROR("Flush complete event not received within timeout.");
+        UT_LOG_ERROR("[SinkID: %d] Flush complete event not received within timeout.", mSinkId);
         UT_ASSERT_TRUE(false);
     }
     else
     {
-        UT_LOG_DEBUG("Control listener Flush complete event received.");
+        UT_LOG_DEBUG("[SinkID: %d] Control listener flush complete event received.", mSinkId);
     }
 
-    UT_LOG_INFO("Waiting for flush complete event listner...");
+    /*Verifying Flush complete callback from Event listener*/
+    UT_LOG_INFO("[SinkID: %d] Waiting for flush complete event listener...", mSinkId);
 
     flushReceived = mVideoSinkEventListner->waitForFlushComplete(std::chrono::seconds(3));
     if (!flushReceived)
     {
-        UT_LOG_ERROR("Flush complete event not received within timeout.");
+        UT_LOG_ERROR("[SinkID: %d] Flush complete event not received within timeout.", mSinkId);
         UT_ASSERT_TRUE(false);
     }
     else
     {
-        UT_LOG_DEBUG("Event listner Flush complete event received.");
+        UT_LOG_DEBUG("[SinkID: %d] Event listener flush complete event received.", mSinkId);
     }
-
 }
+
 
 /**
  * @brief Verifies the current queue depth reported by the video sink.
@@ -900,6 +987,7 @@ void SinkTest::verifyQueueDepth()
 {
     int actualQueueDepth = -1;
 
+    /*Verifying Video Sink QueueDepth Metrics*/
     bool success = getSinkPropertyInt(videosink::Property::SINK_QUEUE_DEPTH, actualQueueDepth);
     if (!success)
     {
@@ -929,6 +1017,8 @@ void SinkTest::verifyQueueDepth()
 void SinkTest::verifyFramesReceived()
 {
     int sinkFramesReported = -1;
+
+    /*Verifying Video Sink Frame received Metrics*/
     bool success = getSinkPropertyInt(videosink::Property::METRIC_FRAMES_RECEIVED, sinkFramesReported);
     if (!success)
     {
@@ -956,6 +1046,8 @@ void SinkTest::verifyFramesReceived()
 void SinkTest::verifyFramesDroppedLate()
 {
     int actualFramesDroppedLate = -1;
+
+    /*Verifying Video Sink Frame Dropped Metrics*/
 
     UT_LOG_INFO("Waiting briefly to allow metrics to update...");
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
@@ -990,6 +1082,8 @@ void SinkTest::verifyFramesDroppedFRC()
 {
     int actualDroppedFRC = -1;
 
+    /*Verifying Video Sink Frames Dropped FRC Metrics*/
+
     UT_LOG_INFO("Waiting briefly to allow metrics to update...");
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
@@ -1022,6 +1116,8 @@ void SinkTest::verifyFramesDroppedFRC()
 void SinkTest::verifyFramesRepeatedFRC()
 {
     int actualRepeatedFRC = -1;
+
+    /*Verifying Video Sink Frames Repeated FRC Metrics*/
 
     UT_LOG_INFO("Waiting briefly to allow metrics to update...");
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
@@ -1056,6 +1152,8 @@ void SinkTest::verifyFramesMissed()
 {
     int actualRepeatMissing = -1;
 
+    /*Verifying Video Sink Frames Missed Metrics*/
+
     UT_LOG_INFO("Waiting briefly to allow metrics to update...");
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
@@ -1086,51 +1184,35 @@ void SinkTest::verifyFramesMissed()
  */
 void SinkTest::runPostVerification()
 {
-    if ( mTestConfiguration.sink_testName == "Render_Sequential_QueueDepth_NonTunnel")
+    const std::string &testName = mTestConfiguration.sink_testName;
+
+    if (testName == "Render_Sequential_NonTunnel_NonSecure_QueueDepth" ||
+        testName == "Render_Concurrent_NonTunnel_NonSecure_QueueDepth")
     {
         verifyQueueDepth();
     }
-    else if (mTestConfiguration.sink_testName == "Render_Sequential_FramesReceived_NonTunnel")
+    else if (testName == "Render_Sequential_NonTunnel_NonSecure_FramesReceived" ||
+             testName == "Render_Concurrent_NonTunnel_NonSecure_FramesReceived")
     {
         verifyFramesReceived();
     }
-    else if (mTestConfiguration.sink_testName == "Render_Sequential_FramesDroppedLate_NonTunnel")
+    else if (testName == "Render_Sequential_NonTunnel_NonSecure_FramesDroppedLate" ||
+             testName == "Render_Concurrent_NonTunnel_NonSecure_FramesDroppedLate")
     {
         verifyFramesDroppedLate();
     }
-    else if (mTestConfiguration.sink_testName == "Render_Sequential_FramesDroppedFRC_NonTunnel")
+    else if (testName == "Render_Sequential_NonTunnel_NonSecure_FramesDroppedFRC" ||
+             testName == "Render_Concurrent_NonTunnel_NonSecure_FramesDroppedFRC")
     {
         verifyFramesDroppedFRC();
     }
-    else if (mTestConfiguration.sink_testName == "Render_Sequential_FramesRepeatedFRC_NonTunnel")
+    else if (testName == "Render_Sequential_NonTunnel_NonSecure_FramesRepeatedFRC" ||
+             testName == "Render_Concurrent_NonTunnel_NonSecure_FramesRepeatedFRC")
     {
         verifyFramesRepeatedFRC();
     }
-    else if (mTestConfiguration.sink_testName == "Render_Sequential_FramesMiss_NonTunnel")
-    {
-        verifyFramesMissed();
-    }
-    else if ( mTestConfiguration.sink_testName == "Render_Concurrent_QueueDepth_NonTunnel")
-    {
-        verifyQueueDepth();
-    }
-    else if (mTestConfiguration.sink_testName == "Render_Concurrent_FramesReceived_NonTunnel")
-    {
-        verifyFramesReceived();
-    }
-    else if (mTestConfiguration.sink_testName == "Render_Concurrent_FramesDroppedLate_NonTunnel")
-    {
-        verifyFramesDroppedLate();
-    }
-    else if (mTestConfiguration.sink_testName == "Render_Concurrent_FramesDroppedFRC_NonTunnel")
-    {
-        verifyFramesDroppedFRC();
-    }
-    else if (mTestConfiguration.sink_testName == "Render_Concurrent_FramesRepeatedFRC_NonTunnel")
-    {
-        verifyFramesRepeatedFRC();
-    }
-    else if (mTestConfiguration.sink_testName == "Render_Concurrent_FramesMiss_NonTunnel")
+    else if (testName == "Render_Sequential_NonTunnel_NonSecure_FramesMiss" ||
+             testName == "Render_Concurrent_NonTunnel_NonSecure_FramesMiss")
     {
         verifyFramesMissed();
     }
@@ -1145,9 +1227,9 @@ void SinkTest::runPostVerification()
  * **Test Group ID:** 003@n
  * **Test Case ID:** 001@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_QueueDepth_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_NonSecure_QueueDepth)
 {
-    const char *testName = "Render_Sequential_QueueDepth_NonTunnel";
+    const char *testName = "Render_Sequential_NonTunnel_NonSecure_QueueDepth";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
@@ -1163,9 +1245,9 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_QueueDepth_NonTunnel)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 002@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesReceived_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_NonSecure_FramesReceived)
 {
-    const char *testName = "Render_Sequential_FramesReceived_NonTunnel";
+    const char *testName = "Render_Sequential_NonTunnel_NonSecure_FramesReceived";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
@@ -1179,11 +1261,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesReceived_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 004@n
+ * **Test Case ID:** 003@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesDroppedLate_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_NonSecure_FramesDroppedLate)
 {
-    const char *testName = "Render_Sequential_FramesDroppedLate_NonTunnel";
+    const char *testName = "Render_Sequential_NonTunnel_NonSecure_FramesDroppedLate";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
@@ -1197,11 +1279,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesDroppedLate_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 006@n
+ * **Test Case ID:** 004@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesRepeatedFRC_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_NonSecure_FramesRepeatedFRC)
 {
-    const char *testName = "Render_Sequential_FramesRepeatedFRC_NonTunnel";
+    const char *testName = "Render_Sequential_NonTunnel_NonSecure_FramesRepeatedFRC";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
@@ -1209,18 +1291,17 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesRepeatedFRC_NonTunnel)
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
 
-
 /**
  * @brief Test for repeated frames due to missing frame detection
  *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 007@n
+ * **Test Case ID:** 005@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesMiss_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_NonSecure_FramesMiss)
 {
-    const char *testName = "Render_Sequential_FramesMiss_NonTunnel";
+    const char *testName = "Render_Sequential_NonTunnel_NonSecure_FramesMiss";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
@@ -1234,11 +1315,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesMiss_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 008@n
+ * **Test Case ID:** 006@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesDroppedFRC_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_NonSecure_FramesDroppedFRC)
 {
-    const char *testName = "Render_Sequential_FramesDroppedFRC_NonTunnel";
+    const char *testName = "Render_Sequential_NonTunnel_NonSecure_FramesDroppedFRC";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
@@ -1251,11 +1332,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_FramesDroppedFRC_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 009@n
+ * **Test Case ID:** 007@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_VideoFlush_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_NonSecure_VideoFlush)
 {
-    const char *testName = "Render_Sequential_VideoFlush_NonTunnel";
+    const char *testName = "Render_Sequential_NonTunnel_NonSecure_VideoFlush";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
@@ -1269,11 +1350,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_VideoFlush_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 010@n
+ * **Test Case ID:** 008@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_EndToEnd_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_NonSecure_EOS)
 {
-    const char *testName = "Render_Sequential_EndToEnd_NonTunnel";
+    const char *testName = "Render_Sequential_NonTunnel_NonSecure_EOS";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
@@ -1286,11 +1367,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_EndToEnd_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 011@n
+ * **Test Case ID:** 009@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_UnderflowResumed_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_NonSecure_UnderflowResumed)
 {
-    const char *testName = "Render_Sequential_UnderflowResumed_NonTunnel";
+    const char *testName = "Render_Sequential_NonTunnel_NonSecure_UnderflowResumed";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
@@ -1302,11 +1383,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_UnderflowResumed_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 012@n
+ * **Test Case ID:** 010@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_DiscardFramesUntil_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_NonSecure_DiscardFramesUntil)
 {
-    const char *testName = "Render_Sequential_DiscardFramesUntil_NonTunnel";
+    const char *testName = "Render_Sequential_NonTunnel_NonSecure_DiscardFramesUntil";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
@@ -1319,11 +1400,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_DiscardFramesUntil_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 013@n
+ * **Test Case ID:** 011@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_QueueDepth_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_NonSecure_QueueDepth)
 {
-    const char *testName = "Render_Concurrent_QueueDepth_NonTunnel";
+    const char *testName = "Render_Concurrent_NonTunnel_NonSecure_QueueDepth";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = true;
@@ -1337,11 +1418,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_QueueDepth_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 014@n
+ * **Test Case ID:** 012@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesReceived_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_NonSecure_FramesReceived)
 {
-    const char *testName = "Render_Concurrent_FramesReceived_NonTunnel";
+    const char *testName = "Render_Concurrent_NonTunnel_NonSecure_FramesReceived";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = true;
@@ -1355,11 +1436,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesReceived_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 015@n
+ * **Test Case ID:** 013@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedLate_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_NonSecure_FramesDroppedLate)
 {
-    const char *testName = "Render_Concurrent_FramesDroppedLate_NonTunnel";
+    const char *testName = "Render_Concurrent_NonTunnel_NonSecure_FramesDroppedLate";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = true;
@@ -1373,48 +1454,48 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedLate_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
+ * **Test Case ID:** 014@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_NonSecure_FramesDroppedFRC)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_NonSecure_FramesDroppedFRC";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 015@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_NonSecure_FramesRepeatedFRC)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_NonSecure_FramesRepeatedFRC";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
  * **Test Case ID:** 016@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesRepeatedFRC_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_NonSecure_FramesMiss)
 {
-    const char *testName = "Render_Concurrent_FramesRepeatedFRC_NonTunnel";
-    bool secureMode = false;
-    bool isTunnel = false;
-    bool isConcurrent = true;
-
-    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
-}
-
-
-/**
- * @brief Test for repeated frames due to missing frame detection
- *        Type: Concurrent
- *        Modes: Non-Tunnel, Non-Secure
- *
- * **Test Group ID:** 003@n
- * **Test Case ID:** 017@n
- */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesMiss_NonTunnel)
-{
-    const char *testName = "Render_Concurrent_FramesMiss_NonTunnel";
-    bool secureMode = false;
-    bool isTunnel = false;
-    bool isConcurrent = true;
-
-    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
-}
-
-/**
- * @brief Test for repeated frames due to missing frame detection
- *        Type: Concurrent
- *        Modes: Non-Tunnel, Non-Secure
- *
- * **Test Group ID:** 003@n
- * **Test Case ID:** 018@n
- */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedFRC_NonTunnel)
-{
-    const char *testName = "Render_Concurrent_FramesDroppedFRC_NonTunnel";
+    const char *testName = "Render_Concurrent_NonTunnel_NonSecure_FramesMiss";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = true;
@@ -1427,11 +1508,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_FramesDroppedFRC_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 019@n
+ * **Test Case ID:** 017@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_VideoFlush_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_NonSecure_VideoFlush)
 {
-    const char *testName = "Render_Concurrent_VideoFlush_NonTunnel";
+    const char *testName = "Render_Concurrent_NonTunnel_NonSecure_VideoFlush";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = true;
@@ -1445,11 +1526,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_VideoFlush_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 020@n
+ * **Test Case ID:** 018@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_EndToEnd_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_NonSecure_EOS)
 {
-    const char *testName = "Render_Concurrent_EndToEnd_NonTunnel";
+    const char *testName = "Render_Concurrent_NonTunnel_NonSecure_EOS";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = true;
@@ -1462,11 +1543,11 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_EndToEnd_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 021@n
+ * **Test Case ID:** 019@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_UnderflowResumed_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_NonSecure_UnderflowResumed)
 {
-    const char *testName = "Render_Concurrent_UnderflowResumed_NonTunnel";
+    const char *testName = "Render_Concurrent_NonTunnel_NonSecure_UnderflowResumed";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = true;
@@ -1478,13 +1559,1063 @@ UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_UnderflowResumed_NonTunnel)
  *        Modes: Non-Tunnel, Non-Secure
  *
  * **Test Group ID:** 003@n
- * **Test Case ID:** 022@n
+ * **Test Case ID:** 020@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_DiscardFramesUntil_NonTunnel)
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_NonSecure_DiscardFramesUntil)
 {
-    const char *testName = "Render_Concurrent_DiscardFramesUntil_NonTunnel";
+    const char *testName = "Render_Concurrent_NonTunnel_NonSecure_DiscardFramesUntil";
     bool secureMode = false;
     bool isTunnel = false;
+    bool isConcurrent = true;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test the sink's ability to report correct queue depth
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 021@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_Secure_QueueDepth)
+{
+    const char *testName = "Render_Sequential_NonTunnel_Secure_QueueDepth";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test the number of frames received by video sink
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 022@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_Secure_FramesReceived)
+{
+    const char *testName = "Render_Sequential_NonTunnel_Secure_FramesReceived";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames dropped due to lateness
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 023@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_Secure_FramesDroppedLate)
+{
+    const char *testName = "Render_Sequential_NonTunnel_Secure_FramesDroppedLate";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames repeated due to frame rate changes
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 024@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_Secure_FramesRepeatedFRC)
+{
+    const char *testName = "Render_Sequential_NonTunnel_Secure_FramesRepeatedFRC";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 025@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_Secure_FramesMiss)
+{
+    const char *testName = "Render_Sequential_NonTunnel_Secure_FramesMiss";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Tests repeated frame rendering with dropped frames
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 026@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_Secure_FramesDroppedFRC)
+{
+    const char *testName = "Render_Sequential_NonTunnel_Secure_FramesDroppedFRC";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify onFlushComplete is received after flushing sink.
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 027@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_Secure_VideoFlush)
+{
+    const char *testName = "Render_Sequential_NonTunnel_Secure_VideoFlush";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test to verify EOS is received after eos pts to the sink.
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 028@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_Secure_EOS)
+{
+    const char *testName = "Render_Sequential_NonTunnel_Secure_EOS";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Video sink playback with underflow detection
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 029@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_Secure_UnderflowResumed)
+{
+    const char *testName = "Render_Sequential_NonTunnel_Secure_UnderflowResumed";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify discardFramesUntil behavior in video sink
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 030@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_NonTunnel_Secure_DiscardFramesUntil)
+{
+    const char *testName = "Render_Sequential_NonTunnel_Secure_DiscardFramesUntil";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test the sink's ability to report correct queue depth
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 031@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_Secure_QueueDepth)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_Secure_QueueDepth";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test the number of frames received by video sink
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 032@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_Secure_FramesReceived)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_Secure_FramesReceived";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames dropped due to lateness
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 033@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_Secure_FramesDroppedLate)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_Secure_FramesDroppedLate";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames repeated due to frame rate changes
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 034@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_Secure_FramesDroppedFRC)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_Secure_FramesDroppedFRC";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 035@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_Secure_FramesRepeatedFRC)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_Secure_FramesRepeatedFRC";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 036@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_Secure_FramesMiss)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_Secure_FramesMiss";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify onFlushComplete is received after flushing sink.
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 037@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_Secure_VideoFlush)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_Secure_VideoFlush";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test to verify EOS is received after sending eos pts to the sink.
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 038@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_Secure_EOS)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_Secure_EOS";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Video sink playback with underflow detection
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 039@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_Secure_UnderflowResumed)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_Secure_UnderflowResumed";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify discardFramesUntil behavior in video sink
+ *        Type: Concurrent
+ *        Modes: Non-Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 040@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_NonTunnel_Secure_DiscardFramesUntil)
+{
+    const char *testName = "Render_Concurrent_NonTunnel_Secure_DiscardFramesUntil";
+    bool secureMode = true;
+    bool isTunnel = false;
+    bool isConcurrent = true;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test the sink's ability to report correct queue depth
+ *        Type: Sequential
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 041@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_NonSecure_QueueDepth)
+{
+    const char *testName = "Render_Sequential_Tunnel_NonSecure_QueueDepth";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test the number of frames received by video sink
+ *        Type: Sequential
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 042@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_NonSecure_FramesReceived)
+{
+    const char *testName = "Render_Sequential_Tunnel_NonSecure_FramesReceived";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames dropped due to lateness
+ *        Type: Sequential
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 043@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_NonSecure_FramesDroppedLate)
+{
+    const char *testName = "Render_Sequential_Tunnel_NonSecure_FramesDroppedLate";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames repeated due to frame rate changes
+ *        Type: Sequential
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 044@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_NonSecure_FramesRepeatedFRC)
+{
+    const char *testName = "Render_Sequential_Tunnel_NonSecure_FramesRepeatedFRC";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Type: Sequential
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 045@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_NonSecure_FramesMiss)
+{
+    const char *testName = "Render_Sequential_Tunnel_NonSecure_FramesMiss";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Tests repeated frame rendering with dropped frames
+ *        Type: Sequential
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 046@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_NonSecure_FramesDroppedFRC)
+{
+    const char *testName = "Render_Sequential_Tunnel_NonSecure_FramesDroppedFRC";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify onFlushComplete is received after flushing sink.
+ *        Type: Sequential
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 047@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_NonSecure_VideoFlush)
+{
+    const char *testName = "Render_Sequential_Tunnel_NonSecure_VideoFlush";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test to verify EOS is received after eos pts to the sink.
+ *        Type: Sequential
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 048@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_NonSecure_EOS)
+{
+    const char *testName = "Render_Sequential_Tunnel_NonSecure_EOS";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Video sink playback with underflow detection
+ *        Type: Sequential
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 049@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_NonSecure_UnderflowResumed)
+{
+    const char *testName = "Render_Sequential_Tunnel_NonSecure_UnderflowResumed";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify discardFramesUntil behavior in video sink
+ *        Type: Sequential
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 050@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_NonSecure_DiscardFramesUntil)
+{
+    const char *testName = "Render_Sequential_Tunnel_NonSecure_DiscardFramesUntil";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test the sink's ability to report correct queue depth
+ *        Type: Concurrent
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 051@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_NonSecure_QueueDepth)
+{
+    const char *testName = "Render_Concurrent_Tunnel_NonSecure_QueueDepth";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test the number of frames received by video sink
+ *        Type: Concurrent
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 052@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_NonSecure_FramesReceived)
+{
+    const char *testName = "Render_Concurrent_Tunnel_NonSecure_FramesReceived";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames dropped due to lateness
+ *        Type: Concurrent
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 053@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_NonSecure_FramesDroppedLate)
+{
+    const char *testName = "Render_Concurrent_Tunnel_NonSecure_FramesDroppedLate";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames repeated due to frame rate changes
+ *        Type: Concurrent
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 054@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_NonSecure_FramesDroppedFRC)
+{
+    const char *testName = "Render_Concurrent_Tunnel_NonSecure_FramesDroppedFRC";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Type: Concurrent
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 055@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_NonSecure_FramesRepeatedFRC)
+{
+    const char *testName = "Render_Concurrent_Tunnel_NonSecure_FramesRepeatedFRC";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Type: Concurrent
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 056@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_NonSecure_FramesMiss)
+{
+    const char *testName = "Render_Concurrent_Tunnel_NonSecure_FramesMiss";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify onFlushComplete is received after flushing sink.
+ *        Type: Concurrent
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 057@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_NonSecure_VideoFlush)
+{
+    const char *testName = "Render_Concurrent_Tunnel_NonSecure_VideoFlush";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test to verify EOS is received after sending eos pts to the sink.
+ *        Type: Concurrent
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 058@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_NonSecure_EOS)
+{
+    const char *testName = "Render_Concurrent_Tunnel_NonSecure_EOS";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Video sink playback with underflow detection
+ *        Type: Concurrent
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 059@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_NonSecure_UnderflowResumed)
+{
+    const char *testName = "Render_Concurrent_Tunnel_NonSecure_UnderflowResumed";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify discardFramesUntil behavior in video sink
+ *        Type: Concurrent
+ *        Modes: Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 060@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_NonSecure_DiscardFramesUntil)
+{
+    const char *testName = "Render_Concurrent_Tunnel_NonSecure_DiscardFramesUntil";
+    bool secureMode = false;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test the sink's ability to report correct queue depth
+ *        Type: Sequential
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 061@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_Secure_QueueDepth)
+{
+    const char *testName = "Render_Sequential_Tunnel_Secure_QueueDepth";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test the number of frames received by video sink
+ *        Type: Sequential
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 062@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_Secure_FramesReceived)
+{
+    const char *testName = "Render_Sequential_Tunnel_Secure_FramesReceived";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames dropped due to lateness
+ *        Type: Sequential
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 063@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_Secure_FramesDroppedLate)
+{
+    const char *testName = "Render_Sequential_Tunnel_Secure_FramesDroppedLate";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames repeated due to frame rate changes
+ *        Type: Sequential
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 064@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_Secure_FramesRepeatedFRC)
+{
+    const char *testName = "Render_Sequential_Tunnel_Secure_FramesRepeatedFRC";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Type: Sequential
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 065@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_Secure_FramesMiss)
+{
+    const char *testName = "Render_Sequential_Tunnel_Secure_FramesMiss";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Tests repeated frame rendering with dropped frames
+ *        Type: Sequential
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 066@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_Secure_FramesDroppedFRC)
+{
+    const char *testName = "Render_Sequential_Tunnel_Secure_FramesDroppedFRC";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify onFlushComplete is received after flushing sink.
+ *        Type: Sequential
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 067@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_Secure_VideoFlush)
+{
+    const char *testName = "Render_Sequential_Tunnel_Secure_VideoFlush";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test to verify EOS is received after eos pts to the sink.
+ *        Type: Sequential
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 068@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_Secure_EOS)
+{
+    const char *testName = "Render_Sequential_Tunnel_Secure_EOS";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Video sink playback with underflow detection
+ *        Type: Sequential
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 069@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_Secure_UnderflowResumed)
+{
+    const char *testName = "Render_Sequential_Tunnel_Secure_UnderflowResumed";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify discardFramesUntil behavior in video sink
+ *        Type: Sequential
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 070@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Sequential_Tunnel_Secure_DiscardFramesUntil)
+{
+    const char *testName = "Render_Sequential_Tunnel_Secure_DiscardFramesUntil";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = false;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test the sink's ability to report correct queue depth
+ *        Type: Concurrent
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 071@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_Secure_QueueDepth)
+{
+    const char *testName = "Render_Concurrent_Tunnel_Secure_QueueDepth";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test the number of frames received by video sink
+ *        Type: Concurrent
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 072@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_Secure_FramesReceived)
+{
+    const char *testName = "Render_Concurrent_Tunnel_Secure_FramesReceived";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames dropped due to lateness
+ *        Type: Concurrent
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 073@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_Secure_FramesDroppedLate)
+{
+    const char *testName = "Render_Concurrent_Tunnel_Secure_FramesDroppedLate";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for frames repeated due to frame rate changes
+ *        Type: Concurrent
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 074@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_Secure_FramesDroppedFRC)
+{
+    const char *testName = "Render_Concurrent_Tunnel_Secure_FramesDroppedFRC";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Type: Concurrent
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 075@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_Secure_FramesRepeatedFRC)
+{
+    const char *testName = "Render_Concurrent_Tunnel_Secure_FramesRepeatedFRC";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test for repeated frames due to missing frame detection
+ *        Type: Concurrent
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 076@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_Secure_FramesMiss)
+{
+    const char *testName = "Render_Concurrent_Tunnel_Secure_FramesMiss";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify onFlushComplete is received after flushing sink.
+ *        Type: Concurrent
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 077@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_Secure_VideoFlush)
+{
+    const char *testName = "Render_Concurrent_Tunnel_Secure_VideoFlush";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test to verify EOS is received after sending eos pts to the sink.
+ *        Type: Concurrent
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 078@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_Secure_EOS)
+{
+    const char *testName = "Render_Concurrent_Tunnel_Secure_EOS";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Video sink playback with underflow detection
+ *        Type: Concurrent
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 079@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_Secure_UnderflowResumed)
+{
+    const char *testName = "Render_Concurrent_Tunnel_Secure_UnderflowResumed";
+    bool secureMode = true;
+    bool isTunnel = true;
+    bool isConcurrent = true;
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+/**
+ * @brief Test to verify discardFramesUntil behavior in video sink
+ *        Type: Concurrent
+ *        Modes: Tunnel, Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 080@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Render_Concurrent_Tunnel_Secure_DiscardFramesUntil)
+{
+    const char *testName = "Render_Concurrent_Tunnel_Secure_DiscardFramesUntil";
+    bool secureMode = true;
+    bool isTunnel = true;
     bool isConcurrent = true;
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }

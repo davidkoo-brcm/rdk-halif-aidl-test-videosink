@@ -1,6 +1,6 @@
 IVideoDecoderManager:
   L3:
-    Render_Concurrent_VideoFlush_NonTunnel:
+    Render_Sequential_NonTunnel_NonSecure_VideoFlush:
       Controls:
       Inputs:
         Streams:

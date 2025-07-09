@@ -97,6 +97,9 @@
 
 #include "com/rdk/hal/videodecoder/FrameMetadata.h"
 
+
+//#define ENABLE_UT_INFO_LOGGING
+
 using namespace com::rdk::hal::videodecoder;
 
 // Undefine UT_LOG_INFO from ut_log.h to avoid redefinition conflicts

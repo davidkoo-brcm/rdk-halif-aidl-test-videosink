@@ -1,7 +1,7 @@
 
 IVideoDecoderManager:
   L3:
-    Render_Concurrent_EndToEnd_NonTunnel:
+    Render_Concurrent_NonTunnel_NonSecure_EOS:
       Controls:
         delay_between_decode_calls: 5 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:

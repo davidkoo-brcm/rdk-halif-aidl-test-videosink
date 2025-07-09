@@ -269,20 +269,21 @@ bool VideoSinkControllerListener::waitForEosEvent(int timeoutSeconds)
 bool VideoSinkControllerListener::waitForUnderflowEvent(int timeoutSeconds)
 {
     std::unique_lock<std::mutex> lock(mMutex);
-    int initialCount = mUnderflowCount;
-    return mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this, initialCount] {
-        return mUnderflowCount > initialCount;
+    mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] {
+        return mUnderflowCount > 0;
     });
+    return mUnderflowCount > 0;
 }
 
 bool VideoSinkControllerListener::waitForResumedEvent(int timeoutSeconds)
 {
     std::unique_lock<std::mutex> lock(mMutex);
-    int initialCount = mResumeCount;
-    return mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this, initialCount] {
-        return mResumeCount > initialCount;
+    mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] {
+        return mResumeCount > 0;
     });
+    return mResumeCount > 0;
 }
+
 void VideoSinkControllerListener::setSinkID(int32_t id)
 {
     mSinkID = id;
@@ -363,6 +364,23 @@ int VideoSinkEventListener::getUnderflowCount()
     return android::binder::Status::ok();
 }
 
+bool VideoSinkEventListener::waitForResumedEvent(int timeoutSeconds)
+{
+    std::unique_lock<std::mutex> lock(mMutex);
+    mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] {
+        return mResumeCount > 0;
+    });
+    return mResumeCount > 0;
+}
+
+bool VideoSinkEventListener::waitForUnderflowEvent(int timeoutSeconds)
+{
+    std::unique_lock<std::mutex> lock(mMutex);
+    mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] {
+        return mUnderflowCount > 0;
+    });
+    return mUnderflowCount > 0;
+}
 
 void VideoSinkEventListener::resetResumed()
 {

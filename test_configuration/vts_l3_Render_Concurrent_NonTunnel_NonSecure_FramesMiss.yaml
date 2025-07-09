@@ -1,15 +1,14 @@
 IVideoDecoderManager:
   L3:
-    Render_Concurrent_DiscardFramesUntil_NonTunnel:
+    Render_Concurrent_NonTunnel_NonSecure_FramesMiss:
       Controls:
-        delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
         Streams:
           - Codec: H264
-            Name: H264_HD_30_YUV420
+            Name: H264_HD_30_YUV420_FRAME_MISS
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
-            sink_discardFramesUntilPts: 166665000
+            sink_discardFramesUntilPts: -1
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
@@ -19,10 +18,10 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_HD_30_YUV444
+            Name: H264_HD_30_YUV444_FRAME_MISS
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
-            sink_discardFramesUntilPts: 166665000
+            sink_discardFramesUntilPts: -1
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
@@ -32,10 +31,10 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_HD_60_YUV420
+            Name: H264_HD_60_YUV420_FRAME_MISS
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
-            sink_discardFramesUntilPts: 66666668
+            sink_discardFramesUntilPts: -1
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
@@ -45,10 +44,10 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_HD_60_YUV444
+            Name: H264_HD_60_YUV444_FRAME_MISS
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
-            sink_discardFramesUntilPts: 66666668
+            sink_discardFramesUntilPts: -1
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
@@ -58,10 +57,10 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_SD_30_YUV420
+            Name: H264_SD_30_YUV420_FRAME_MISS
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
-            sink_discardFramesUntilPts: 166665000
+            sink_discardFramesUntilPts: -1
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
@@ -71,10 +70,10 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_SD_30_YUV444
+            Name: H264_SD_30_YUV444_FRAME_MISS
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
-            sink_discardFramesUntilPts: 166665000
+            sink_discardFramesUntilPts: -1
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
@@ -84,10 +83,10 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_SD_60_YUV420
+            Name: H264_SD_60_YUV420_FRAME_MISS
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
-            sink_discardFramesUntilPts: 66666668
+            sink_discardFramesUntilPts: -1
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
@@ -97,10 +96,10 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_SD_60_YUV444
+            Name: H264_SD_60_YUV444_FRAME_MISS
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
-            sink_discardFramesUntilPts: 66666668
+            sink_discardFramesUntilPts: -1
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
@@ -110,10 +109,10 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           # - Codec: H264
-          #   Name: H264_UHD_30_YUV420
+          #   Name: H264_UHD_30_YUV420_FRAME_MISS
           #   rms_diff_threshold: 0.5
           #   decode_time_threshold: 10000000
-          #   sink_discardFramesUntilPts: 166665000
+          #   sink_discardFramesUntilPts: -1
           #   sink_underflow_pts: -1
           #   sink_resumeTriggerPts: -1
           #   sink_repeatPerFrame: 1
@@ -123,10 +122,10 @@ IVideoDecoderManager:
           #   sink_interFrameDelayMs: -1
           #   sink_discontinuityPTS: -1
           # - Codec: H264
-          #   Name: H264_UHD_30_YUV444
+          #   Name: H264_UHD_30_YUV444_FRAME_MISS
           #   rms_diff_threshold: 0.5
           #   decode_time_threshold: 10000000
-          #   sink_discardFramesUntilPts: 166665000
+          #   sink_discardFramesUntilPts: -1
           #   sink_underflow_pts: -1
           #   sink_resumeTriggerPts: -1
           #   sink_repeatPerFrame: 1
@@ -136,10 +135,10 @@ IVideoDecoderManager:
           #   sink_interFrameDelayMs: -1
           #   sink_discontinuityPTS: -1
           # - Codec: H264
-          #   Name: H264_UHD_60_YUV420
+          #   Name: H264_UHD_60_YUV420_FRAME_MISS
           #   rms_diff_threshold: 0.5
           #   decode_time_threshold: 10000000
-          #   sink_discardFramesUntilPts: 66666668
+          #   sink_discardFramesUntilPts: -1
           #   sink_underflow_pts: -1
           #   sink_resumeTriggerPts: -1
           #   sink_repeatPerFrame: 1
@@ -149,10 +148,10 @@ IVideoDecoderManager:
           #   sink_interFrameDelayMs: -1
           #   sink_discontinuityPTS: -1
           # - Codec: H264
-          #   Name: H264_UHD_60_YUV444
+          #   Name: H264_UHD_60_YUV444_FRAME_MISS
           #   rms_diff_threshold: 0.5
           #   decode_time_threshold: 10000000
-          #   sink_discardFramesUntilPts: 66666668
+          #   sink_discardFramesUntilPts: -1
           #   sink_underflow_pts: -1
           #   sink_resumeTriggerPts: -1
           #   sink_repeatPerFrame: 1

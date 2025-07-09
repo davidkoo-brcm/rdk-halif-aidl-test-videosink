@@ -92,6 +92,8 @@ extern void *gTestConfiguration;
 // Undefine UT_LOG_INFO from ut_log.h to avoid redefinition conflicts
 #undef UT_LOG_INFO
 
+//#define ENABLE_UT_INFO_LOGGING
+
 #ifdef ENABLE_UT_INFO_LOGGING
 // Enable INFO logging using ut_log.h's definition
 #define UT_LOG_INFO(format, ...) UT_logPrefix(__FILE__, __LINE__, UT_LOG_ASCII_CYAN "INFO  " UT_LOG_ASCII_NC, format, ## __VA_ARGS__)
@@ -797,6 +799,9 @@ public:
     std::vector<int32_t> getErrors() const;
     void setSinkID(int32_t id);
     bool waitForEosEvent(int timeoutSeconds);
+    bool waitForUnderflowEvent(int timeoutSeconds);
+    bool waitForResumedEvent(int timeoutSeconds);
+
 private:
     mutable std::mutex mMutex;
     std::condition_variable mCV;
