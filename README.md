@@ -121,3 +121,24 @@ Execute the run.sh script as root:
 ```bash
 sudo ./run.sh -p profiles/hfp-videosink.yaml
 ```
+
+To execute `L3` test cases, elementary streams are required. Please copy all necessary test streams into the `bin/test_configuration` folder on the target device.
+
+- Run the Test:
+Execute the run.sh script as root:
+
+```bash
+sudo ./run.sh -p profiles/hfp-videosink_vdevice.yaml
+```
+
+To run the binary with two processes simultaneously:
+
+Open two separate SSH sessions to the target device. In each session, navigate to the `bin` directory  and execute one of the following commands:
+
+```bash
+ sudo ./run.sh -p profiles/hfp-videosink_vdevice_instance_1.yaml
+```
+
+```bash
+ sudo ./run.sh -p profiles/hfp-videosink_vdevice_instance_2.yaml
+```
