@@ -1,6 +1,6 @@
 VideoStreams:
-  H264_SD_30_YUV424:
-    input: H264_SD_30_YUV424.es #Stream Name
+  H264_SD_30_YUV444:
+    input: H264_SD_30_YUV444.es #Stream Name
     codec: H264  #Video codec information, Refer `Codec` enum
     codedWidth: 640
     codedHeight: 480
@@ -16,7 +16,7 @@ VideoStreams:
     flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
     flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
     eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
-    lowLatency:
+    lowlatency: 0
     bit_rate: 734
     no_of_frames: 10
     frame_size:
@@ -47,8 +47,8 @@ VideoStreams:
       - 233331000
       - 266664000
       - 299997000
-  H264_SD_30_YUV424_DROPPED_LATE:
-    input: H264_SD_30_YUV424.es #Stream Name
+  H264_SD_30_YUV444_DROPPED_LATE:
+    input: H264_SD_30_YUV444.es #Stream Name
     codec: H264  #Video codec information, Refer `Codec` enum
     codedWidth: 640
     codedHeight: 480
@@ -64,7 +64,7 @@ VideoStreams:
     flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
     flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
     eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
-    lowLatency:
+    lowlatency: 0
     bit_rate: 734
     no_of_frames: 10
     frame_size:
@@ -96,8 +96,8 @@ VideoStreams:
       - 33333343      # late drop (too close to frame 1)
       - 33333353      # late drop
       - 66666666      # Frame 2 (valid)
-  H264_SD_30_YUV424_REPEATED_FRC:
-    input: H264_SD_30_YUV424.es #Stream Name
+  H264_SD_30_YUV444_REPEATED_FRC:
+    input: H264_SD_30_YUV444.es #Stream Name
     codec: H264  #Video codec information, Refer `Codec` enum
     codedWidth: 640
     codedHeight: 480
@@ -113,7 +113,7 @@ VideoStreams:
     flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
     flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
     eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
-    lowLatency:
+    lowlatency: 0
     bit_rate: 734
     no_of_frames: 10
     frame_size:
@@ -146,8 +146,8 @@ VideoStreams:
       - 186666665      # Repeat Frame 6
       - 219999998      # Frame 7
       - 219999998      # Repeat Frame 7
-  H264_SD_30_YUV424_DROPPED_FRC:
-    input: H264_SD_30_YUV424.es #Stream Name
+  H264_SD_30_YUV444_DROPPED_FRC:
+    input: H264_SD_30_YUV444.es #Stream Name
     codec: H264  #Video codec information, Refer `Codec` enum
     codedWidth: 640
     codedHeight: 480
@@ -163,7 +163,7 @@ VideoStreams:
     flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
     flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
     eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
-    lowLatency:
+    lowlatency: 0
     bit_rate: 734
     no_of_frames: 10
     frame_size:
@@ -196,8 +196,8 @@ VideoStreams:
       - 246666670      # Frame 9 (+13,333,335)  – EARLY
       - 260000005      # Frame 10 (+13,333,335) – EARLY
       - 293333338      # Frame 11 (+33,333,333)  – RECOVERY to normal
-  H264_SD_30_YUV424_FRAME_MISS:
-    input: H264_SD_30_YUV424.es #Stream Name
+  H264_SD_30_YUV444_FRAME_MISS:
+    input: H264_SD_30_YUV444.es #Stream Name
     codec: H264  #Video codec information, Refer `Codec` enum
     codedWidth: 640
     codedHeight: 480
@@ -213,7 +213,7 @@ VideoStreams:
     flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
     flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
     eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
-    lowLatency:
+    lowlatency: 0
     bit_rate: 734
     no_of_frames: 10
     frame_size:
@@ -246,8 +246,8 @@ VideoStreams:
       - 433333329         # Frame 14 (skip Frame 13)
       - 466666662         # Frame 15 (normal)
       - 533333328         # Frame 17 (skip Frame 16)
-  H264_SD_30_YUV424_UNDERFLOW_RESUME:
-    input: H264_SD_30_YUV424.es #Stream Name
+  H264_SD_30_YUV444_UNDERFLOW_RESUME:
+    input: H264_SD_30_YUV444.es #Stream Name
     codec: H264  #Video codec information, Refer `Codec` enum
     codedWidth: 640
     codedHeight: 480
@@ -263,7 +263,7 @@ VideoStreams:
     flush_pts: -1 #`pts` value in nano seconds that determine when the test should flush the decoder. -1 indicates that test should not flush
     flush_reset_pts: -1 #`pts` value in nano seconds that determine when the test should flush with reset the decoder. -1 indicates that test should not flush
     eos_pts: -1 #`pts` value in nano seconds that determine when the test should sent `eos` signal to decoder. -1 indicates that test should not signal `eos`
-    lowLatency:
+    lowlatency: 0
     bit_rate: 734
     no_of_frames: 10
     frame_size:

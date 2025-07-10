@@ -141,6 +141,7 @@ void VideoSinkControllerListener::resetFlushComplete()
 {
     std::lock_guard<std::mutex> lock(mMutex);
     mFlushComplete = false;
+    mFlushCompleteCount = 0;
 }
 
 /**
@@ -324,20 +325,6 @@ android::binder::Status VideoSinkControllerListener::onStateChanged(State oldSta
 }
 
 /**
- * @brief Waits for the flush complete event to occur within the given timeout.
- *
- * Blocks the calling thread until the flush complete flag is set or the timeout expires.
- *
- * @param timeout Duration to wait for the flush complete event.
- * @return true if flush complete event occurred within timeout, false otherwise.
- */
-bool VideoSinkControllerListener::waitForFlushComplete(std::chrono::seconds timeout)
-{
-    std::unique_lock<std::mutex> lock(mMutex);
-    return mCV.wait_for(lock, timeout, [this] { return mFlushComplete; });
-}
-
-/**
  * @brief Waits for the End-Of-Stream (EOS) event to be received within the specified timeout.
  *
  * Blocks the calling thread until the EOS event is received or the timeout expires.
@@ -349,40 +336,6 @@ bool VideoSinkControllerListener::waitForEosEvent(int timeoutSeconds)
 {
     std::unique_lock<std::mutex> lock(mMutex);
     return mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] { return mEosReceived; });
-}
-
-/**
- * @brief Waits for a Video Underflow event to be received within the specified timeout.
- *
- * Blocks the calling thread until an underflow event occurs or the timeout expires.
- *
- * @param timeoutSeconds Number of seconds to wait for the underflow event.
- * @return true if underflow event received within timeout, false otherwise.
- */
-bool VideoSinkControllerListener::waitForUnderflowEvent(int timeoutSeconds)
-{
-    std::unique_lock<std::mutex> lock(mMutex);
-    mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] {
-        return mUnderflowCount > 0;
-    });
-    return mUnderflowCount > 0;
-}
-
-/**
- * @brief Waits for a Video Resumed event to be received within the specified timeout.
- *
- * Blocks the calling thread until a resumed event occurs or the timeout expires.
- *
- * @param timeoutSeconds Number of seconds to wait for the resumed event.
- * @return true if resumed event received within timeout, false otherwise.
- */
-bool VideoSinkControllerListener::waitForResumedEvent(int timeoutSeconds)
-{
-    std::unique_lock<std::mutex> lock(mMutex);
-    mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] {
-        return mResumeCount > 0;
-    });
-    return mResumeCount > 0;
 }
 
 /**
@@ -502,36 +455,6 @@ int VideoSinkEventListener::getUnderflowCount()
 }
 
 /**
- * @brief Waits for the video resumed event within the specified timeout.
- *
- * @param timeoutSeconds Number of seconds to wait for the resumed event.
- * @return true if the resumed event was received within the timeout, false otherwise.
- */
-bool VideoSinkEventListener::waitForResumedEvent(int timeoutSeconds)
-{
-    std::unique_lock<std::mutex> lock(mMutex);
-    mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] {
-        return mResumeCount > 0;
-    });
-    return mResumeCount > 0;
-}
-
-/**
- * @brief Waits for the video underflow event within the specified timeout.
- *
- * @param timeoutSeconds Number of seconds to wait for the underflow event.
- * @return true if the underflow event was received within the timeout, false otherwise.
- */
-bool VideoSinkEventListener::waitForUnderflowEvent(int timeoutSeconds)
-{
-    std::unique_lock<std::mutex> lock(mMutex);
-    mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] {
-        return mUnderflowCount > 0;
-    });
-    return mUnderflowCount > 0;
-}
-
-/**
  * @brief Resets the count of video resumed events.
  */
 void VideoSinkEventListener::resetResumed()
@@ -632,18 +555,6 @@ void VideoSinkEventListener::resetFlushComplete()
     mFlushCompleteCount = 0;
 }
 
-/**
- * @brief Waits for the flush complete event to be signaled within the specified timeout.
- *        Uses condition variable to block until flush completion or timeout.
- *
- * @param timeout Duration to wait for the flush complete event.
- * @return true if flush complete event occurred before timeout, false otherwise.
- */
-bool VideoSinkEventListener::waitForFlushComplete(std::chrono::seconds timeout)
-{
-    std::unique_lock<std::mutex> lock(mMutex);
-    return mCV.wait_for(lock, timeout, [this] { return mFlushComplete; });
-}
 
 /**
  * @brief Waits for the listener to reach the specified state within the given timeout.

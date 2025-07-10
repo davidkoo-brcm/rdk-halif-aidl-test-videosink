@@ -97,7 +97,7 @@ VideoDecoderControllerListener::~VideoDecoderControllerListener() = default;
 Status VideoDecoderControllerListener::onFrameOutput(int64_t nsPresentationTime, int64_t frameBufferHandle, const std::optional<FrameMetadata>& metadata)
 {
 
-    UT_LOG_DEBUG("onFrameOutputtt is received nsPresentationTime %lld FrameBufferHandle = 0x%llx ", nsPresentationTime, frameBufferHandle);
+    UT_LOG_DEBUG("onFrameOutput is received nsPresentationTime %lld FrameBufferHandle = 0x%llx ", nsPresentationTime, frameBufferHandle);
     FrameMetadata metaCopy;  // Default-constructed
 
     if (metadata.has_value()) {
@@ -379,7 +379,6 @@ UT_status_t vts_videodecoder_parse_testconfig(void* pTestInstance, const char *m
         string frameRateDenominator = prefix + "frameRateDenominator";
         string pixelFormat = prefix + "pixelFormat";
         string dynamicRange = prefix + "dynamic_range";
-        string colourSpace = prefix + "colour_space";
         string colorDepth = prefix + "colorDepth";
         string bitRate = prefix + "bit_rate";
         string noOfFrames = prefix + "no_of_frames";
@@ -454,19 +453,6 @@ UT_status_t vts_videodecoder_parse_testconfig(void* pTestInstance, const char *m
         if (status == UT_KVP_STATUS_SUCCESS)
         {
             testDetails.dynamicRange = videoDecoderStringToDynamicRange(string(tempBuffer));
-        }
-
-        // Colour space
-        status = ut_kvp_getStringField(kvpTestInstance, colourSpace.c_str(), tempBuffer, UT_KVP_MAX_ELEMENT_SIZE);
-        if (status == UT_KVP_STATUS_SUCCESS)
-        {
-            testDetails.colourSpace = string(tempBuffer);
-            UT_LOG_DEBUG("Colour space: %s", testDetails.colourSpace.c_str());
-        }
-        else
-        {
-            UT_LOG_WARNING("Colour space not found, defaulting to empty");
-            testDetails.colourSpace = "";
         }
 
         // Color depth

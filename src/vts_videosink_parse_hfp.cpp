@@ -67,6 +67,7 @@
 
 std::vector<int32_t> gVideosinks_hfp;
 std::vector<int32_t> gAvailableVideosinks_hfp;
+std::vector<int32_t> gAvailableVideodecoders_hfp;
 
 UT_status_t vts_videosink_parseVideoSinkHFP()
 {
@@ -97,6 +98,16 @@ UT_status_t vts_videosink_parseVideoSinkHFP()
         std::string sinkIdPath = availableSinkPath + "." + std::to_string(i);
         int32_t sinkId = UT_KVP_PROFILE_GET_UINT32(sinkIdPath.c_str());
         gAvailableVideosinks_hfp.push_back(sinkId);
+    }
+
+    std::string decoderListPath = "IVideoSinkManager.IVideoDecoder";
+    int32_t decoderCount = UT_KVP_PROFILE_GET_LIST_COUNT(decoderListPath.c_str());
+
+    for (int32_t i = 0; i < decoderCount; ++i)
+    {
+        std::string decoderIdPath = decoderListPath + "." + std::to_string(i);
+        int32_t decoderId = UT_KVP_PROFILE_GET_UINT32(decoderIdPath.c_str());
+        gAvailableVideodecoders_hfp.push_back(decoderId);
     }
 
     return UT_STATUS_OK;

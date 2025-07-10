@@ -124,7 +124,6 @@ struct testConfiguration_t {
     uint32_t frameRateDenominator;
     videodecoder::PixelFormat pixelFormat;
     videodecoder::DynamicRange dynamicRange;
-    std::string colourSpace;
     uint32_t colorDepth;
     uint32_t bitRate;
     uint32_t no_of_frames;

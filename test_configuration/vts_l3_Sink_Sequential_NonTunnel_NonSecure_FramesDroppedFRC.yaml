@@ -3,7 +3,7 @@ IVideoDecoderManager:
   L3:
     Sink_Sequential_NonTunnel_NonSecure_FramesDroppedFRC:
       Controls:
-        delay_between_decode_calls: 5 # Insert delay in msec between each `decodeBuffer()` call
+        delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
         Streams:
           - Codec: H264

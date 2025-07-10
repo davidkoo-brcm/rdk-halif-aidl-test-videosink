@@ -713,10 +713,10 @@ public:
     void resetFlushComplete();
     int getFlushCompleteCount();
 
-
     // Utility functions: End of stream (EOS)
     void resetEos();
     int64_t getEosPTS();
+    bool waitForEosEvent(int timeoutSeconds);
 
     // Utility functions: Underflow
     void resetUnderflow();
@@ -725,12 +725,6 @@ public:
     // Utility functions: Resume
     void resetResumed();
     int getResumedCount();
-
-    // Wait functions (blocking with timeout)
-    bool waitForFlushComplete(std::chrono::seconds timeout);
-    bool waitForEosEvent(int timeoutSeconds);
-    bool waitForUnderflowEvent(int timeoutSeconds);
-    bool waitForResumedEvent(int timeoutSeconds);
 
     void setSinkID(int32_t id);
 
@@ -779,12 +773,12 @@ public:
 
     // Flush helpers
     void resetFlushComplete();
-    bool waitForFlushComplete(std::chrono::seconds timeout);
     int getFlushCompleteCount();
 
     // End of stream (EOS) helpers
     void resetEos();
     int64_t getEosPTS();
+    bool waitForEosEvent(int timeoutSeconds);
 
     // Underflow helpers
     void resetUnderflow();
@@ -801,9 +795,6 @@ public:
 
     // Wait functions (blocking with timeout)
     bool waitForState(State desiredState, std::chrono::milliseconds timeout);
-    bool waitForResumedEvent(int timeoutSeconds);
-    bool waitForEosEvent(int timeoutSeconds);
-    bool waitForUnderflowEvent(int timeoutSeconds);
 
     // Error helpers
     std::vector<int32_t> getErrors() const;
