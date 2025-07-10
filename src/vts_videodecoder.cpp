@@ -156,7 +156,6 @@ Status VideoDecoderControllerListener::onFrameOutput(int64_t nsPresentationTime,
         metaCopy.source = frameMeta.source;
         metaCopy.sha1 = frameMeta.sha1;
 
-        UT_LOG_DEBUG("  Extension: (ParcelableHolder present)");
     } else {
         UT_LOG_DEBUG("No FrameMetadata provided, using default metadata.");
     }
@@ -792,9 +791,7 @@ void DecoderTest::decoderThreadFunc()
     // Start Decoder
     {
         std::lock_guard<std::mutex> lock(mDecodeMutex);
-        UT_LOG_DEBUG("Calling start()");
         VIDEODECODER_START_SUCCESS(mDecoderHandle, videoDecoderController, true);
-        UT_LOG_DEBUG("Decoder started");
     }
 
     // Get initial metrics
@@ -813,10 +810,8 @@ void DecoderTest::decoderThreadFunc()
         // Allocate Buffer
         {
             std::lock_guard<std::mutex> lock(mDecodeMutex);
-            UT_LOG_DEBUG("Calling alloc(poolHandle:%lld, size=%u)", videoPool.handle, frameSize);
             videoBufferHandle = 0;
             AVBUFFER_ALLOC_SUCCESS(mAVBufferManager, videoPool, frameSize, videoBufferHandle);
-            UT_LOG_DEBUG("Allocated buffer handle:0x%llx", videoBufferHandle);
         }
 
         // Write Frame Data
@@ -909,7 +904,6 @@ void DecoderTest::decoderThreadFunc()
                 }
                 continue;
             }
-            UT_LOG_DEBUG("Calling decodeBuffer(PTS:%lld, bufferHandle:0x%llx)", framePTS, videoBufferHandle);
             if (isErrorFrame) {
                 VIDEODECODER_DECODEBUFFER_FAILURE(videoDecoderController, framePTS, videoBufferHandle, Status::EX_NONE);
             } else {
@@ -933,7 +927,6 @@ void DecoderTest::decoderThreadFunc()
         // Free Buffer
         {
             std::lock_guard<std::mutex> lock(mDecodeMutex);
-            UT_LOG_DEBUG("Freeing buffer handle:0x%llx", videoBufferHandle);
             AVBUFFER_FREE_SUCCESS(mAVBufferManager, videoBufferHandle);
         }
 

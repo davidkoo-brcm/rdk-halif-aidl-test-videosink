@@ -82,7 +82,7 @@ void* vts_kvp_create_instance(char *fileName)
     ut_kvp_instance_t* instance;
     ut_kvp_status_t result;
 
-    UT_LOG("In %s", __FUNCTION__);
+    UT_LOG_INFO("In %s", __FUNCTION__);
 
     instance = ut_kvp_createInstance();
 
@@ -101,7 +101,7 @@ void* vts_kvp_create_instance(char *fileName)
         return nullptr;
     }
 
-    UT_LOG("Out  %s", __FUNCTION__);
+    UT_LOG_INFO("Out  %s", __FUNCTION__);
 
     return (ut_kvp_instance_t*)instance;
 }
