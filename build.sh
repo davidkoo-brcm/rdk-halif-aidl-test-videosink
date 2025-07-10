@@ -67,11 +67,11 @@ generate_audiodecoder_hal()
     declare -r HAL_BUILD_DIR=${BUILD_DIR}/audiodecoder_aidl
     declare -r AUDIODECODER_VERSION=current
     declare -r AIDL_GEN_DIR="${BUILD_DIR}/audiodecoder_gen/$AUDIODECODER_VERSION"
-    declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
 
     # Clone the repository if not already present
     if [ ! -d "$RDK_HAL_DIR" ]; then
-        git clone -b $RDK_HAL_VERSION 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
+        echo "Checking out HAL version: " $RDK_HALIF_AIDL_VERSION
+        git clone -b $RDK_HALIF_AIDL_VERSION 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
     fi
 
     # Prepare cmake build directories and configuration for each module
@@ -89,11 +89,11 @@ generate_avbuffer_hal()
     declare -r HAL_BUILD_DIR=${BUILD_DIR}/avbuffer_hal
     declare -r VERSION=current
     declare -r AIDL_GEN_DIR="${BUILD_DIR}/avbuffer_gen/$VERSION"
-    declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
 
     # Clone the repository if not already present
     if [ ! -d "$RDK_HAL_DIR" ]; then
-        git clone -b $RDK_HAL_VERSION 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
+        echo "Checking out HAL version: " $RDK_HALIF_AIDL_VERSION
+        git clone -b $RDK_HALIF_AIDL_VERSION 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
     fi
 
     for m in avbuffer; do
@@ -112,11 +112,11 @@ generate_videodecoder_hal()
     declare -r HAL_BUILD_DIR=${BUILD_DIR}/videodecoder_aidl
     declare -r VIDEODECODER_VERSION=current
     declare -r AIDL_GEN_DIR="${BUILD_DIR}/videodecoder_gen/$VIDEODECODER_VERSION"
-    declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
 
     # Clone the repository if not already present
     if [ ! -d "$RDK_HAL_DIR" ]; then
-        git clone -b $RDK_HAL_VERSION 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
+        echo "Checking out HAL version: " $RDK_HALIF_AIDL_VERSION
+        git clone -b $RDK_HALIF_AIDL_VERSION 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
     fi
 
     cmake \
@@ -134,7 +134,6 @@ generate_videosink_hal()
     declare -r HAL_BUILD_DIR=${BUILD_DIR}/videosink_hal
     declare -r VERSION=current
     declare -r AIDL_GEN_DIR="${BUILD_DIR}/videosink_gen/$VERSION"
-    declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
 
     # Clone the repository if not already present
     if [ ! -d "$RDK_HAL_DIR" ]; then
