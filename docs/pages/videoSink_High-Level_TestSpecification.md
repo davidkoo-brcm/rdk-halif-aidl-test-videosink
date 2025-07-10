@@ -141,17 +141,16 @@ The following table outlines the core features validated in the L3 test phase
 |#|Testing Feature|Description|
 |-|---------------|-----------|
 |1|Tunnel/Non-Tunnel|Executes the sink in tunnel mode. Based on video decoder configuration, the sink chooses between tunnel and non-tunnel operation. In tunnel mode, the test validates by reading the metrics data like (METRIC_FRAMES_RECEIVED, METRIC_FRAMES_PRESENTED, METRIC_FRAMES_DROPPED_FRC etc).|
-|2|EOS|Test the sink's handling of an `eos` (end-of-stream) signal. sink should raise an event call back on receiving `eos` frame.|
-|3|Underflow|Test the sink's handling of video underflow. Sink should be able to raise event during video buffer underflow condition. |
-|4|Video Resume|Verifies Sink can resume video playback after an underflow occurred in the video buffer. Sink should be able to raise event `onVideoResumed` during video buffer underflow condition.|
-|5|Flush without hold last frame|Test the sinks's flush functionality. The sink discard any buffers already queued and resume normal playback of subsequent frames without displaying the last frame till new frame is received. Sink will raise an event `onFlushComplete`|
-|6|Flush with hold last frame|Test the sink’s flush functionality combined with hold last frame. The sink should discard all queued buffers and resume playback of subsequent frame by displaying the last frame till new frame is received. Sink will raise an event `onFlushComplete`|
-|7|Discard Frame Till|Test the sink's ability to discard the incoming frames till the specified presentation time. This can be validated by calculating expected number of frames to be dropped from queue match with the Number of frames dropped Metrics data|
-|8|Queue Depth|This test verifies the sink's queue depth by reading the property. Test supply the frames to the queue and validate the frame queue depth value|
-|9|Frames Dropped| This test verifies the metric data read form the sink's property to know how many frames are dropped during playback of known error stream. |
-|10|Frames Dropped due to frame rate change| This test verifies the metric data read form the sink's property to know how many frames are dropped becaus of frame rate change in stream during playback. Validate the test by setting frame rate that is lower than the test stream|
-|11|Frames Repeated due to frame rate change | This test verifies the metric data read form the sink's property to know how many frames are repeated during playback. Validate the test by setting frame rate that is higher than the test stream |
-|12|Multi Instance|If platform supports multiple sinks, test executes multiple sinks simultaneously, validating outputs and their respective metrics.|
+|2|EOS|Test the sink's handling of an `eos` (end-of-stream) signal. Sink should raise an event callback on receiving the `eos` frame.|
+|3|Underflow|Test the sink's handling of video underflow. Sink should raise an event during a video buffer underflow condition.|
+|4|Video Resume|Verifies Sink can resume video playback after an underflow occurred in the video buffer. Sink should raise the event `onVideoResumed` after recovering from underflow.|
+|5|Flush|Tests the sink’s flush functionality. The sink should discard any queued buffers and resume playback with the appropriate behavior—either displaying the last frame until a new one is received (hold last frame), or not displaying it (no hold). Sink will raise the `onFlushComplete` event.|
+|6|Discard Frame Till|Tests the sink's ability to discard incoming frames up to a specified presentation time (PTS). This can be validated by comparing the expected number of discarded frames with the metrics (e.g., number of frames dropped).|
+|7|Queue Depth|Verifies the sink's queue depth by supplying frames and checking the reported queue depth property.|
+|8|Frames Dropped|Verifies the number of frames dropped during playback using sink metrics while playing a stream with known frame drop issues.|
+|9|Frames Dropped due to frame rate change|Verifies the number of frames dropped due to a frame rate mismatch between stream and playback rate. Set playback frame rate lower than the stream rate to validate.|
+|10|Frames Repeated due to frame rate change|Verifies the number of frames repeated due to frame rate mismatch. Set playback frame rate higher than the stream rate to validate.|
+|11|Multi Instance|If the platform supports multiple sinks, this test runs multiple instances simultaneously to validate independent output and associated metrics.|
 
 
 | # | Test | Tunnel | EOS | Underflow | Video Resume | Flush | Discard Frame Till | Queue Depth | Frames Dropped | Frames Dropped due to FRC | Frames Repeated due to FRC | Multi Instance |
