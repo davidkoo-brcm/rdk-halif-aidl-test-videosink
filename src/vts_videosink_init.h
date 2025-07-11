@@ -66,6 +66,7 @@
 #define __VTS_VIDEOSINK_INIT_H__
 
 UT_status_t VTS_VideoSink_init();
+void VTS_VideoSink_destroy();
 
 #endif //__VTS_VIDEOSINK_INIT_H__
 

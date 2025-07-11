@@ -40,26 +40,35 @@ $(info CXXFLAGS: $(CXXFLAGS))
 
 ROOT_DIR := $(CURDIR)
 SRC_DIRS := $(ROOT_DIR)/src
-SRC_DIRS += $(ROOT_DIR)/src
 SRC_DIRS += $(ROOT_DIR)/test
 BIN_DIR := $(ROOT_DIR)/build/bin
 LIB_DIR := $(ROOT_DIR)/build/$(TARGET)/lib
 BUILD_DIR := $(ROOT_DIR)/build/$(TARGET)/obj
 
-INC_DIRS := $(ROOT_DIR)/build/videosink_gen/current/h
+INC_DIRS := $(ROOT_DIR)/build/avbuffer_gen/current/h
+INC_DIRS += $(ROOT_DIR)/rdk-halif-aidl/avbuffer/current
+INC_DIRS += $(ROOT_DIR)/build/audiodecoder_gen/current/h
 INC_DIRS += $(ROOT_DIR)/build/videodecoder_gen/current/h
+INC_DIRS += $(ROOT_DIR)/build/videosink_gen/current/h
 INC_DIRS += $(ROOT_DIR)/build/usr/include
+INC_DIRS += $(ROOT_DIR)/mockservice/avbufferhelper
 INC_DIRS += $(ROOT_DIR)/src
 
 XLDFLAGS := -L$(ROOT_DIR)/build/usr/lib
-XLDFLAGS += -Wl,-rpath-link=$(ROOT_DIR)/build/usr/lib
+XLDFLAGS += -Wl,-rpath-link=$(ROOT_DIR)/build/usr/lib -Wl,--export-dynamic
 XLDFLAGS += -lbinder -lutils
-XLDFLAGS += -lvideodecoderaidl -lvideosinkaidl
+XLDFLAGS += -laudiodecoderaidl -lavbufferaidl -lvideodecoderaidl -lvideosinkaidl
+XLDFLAGS += -lhal_logger -lavbufferhelper
+
+# TODO: remove this once the ut-core implements runtime logging configuration
+ifeq ($(DISABLE_UT_DEBUG_LOGGING),1)
+CXXFLAGS += -DDISABLE_UT_DEBUG_LOGGING
+endif
 
 # required for std::optional
 CXXFLAGS += -std=c++17
 
-UT_CORE_DIR := $(CURDIR)/ut/ut-core
+UT_CORE_DIR := $(CURDIR)/ut-core
 
 export BIN_DIR
 export LIB_DIR

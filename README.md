@@ -30,7 +30,7 @@ git clone git@github.com:rdkcentral/rdk-halif-binder-test-videosink.git
 cd rdk-halif-binder-test-videosink
 ```
 
-Addition environment variables can be used:
+Set below environment variable:
 
 - AIDL_BIN: Path to the `AIDL` compiler (e.g., /path/to/linux_binder_idl/out/aidl).
 
@@ -49,10 +49,21 @@ export AIDL_BIN=/path/linux_binder_idl/out/aidl
 export LINUX_BINDER_OUT_DIR=/path//linux_binder_idl/local/
 ```
 
+Disable Logging:
+
+Too many logs can slow down the test and delay frame pushing from the decoder to the sink.
+To avoid this and make sure frames are queued on time, run the following command before starting the build:
+
+```bash
+export DISABLE_UT_DEBUG_LOGGING=1
+```
+
+This will turn off debug logs and help the test run smoothly.
+
 Run the build script:
 
 ```bash
-./build.sh
+./build.sh all
 ```
 
 The build.sh script:
@@ -66,24 +77,70 @@ The build.sh script:
 Example directory structure :
 
 ```bash
+
 build/bin/
-├── aidl
-├── EmulateVideoSInkService
+├── assets
+│   └── streams
+│       ├── input
+│       └── reference
 ├── lib
+├── libaudiodecoderaidl.so
+├── libavbufferaidl.so
 ├── libbase.so
 ├── libbinder.so
 ├── libcutils.so
 ├── libcutils_sockets.so
+├── libhal_logger.so
 ├── liblog.so
 ├── libut_control.so
 ├── libutils.so
-├── libvideosinkaidl.so
 ├── libvideodecoderaidl.so
+├── libvideosinkaidl.so
+├── MockVideoSinkService
 ├── profiles
-│   └── hfp-videosink.yaml
+│   ├── hfp-videosink_vdevice_instance_1.yaml
+│   ├── hfp-videosink_vdevice_instance_2.yaml
+│   ├── hfp-videosink_vdevice_instance_3.yaml
+│   ├── hfp-videosink_vdevice.yaml
+│   └── hfp-videosink.yaml
 ├── run.sh
 ├── servicemanager
-└── vts_videoSInk
+├── test_configuration
+│   ├── vts_l3_H264_HD_30_YUV420.yaml
+│   ├── vts_l3_H264_HD_30_YUV444.yaml
+│   ├── vts_l3_H264_HD_60_YUV420.yaml
+│   ├── vts_l3_H264_HD_60_YUV444.yaml
+│   ├── vts_l3_H264_SD_30_YUV420.yaml
+│   ├── vts_l3_H264_SD_30_YUV444.yaml
+│   ├── vts_l3_H264_SD_60_YUV420.yaml
+│   ├── vts_l3_H264_SD_60_YUV444.yaml
+│   ├── vts_l3_H264_UHD_30_YUV420.yaml
+│   ├── vts_l3_H264_UHD_30_YUV444.yaml
+│   ├── vts_l3_H264_UHD_60_YUV420.yaml
+│   ├── vts_l3_H264_UHD_60_YUV444.yaml
+│   ├── vts_l3_Sink_Concurrent_NonTunnel_NonSecure_DiscardFramesUntil.yaml
+│   ├── vts_l3_Sink_Concurrent_NonTunnel_NonSecure_EOS.yaml
+│   ├── vts_l3_Sink_Concurrent_NonTunnel_NonSecure_FramesDroppedFRC.yaml
+│   ├── vts_l3_Sink_Concurrent_NonTunnel_NonSecure_FramesDroppedLate.yaml
+│   ├── vts_l3_Sink_Concurrent_NonTunnel_NonSecure_FramesMiss.yaml
+│   ├── vts_l3_Sink_Concurrent_NonTunnel_NonSecure_FramesReceived.yaml
+│   ├── vts_l3_Sink_Concurrent_NonTunnel_NonSecure_FramesRepeatedFRC.yaml
+│   ├── vts_l3_Sink_Concurrent_NonTunnel_NonSecure_QueueDepth.yaml
+│   ├── vts_l3_Sink_Concurrent_NonTunnel_NonSecure_UnderflowResumed.yaml
+│   ├── vts_l3_Sink_Concurrent_NonTunnel_NonSecure_VideoFlush.yaml
+│   ├── vts_l3_Sink_Sequential_NonTunnel_NonSecure_DiscardFramesUntil.yaml
+│   ├── vts_l3_Sink_Sequential_NonTunnel_NonSecure_EOS.yaml
+│   ├── vts_l3_Sink_Sequential_NonTunnel_NonSecure_FramesDroppedFRC.yaml
+│   ├── vts_l3_Sink_Sequential_NonTunnel_NonSecure_FramesDroppedLate.yaml
+│   ├── vts_l3_Sink_Sequential_NonTunnel_NonSecure_FramesMiss.yaml
+│   ├── vts_l3_Sink_Sequential_NonTunnel_NonSecure_FramesReceived.yaml
+│   ├── vts_l3_Sink_Sequential_NonTunnel_NonSecure_FramesRepeatedFRC.yaml
+│   ├── vts_l3_Sink_Sequential_NonTunnel_NonSecure_QueueDepth.yaml
+│   ├── vts_l3_Sink_Sequential_NonTunnel_NonSecure_UnderflowResumed.yaml
+│   ├── vts_l3_Sink_Sequential_NonTunnel_NonSecure_VideoFlush.yaml
+│   ├── vts_l3_Sink_Testcase_Configurations.yaml
+│   └── vts_l3_test_config.yaml
+└── vts_videosink
 ```
 
 ## Run test
@@ -115,9 +172,24 @@ tar -zxf videosink_vts.tar.gz
 cd bin
 ```
 
+To execute `L3` test cases, elementary streams are required. Please copy all necessary test streams into the `bin/test_configuration` folder on the target device.
+
 - Run the Test:
-Execute the run.sh script as root:
+
+Execute the run.sh script as root: (Note: Disable logging to prevent delays and ensure smooth test execution. See "Disable Logging" under Build Steps for details.)
 
 ```bash
-sudo ./run.sh -p profiles/hfp-videosink.yaml
+sudo ./run.sh -p profiles/hfp-videosink_vdevice.yaml
+```
+
+To run the binary with two processes simultaneously:
+
+Open two separate SSH sessions to the target device. In each session, navigate to the `bin` directory  and execute one of the following commands:
+
+```bash
+ sudo ./run.sh -p profiles/hfp-videosink_vdevice_instance_1.yaml
+```
+
+```bash
+ sudo ./run.sh -p profiles/hfp-videosink_vdevice_instance_2.yaml
 ```
