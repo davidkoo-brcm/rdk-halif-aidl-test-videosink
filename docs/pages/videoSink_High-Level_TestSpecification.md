@@ -141,67 +141,53 @@ The following table outlines the core features validated in the L3 test phase
 |#|Testing Feature|Description|
 |-|---------------|-----------|
 |1|Tunnel/Non-Tunnel|Executes the sink in tunnel mode. Based on video decoder configuration, the sink chooses between tunnel and non-tunnel operation. In tunnel mode, the test validates by reading the metrics data like (METRIC_FRAMES_RECEIVED, METRIC_FRAMES_PRESENTED, METRIC_FRAMES_DROPPED_FRC etc).|
-|2|Render First Frame|Test the sink's capability to send `onFirstFrameRendered` callback event with presentation time on First frame rendering.|
-|3|EOS|Test the sink's handling of an `eos` (end-of-stream) signal. sink should raise an event call back on receiving `eos` frame.|
-|4|Underflow|Test the sink's handling of video underflow. Sink should be able to raise event during video buffer underflow condition. |
-|5|Video Resume|Verifies Sink can resume video playback after an underflow occurred in the video buffer. Sink should be able to raise event `onVideoResumed` during video buffer underflow condition.|
-|6|Flush without hold last frame|Test the sinks's flush functionality. The sink discard any buffers already queued and resume normal playback of subsequent frames without displaying the last frame till new frame is received. Sink will raise an event `onFlushComplete`|
-|7|Flush with hold last frame|Test the sink’s flush functionality combined with hold last frame. The sink should discard all queued buffers and resume playback of subsequent frame by displaying the last frame till new frame is received. Sink will raise an event `onFlushComplete`|
-|8|Discard Frame Till|Test the sink's ability to discard the incoming frames till the specified presentation time. This can be validated by calculating expected number of frames to be dropped from queue match with the Number of frames dropped Metrics data|
-|9|Queue Depth|This test verifies the sink's queue depth by reading the property. Test supply the frames to the queue and validate the frame queue depth value|
-|10|Frames Dropped| This test verifies the metric data read form the sink's property to know how many frames are dropped during playback of known error stream. |
-|11|Frames Dropped due to frame rate change| This test verifies the metric data read form the sink's property to know how many frames are dropped becaus of frame rate change in stream during playback. Validate the test by setting frame rate that is lower than the test stream|
-|12|Frames Repeated due to frame rate change | This test verifies the metric data read form the sink's property to know how many frames are repeated during playback. Validate the test by setting frame rate that is higher than the test stream |
-|13|Multi Instance|If platform supports multiple sinks, test executes multiple sinks simultaneously, validating outputs and their respective metrics.|
+|2|EOS|Test the sink's handling of an `eos` (end-of-stream) signal. Sink should raise an event callback on receiving the `eos` frame.|
+|3|Underflow|Test the sink's handling of video underflow. Sink should raise an event during a video buffer underflow condition.|
+|4|Video Resume|Verifies Sink can resume video playback after an underflow occurred in the video buffer. Sink should raise the event `onVideoResumed` after recovering from underflow.|
+|5|Flush|Tests the sink’s flush functionality. The sink should discard any queued buffers and resume playback with the appropriate behavior—either displaying the last frame until a new one is received (hold last frame), or not displaying it (no hold). Sink will raise the `onFlushComplete` event.|
+|6|Discard Frame Till|Tests the sink's ability to discard incoming frames up to a specified presentation time (PTS). This can be validated by comparing the expected number of discarded frames with the metrics (e.g., number of frames dropped).|
+|7|Queue Depth|Verifies the sink's queue depth by supplying frames and checking the reported queue depth property.|
+|8|Frames Dropped|Verifies the number of frames dropped during playback using sink metrics while playing a stream with known frame drop issues.|
+|9|Frames Dropped due to frame rate change|Verifies the number of frames dropped due to a frame rate mismatch between stream and playback rate. Set playback frame rate lower than the stream rate to validate.|
+|10|Frames Repeated due to frame rate change|Verifies the number of frames repeated due to frame rate mismatch. Set playback frame rate higher than the stream rate to validate.|
+|11|Multi Instance|If the platform supports multiple sinks, this test runs multiple instances simultaneously to validate independent output and associated metrics.|
 
 
-|#|Test|Tunnel|Render First Frame|EOS|Underflow|Video Resume|Flush|Flush+Hold Last Frame|Discard Frame Till|Queue Depth|Frames Dropped|Frames Dropped due to frame rate change|Frames Repeated due to frame rate change|Multi Instance|
-|-|----|------|------------------|---|---------|------------|-----|---------------------|------------------|-----------|--------------|---------------------------------------|----------------------------------------|--------------|
-|1|Sink_Sequential_NonTunnel|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|
-|2|Sink_Sequential_NonTunnel_RenderFirstFrame|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|
-|3|Sink_Sequential_NonTunnel_EOS|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|
-|4|Sink_Sequential_NonTunnel_Underflow|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|
-|5|Sink_Sequential_NonTunnel_VideoResume|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|
-|6|Sink_Sequential_NonTunnel_Flush|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|
-|7|Sink_Sequential_NonTunnel_FlushHoldFrame|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|
-|8|Sink_Sequential_NonTunnel_DiscardFrameTill|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|
-|9|Sink_Sequential_NonTunnel_QueueDepth|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|
-|10|Sink_Sequential_NonTunnel_FramesDropped|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|
-|11|Sink_Sequential_NonTunnel_FramesDroppedForFRC|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|
-|12|Sink_Sequential_NonTunnel_FramesRepeatedForFRC|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|
-|13|Sink_Sequential_Tunnel|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|
-|14|Sink_Sequential_Tunnel_RenderFirstFrame|✔|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|
-|15|Sink_Sequential_Tunnel_EOS|✔|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|
-|16|Sink_Sequential_Tunnel_Underflow|✔|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|
-|17|Sink_Sequential_Tunnel_VideoResume|✔|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|
-|18|Sink_Sequential_Tunnel_Flush|✔|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|
-|19|Sink_Sequential_Tunnel_FlushHoldFrame|✔|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|
-|20|Sink_Sequential_Tunnel_DiscardFrameTill|✔|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|
-|21|Sink_Sequential_Tunnel_QueueDepth|✔|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|
-|22|Sink_Sequential_Tunnel_FramesDropped|✔|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|
-|23|Sink_Sequential_Tunnel_FramesDroppedForFRC|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|
-|24|Sink_Sequential_Tunnel_FramesRepeatedForFRC|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|
-|25|Sink_MultiInstance_NonTunnel|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|
-|26|Sink_MultiInstance_NonTunnel_RenderFirstFrame|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|
-|27|Sink_MultiInstance_NonTunnel_EOS|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|
-|28|Sink_MultiInstance_NonTunnel_Underflow|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|✔|
-|29|Sink_MultiInstance_NonTunnel_VideoResume|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✔|
-|30|Sink_MultiInstance_NonTunnel_Flush|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|✔|
-|31|Sink_MultiInstance_NonTunnel_FlushHoldFrame|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|✔|
-|32|Sink_MultiInstance_NonTunnel_DiscardFrameTill|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|✔|
-|33|Sink_MultiInstance_NonTunnel_QueueDepth|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|✔|
-|34|Sink_MultiInstance_NonTunnel_FramesDropped|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|✔|
-|35|Sink_MultiInstance_NonTunnel_FramesDroppedForFRC|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|✔|
-|36|Sink_MultiInstance_NonTunnel_FramesRepeatedForFRC|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|✔|
-|37|Sink_MultiInstance_Tunnel|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|
-|38|Sink_MultiInstance_Tunnel_RenderFirstFrame|✔|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|
-|39|Sink_MultiInstance_Tunnel_EOS|✔|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|
-|40|Sink_MultiInstance_Tunnel_Underflow|✔|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✘|✔|
-|41|Sink_MultiInstance_Tunnel_VideoResume|✔|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✔|
-|42|Sink_MultiInstance_Tunnel_Flush|✔|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|✘|✔|
-|43|Sink_MultiInstance_Tunnel_FlushHoldFrame|✔|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|✘|✔|
-|44|Sink_MultiInstance_Tunnel_DiscardFrameTill|✔|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|✘|✔|
-|45|Sink_MultiInstance_Tunnel_QueueDepth|✔|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|✘|✔|
-|46|Sink_MultiInstance_Tunnel_FramesDropped|✔|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|✘|✔|
-|47|Sink_MultiInstance_Tunnel_FramesDroppedForFRC|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|✘|✔|
-|48|Sink_MultiInstance_Tunnel_FramesRepeatedForFRC|✔|✘|✘|✘|✘|✘|✘|✘|✘|✘|✘|✔|✔|
+| # | Test | Tunnel | EOS | Underflow | Video Resume | Flush | Discard Frame Till | Queue Depth | Frames Dropped | Frames Dropped due to FRC | Frames Repeated due to FRC | Multi Instance |
+|---|------|--------|-----|-----------|---------------|-------|--------------------|--------------|----------------|-----------------------------|------------------------------|----------------|
+| 1 | Sink_Sequential_NonTunnel | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ |
+| 2 | Sink_Sequential_NonTunnel_EOS | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ |
+| 3 | Sink_Sequential_NonTunnel_Underflow | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ |
+| 4 | Sink_Sequential_NonTunnel_VideoResume | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ |
+| 5 | Sink_Sequential_NonTunnel_Flush | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ |
+| 6 | Sink_Sequential_NonTunnel_DiscardFrameTill | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ |
+| 7 | Sink_Sequential_NonTunnel_QueueDepth | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ |
+| 8 | Sink_Sequential_NonTunnel_FramesDropped | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ |
+| 9 | Sink_Sequential_NonTunnel_FramesDroppedForFRC | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ |
+|10 | Sink_Sequential_NonTunnel_FramesRepeatedForFRC | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ |
+|11 | Sink_Sequential_Tunnel | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ |
+|12 | Sink_Sequential_Tunnel_EOS | ✔ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ |
+|13 | Sink_Sequential_Tunnel_Underflow | ✔ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ |
+|14 | Sink_Sequential_Tunnel_VideoResume | ✔ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ |
+|15 | Sink_Sequential_Tunnel_Flush | ✔ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ |
+|16 | Sink_Sequential_Tunnel_DiscardFrameTill | ✔ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ |
+|17 | Sink_Sequential_Tunnel_QueueDepth | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ |
+|18 | Sink_Sequential_Tunnel_FramesDropped | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ |
+|19 | Sink_Sequential_Tunnel_FramesDroppedForFRC | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ |
+|20 | Sink_Sequential_Tunnel_FramesRepeatedForFRC | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ |
+|21 | Sink_MultiInstance_NonTunnel | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ |
+|22 | Sink_MultiInstance_NonTunnel_EOS | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ |
+|23 | Sink_MultiInstance_NonTunnel_Underflow | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ |
+|24 | Sink_MultiInstance_NonTunnel_VideoResume | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ |
+|25 | Sink_MultiInstance_NonTunnel_Flush | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ |
+|26 | Sink_MultiInstance_NonTunnel_DiscardFrameTill | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✔ |
+|27 | Sink_MultiInstance_NonTunnel_QueueDepth | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✔ |
+|28 | Sink_MultiInstance_NonTunnel_FramesDropped | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✔ |
+|29 | Sink_MultiInstance_NonTunnel_FramesDroppedForFRC | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✔ |
+|30 | Sink_MultiInstance_NonTunnel_FramesRepeatedForFRC | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✔ |
+|31 | Sink_MultiInstance_Tunnel | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ |
+|32 | Sink_MultiInstance_Tunnel_EOS | ✔ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ |
+|33 | Sink_MultiInstance_Tunnel_Underflow | ✔ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ |
+|34 | Sink_MultiInstance_Tunnel_VideoResume | ✔ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ |
+|35 | Sink_MultiInstance_Tunnel_Flush | ✔ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ |
+|36 | Sink_MultiInstance_Tunnel_DiscardFrameTill | ✔ | ✘ | ✘ | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✘ | ✔ |
