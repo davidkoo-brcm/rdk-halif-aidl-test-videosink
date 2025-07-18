@@ -70,11 +70,11 @@
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
 
-#define VTS_TEST_CONFIG_PATH "./test_configuration/vts_l3_test_config.yaml"
-#define VTS_STREAM_CONFIG_PATH "./test_configuration/vts_stream_list.yaml"
-#define STREAM_DOWNLOAD_PATH "IVideoSinkManager.stream_download_path"
-#define STREAM_INPUT_PATH "IVideoSinkManager.input_streams_path"
-#define STREAM_REF_PATH "IVideoSinkManager.reference_streams_path"
+#define VIDEO_SINK_TEST_CONFIG_PATH "./test_configuration/vts_l3_test_config.yaml"
+#define VIDEO_SINK_STREAM_CONFIG_PATH "./test_configuration/vts_stream_list.yaml"
+#define VIDEO_SINK_STREAM_DOWNLOAD_PATH "IVideoSinkManager.stream_download_path"
+#define VIDEO_SINK_STREAM_INPUT_PATH "IVideoSinkManager.input_streams_path"
+#define VIDEO_SINK_STREAM_REF_PATH "IVideoSinkManager.reference_streams_path"
 
 struct frameMetadata_t {
     std::string name;

@@ -64,6 +64,7 @@
 
 #include <filesystem>
 #include "vts_videosink_parse_testconfig.h"
+#include "vts_videosink.h"
 
 using namespace std;
 
@@ -76,41 +77,6 @@ static uint32_t codecFromString(const std::string& codecStr)
     if (codecStr == "AV1")  return 5;
     return 0; // unknown codec
 }
-
-void* vts_kvp_create_instance(char *fileName)
-{
-    ut_kvp_instance_t* instance;
-    ut_kvp_status_t result;
-
-    UT_LOG_INFO("In %s", __FUNCTION__);
-
-    instance = ut_kvp_createInstance();
-
-    if(!instance)
-    {
-        UT_LOG_ERROR("Failed to create ut kvp instance");
-        return nullptr;
-    }
-
-    result = ut_kvp_open(instance, fileName);
-
-    if(result != UT_KVP_STATUS_SUCCESS)
-    {
-        UT_LOG_ERROR("Failed to open test configuration file");
-        ut_kvp_destroyInstance(instance);
-        return nullptr;
-    }
-
-    UT_LOG_INFO("Out  %s", __FUNCTION__);
-
-    return (ut_kvp_instance_t*)instance;
-}
-
-void vts_kvp_destroy_instance(void *instance)
-{
-    ut_kvp_destroyInstance((ut_kvp_instance_t*)instance);
-}
-
 
 UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *module, const char *testGroup, const char *testName, vector<videoTestConfiguration_t>& testConfigurations)
 {

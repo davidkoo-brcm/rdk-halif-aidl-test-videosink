@@ -97,7 +97,7 @@ public:
 
         UT_ASSERT_TRUE(eventListener->checkStateTransistion(oldState, intermediateState));
 
-        eventListener->waitForState(newState, std::chrono::milliseconds(MAX_FINAL_STATE_WAIT_MS));
+        eventListener->waitForState(newState, std::chrono::milliseconds(VIDEO_SINK_MAX_FINAL_STATE_WAIT_MS));
 
         VIDEOSINK_GET_STATE(sink, currentState);
 
