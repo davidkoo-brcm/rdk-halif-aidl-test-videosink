@@ -1,0 +1,471 @@
+# This is a sample test configuration file. Users can customize the YAML entries as needed
+# This test configuration file includes sample YAML entries for executing various combinations
+AVModule:
+  description: "audioDecoder L1 and L2 test setup"
+  test_suites: # List of L1 and L2 test suites
+    ######################################
+    # Entry to run all test case
+    ######################################
+    #- name: "VTS_L1_AudioDecoder"
+    #  test_cases:
+    #    - all
+
+    #######################################
+    # Entries to run individual test cases
+    #######################################
+      # - name: "VTS_L1_AudioDecoder"
+      #   test_cases:
+      #     - getAudioDecoderIds_pos     
+      #     - getAudioDecoder_pos        
+      #     - getAudioDecoder_neg        
+      #     - getCapabilities_pos        
+      #     - getProperty_pos            
+      #     - getProperty_neg            
+      #     - getState_pos               
+      #     - open_pos                   
+      #     - open_neg                   
+      #     - close_pos                  
+      #     - close_neg                  
+      #     - registerEventListener_pos  
+      #     - registerEventListener_neg  
+      #     - unregisterEventListener_pos
+      #     - unregisterEventListener_neg
+      #     - start_pos                  
+      #     - start_neg                  
+      #     - stop_pos                   
+      #     - stop_neg                   
+      #     - decodeBuffer_neg           
+      #     - flush_pos                  
+      #     - flush_neg                  
+      #     - signalDiscontinuity_pos    
+      #     - signalDiscontinuity_neg    
+      #     - signalEOS_pos              
+      #     - signalEOS_neg              
+      #     - parseCodecSpecificData_pos 
+      #     - parseCodecSpecificData_neg 
+      #     - setProperty_pos            
+      #     - setProperty_neg            
+      # - name: "VTS_L2_AudioDecoder"
+      #   test_cases:
+      #     - SetandGetProperties                 
+      #     - SetandGetProperties_multipleInstance
+      #     - StateTransitions                    
+      #     - StateTransitions_mutipleInstance 
+      - name: "VTS_L3_AudioDecoder"
+        test_cases:
+          - Decode_Sequential_NonTunnel_NonSecure                  
+          - Decode_Sequential_NonTunnel_NonSecure_Error            
+          - Decode_Sequential_NonTunnel_NonSecure_Trim             
+          - Decode_Sequential_NonTunnel_NonSecure_Discontinuity    
+          - Decode_Sequential_NonTunnel_NonSecure_EOS              
+          - Decode_Sequential_NonTunnel_NonSecure_Flush            
+          - Decode_Sequential_NonTunnel_NonSecure_FlushReset       
+          - Decode_Sequential_NonTunnel_NonSecure_StopStart        
+          - Decode_Sequential_NonTunnel_Secure                     
+          - Decode_Sequential_NonTunnel_Secure_Error               
+          - Decode_Sequential_NonTunnel_Secure_Trim                
+          - Decode_Sequential_NonTunnel_Secure_Discontinuity       
+          - Decode_Sequential_NonTunnel_Secure_EOS                 
+          - Decode_Sequential_NonTunnel_Secure_Flush               
+          - Decode_Sequential_NonTunnel_Secure_FlushReset          
+          - Decode_Sequential_NonTunnel_Secure_StopStart           
+          - Decode_Concurrent_NonTunnel_NonSecure                  
+          - Decode_Concurrent_NonTunnel_NonSecure_Error            
+          - Decode_Concurrent_NonTunnel_NonSecure_Trim             
+          - Decode_Concurrent_NonTunnel_NonSecure_Discontinuity    
+          - Decode_Concurrent_NonTunnel_NonSecure_EOS              
+          - Decode_Concurrent_NonTunnel_NonSecure_Flush            
+          - Decode_Concurrent_NonTunnel_NonSecure_FlushReset       
+          - Decode_Concurrent_NonTunnel_NonSecure_StopStart        
+          - Decode_Concurrent_NonTunnel_Secure                     
+          - Decode_Concurrent_NonTunnel_Secure_Error               
+          - Decode_Concurrent_NonTunnel_Secure_Trim                
+          - Decode_Concurrent_NonTunnel_Secure_Discontinuity       
+          - Decode_Concurrent_NonTunnel_Secure_EOS                 
+          - Decode_Concurrent_NonTunnel_Secure_Flush               
+          - Decode_Concurrent_NonTunnel_Secure_FlushReset          
+          - Decode_Concurrent_NonTunnel_Secure_StopStart           
+
+    ######################################
+    # Entry to run all test case
+    ######################################
+    #- name: "VTS_L1_AudioSink"
+    #  test_cases:
+    #    - all
+
+    #######################################
+    # Entries to run individual test cases
+    #######################################
+      - name: "VTS_L1_AudioSink"
+        test_cases:
+            - getAudioSinkIds_pos           
+            - getPlatformCapabilities_pos   
+            - getAudioSink_pos              
+            - getAudioSink_neg              
+            - getCapabilities_pos           
+            - getProperty_pos               
+            - getProperty_neg               
+            - setProperty_pos               
+            - setProperty_neg               
+            - getState_pos                  
+            - open_pos                      
+            - open_neg                      
+            - close_pos                     
+            - close_neg                     
+            - registerEventListener_pos     
+            - registerEventListener_neg     
+            - unregisterEventListener_pos   
+            - unregisterEventListener_neg   
+            - setAudioDecoder_pos           
+            - setAudioDecoder_neg           
+            - getAudioDecoder_pos           
+            - start_pos                     
+            - start_neg                     
+            - stop_pos                      
+            - stop_neg                      
+            - queueAudioFrame_neg           
+            - flush_pos                     
+            - flush_neg                     
+            - getVolume_pos                 
+            - setVolume_pos                 
+            - setVolume_neg                 
+            - setVolumeRamp_pos             
+            - setVolumeRamp_neg   
+      - name: "VTS_L2_AudioSink"
+        test_cases:
+            - TestReadWriteProperties         
+            - TestStateTransition             
+            - TestAudioSinkVolumeControl      
+            - TestAudioSinkMuteUnmute         
+            - TestAudioSinkVolumeRamp         
+            - TestAudioSinkVolumeRampMute     
+            - TestAudioSinkVolumeRampTwice    
+            - TestStopAudioSinkVolRampProgress
+      - name: "VTS_L3_AudioSink"
+        test_cases:
+            - Sink_Sequential_NonTunnel_NonSecure             
+            - Sink_Sequential_NonTunnel_NonSecure_Flush       
+            - Sink_Sequential_NonTunnel_NonSecure_EOS         
+            - Sink_Sequential_NonTunnel_NonSecure_Underflow   
+            - Sink_Sequential_NonTunnel_Secure                
+            - Sink_Sequential_NonTunnel_Secure_Flush          
+            - Sink_Sequential_NonTunnel_Secure_EOS            
+            - Sink_Sequential_NonTunnel_Secure_Underflow      
+            - Sink_Sequential_Tunnel_NonSecure                
+            - Sink_Sequential_Tunnel_NonSecure_Flush          
+            - Sink_Sequential_Tunnel_NonSecure_EOS            
+            - Sink_Sequential_Tunnel_NonSecure_Underflow      
+            - Sink_Sequential_Tunnel_Secure                   
+            - Sink_Sequential_Tunnel_Secure_Flush             
+            - Sink_Sequential_Tunnel_Secure_EOS               
+            - Sink_Sequential_Tunnel_Secure_Underflow         
+            - Sink_Concurrent_NonTunnel_NonSecure             
+            - Sink_Concurrent_NonTunnel_NonSecure_Flush       
+            - Sink_Concurrent_NonTunnel_NonSecure_EOS         
+            - Sink_Concurrent_NonTunnel_NonSecure_Underflow   
+            - Sink_Concurrent_NonTunnel_Secure                
+            - Sink_Concurrent_NonTunnel_Secure_Flush          
+            - Sink_Concurrent_NonTunnel_Secure_EOS            
+            - Sink_Concurrent_NonTunnel_Secure_Underflow      
+            - Sink_Concurrent_Tunnel_NonSecure                
+            - Sink_Concurrent_Tunnel_NonSecure_Flush          
+            - Sink_Concurrent_Tunnel_NonSecure_EOS            
+            - Sink_Concurrent_Tunnel_NonSecure_Underflow      
+            - Sink_Concurrent_Tunnel_Secure                   
+            - Sink_Concurrent_Tunnel_Secure_Flush             
+            - Sink_Concurrent_Tunnel_Secure_EOS               
+            - Sink_Concurrent_Tunnel_Secure_Underflow         
+    ######################################
+    # Entry to run all test case
+    ######################################
+    #- name: "VTS_L1_VideoSink"
+    #  test_cases:
+    #    - all
+
+    #######################################
+    # Entries to run individual test cases
+    #######################################
+    #  - name: "VTS_L1_AVBuffer"
+    #    test_cases:
+    #        - getHeapMetrics_pos          
+    #        - createVideoPool_pos         
+    #        - createVideoPool_neg         
+    #        - createAudioPool_pos         
+    #        - createAudioPool_neg           
+    #        - destroyPool_pos             
+    #        - destroyPool_neg             
+    #        - getPoolMetrics_pos          
+    #        - getPoolMetrics_neg          
+    #        - getAllPoolMetrics_pos       
+    #        - alloc_pos                   
+    #        - alloc_neg                   
+    #        - notifyWhenSpaceAvailable_pos
+    #        - notifyWhenSpaceAvailable_neg
+    #        - trimSize_pos                
+    #        - trimSize_neg                
+    #        - free_pos                    
+    #        - free_neg                    
+    #        - isValid_pos                 
+    #        - getAllocList_pos            
+    #        - getAllocList_neg            
+    #        - calculateSHA1_pos           
+    #        - calculateSHA1_neg           
+     - name: "VTS_L3_AVBuffer"
+       test_cases:
+          - seq_nonsec_audiopool           
+          - seq_nonsec_audiopoolpcm        
+          - seq_nonsec_audiopool_alloc     
+          - seq_nonsec_audiopool_trim      
+          - seq_nonsec_audiopool_notify    
+          - seq_nonsec_audiopool_readwrite 
+          - seq_nonsec_audiopool_sha1      
+          - seq_sec_audiopool              
+          - seq_sec_audiopoolpcm           
+          - seq_sec_audiopool_alloc        
+          - seq_sec_audiopool_trim         
+          - seq_sec_audiopool_notify       
+          - seq_sec_audiopool_readwrite    
+          - seq_sec_audiopool_sha1         
+          - con_nonsec_audiopool           
+          - con_nonsec_audiopool_alloc     
+          - con_nonsec_audiopool_trim      
+          - con_nonsec_audiopool_notify    
+          - con_nonsec_audiopool_readwrite 
+          - con_nonsec_audiopool_sha1      
+          - con_sec_audiopool              
+          - con_sec_audiopool_alloc        
+          - con_sec_audiopool_trim         
+          - con_sec_audiopool_notify       
+          - con_sec_audiopool_readwrite    
+          - con_sec_audiopool_sha1         
+          - seq_nonsec_videopool           
+          - seq_nonsec_videopool_alloc     
+          - seq_nonsec_videopool_trim      
+          - seq_nonsec_videopool_notify    
+          - seq_nonsec_videopool_readwrite 
+          - seq_nonsec_videopool_sha1      
+          - seq_sec_videopool              
+          - seq_sec_videopool_alloc        
+          - seq_sec_videopool_trim         
+          - seq_sec_videopool_notify       
+          - seq_sec_videopool_readwrite    
+          - seq_sec_videopool_sha1         
+          - con_nonsec_videopool           
+          - con_nonsec_videopool_alloc     
+          - con_nonsec_videopool_trim     
+          - con_nonsec_videopool_notify   
+          - con_nonsec_videopool_readwrite
+          - con_nonsec_videopool_sha1     
+          - con_sec_videopool             
+          - con_sec_videopool_alloc       
+          - con_sec_videopool_trim        
+          - con_sec_videopool_notify      
+          - con_sec_videopool_readwrite   
+          - con_sec_videopool_sha1        
+    ######################################
+    # Entry to run all test case
+    ######################################
+    #- name: "VTS_L1_VideoDecoder"
+    #  test_cases:
+    #    - all
+
+    #######################################
+    # Entries to run individual test cases
+    #######################################
+      # - name: "VTS_L1_VideoDecoder"
+      #   test_cases:
+      #     - getVideoDecoderIds_pos          
+      #     - getSupportedOperationalModes_pos
+      #     - getVideoDecoder_pos             
+      #     - getVideoDecoder_neg             
+      #     - getCapabilities_pos             
+      #     - getProperty_pos                 
+      #     - getProperty_neg                 
+      #     - getPropertyMulti_pos            
+      #     - getPropertyMulti_neg            
+      #     - getState_pos                    
+      #     - open_pos                        
+      #     - open_neg                        
+      #     - close_pos                       
+      #     - close_neg                       
+      #     - registerEventListener_pos       
+      #     - registerEventListener_neg       
+      #     - unregisterEventListener_pos     
+      #     - unregisterEventListener_neg     
+      #     - start_pos                       
+      #     - start_neg                       
+      #     - stop_pos                        
+      #     - stop_neg                        
+      #     - setProperty_pos                 
+      #     - setProperty_neg                 
+      #     - decodeBuffer_neg                
+      #     - flush_pos                       
+      #     - flush_neg                       
+      #     - signalDiscontinuity_pos         
+      #     - signalDiscontinuity_neg         
+      #     - signalEOS_pos                   
+      #     - signalEOS_neg                   
+      #     - parseCodecSpecificData_pos      
+      #     - parseCodecSpecificData_neg
+      # - name: "VTS_L2_VideoDecoder"
+      #   test_cases:
+      #     - TestGetAndSetProperties                     
+      #     - TestGetAndSetProperties_multipleInstance    
+      #     - TestDecoderStateTransitions                 
+      #     - TestDecoderStateTransitions_multipleInstance
+     - name: "VTS_L3_VideoDecoder"
+       test_cases:
+          - Decode_Sequential_NonTunnel_NonSecure              
+          # - Decode_Sequential_NonTunnel_NonSecure_Error        
+          # - Decode_Sequential_NonTunnel_NonSecure_GOP          
+          # - Decode_Sequential_NonTunnel_NonSecure_Discontinuity
+          # - Decode_Sequential_NonTunnel_NonSecure_EOS          
+          # - Decode_Sequential_NonTunnel_NonSecure_Flush        
+          # - Decode_Sequential_NonTunnel_NonSecure_FlushReset   
+          # - Decode_Concurrent_NonTunnel_NonSecure              
+          # - Decode_NonTunnel_NonSecure_Error_Discontinuity     
+          # - Decode_NonTunnel_NonSecure_Error_EOS               
+          # - Decode_NonTunnel_NonSecure_Discontinuity_EOS       
+          # - Decode_NonTunnel_NonSecure_Flush_Error             
+          # - Decode_NonTunnel_NonSecure_FlushReset_Error        
+          # - Decode_Concurrent_NonTunnel_NonSecure_Error        
+          # - Decode_Concurrent_NonTunnel_NonSecure_Discontinuity
+          # - Decode_Concurrent_NonTunnel_NonSecure_EOS          
+          # - Decode_Concurrent_NonTunnel_NonSecure_Flush        
+          # - Decode_Concurrent_NonTunnel_NonSecure_FlushReset   
+          # - Decode_Concurrent_NonTunnel_NonSecure_GOPStructure 
+    ######################################
+    # Entry to run all test case
+    ######################################
+    #- name: "VTS_L1_VideoSink"
+    #  test_cases:
+    #    - all
+
+    #######################################
+    # Entries to run individual test cases
+    #######################################
+    # - name: "VTS_L1_VideoSink"
+    #   test_cases:
+    #       - getVideoSinkIds_pos
+    #       - getVideoSink_pos            
+    #       - getVideoSink_neg            
+    #       - getCapabilities_pos
+    #       - getProperty_pos             
+    #       - getProperty_neg            
+    #       - getState_pos                
+    #       - open_pos                    
+    #       - open_neg                   
+    #       - close_pos                  
+    #       - close_neg                  
+    #       - registerEventListener_pos  
+    #       - registerEventListener_neg  
+    #       - unregisterEventListener_pos
+    #       - unregisterEventListener_neg
+    #       - setProperty_pos            
+    #       - setProperty_neg            
+    #       - setVideodecoder_pos        
+    #       - setVideodecoder_neg        
+    #       - getVideodecoder_pos        
+    #       - start_pos                  
+    #       - start_neg                  
+    #       - stop_pos                  
+    #       - stop_neg                   
+    #       - queueVideoFrame_neg        
+    #       - flush_pos                  
+    #       - flush_neg                  
+    #       - discardFramesUntil_pos     
+    #       - discardFramesUntil_neg
+    # - name: "VTS_L2_VideoSink"
+    #   test_cases:
+    #        - TestSetAndGetProperty                 
+    #        - TestSetAndGetProperty_multipleInstance
+    #        - TestStateTransitions                  
+    #        - TestStateTransitions_multipleInstance 
+     - name: "VTS_L3_VideoSink"
+       test_cases:
+            # - Sink_Sequential_NonTunnel_NonSecure_QueueDepth
+            # - Sink_Sequential_NonTunnel_NonSecure_FramesReceived 
+            # - Sink_Sequential_NonTunnel_NonSecure_FramesDroppedLate 
+            # - Sink_Sequential_NonTunnel_NonSecure_FramesRepeatedFRC
+            - Sink_Sequential_NonTunnel_NonSecure_FramesMiss 
+            - Sink_Sequential_NonTunnel_NonSecure_FramesDroppedFRC
+            - Sink_Sequential_NonTunnel_NonSecure_VideoFlush 
+            - Sink_Sequential_NonTunnel_NonSecure_EOS          
+            - Sink_Sequential_NonTunnel_NonSecure_UnderflowResumed
+            - Sink_Sequential_NonTunnel_NonSecure_DiscardFramesUntil          
+            - Sink_Concurrent_NonTunnel_NonSecure_QueueDepth                  
+            - Sink_Concurrent_NonTunnel_NonSecure_FramesReceived              
+            - Sink_Concurrent_NonTunnel_NonSecure_FramesDroppedLate           
+            - Sink_Concurrent_NonTunnel_NonSecure_FramesDroppedFRC            
+            - Sink_Concurrent_NonTunnel_NonSecure_FramesRepeatedFRC           
+            - Sink_Concurrent_NonTunnel_NonSecure_FramesMiss                  
+            - Sink_Concurrent_NonTunnel_NonSecure_VideoFlush                  
+            - Sink_Concurrent_NonTunnel_NonSecure_EOS                         
+            - Sink_Concurrent_NonTunnel_NonSecure_UnderflowResumed            
+            - Sink_Concurrent_NonTunnel_NonSecure_DiscardFramesUntil          
+            - Sink_Sequential_NonTunnel_Secure_QueueDepth                     
+            - Sink_Sequential_NonTunnel_Secure_FramesReceived                 
+            - Sink_Sequential_NonTunnel_Secure_FramesDroppedLate              
+            - Sink_Sequential_NonTunnel_Secure_FramesRepeatedFRC              
+            - Sink_Sequential_NonTunnel_Secure_FramesMiss                     
+            - Sink_Sequential_NonTunnel_Secure_FramesDroppedFRC               
+            - Sink_Sequential_NonTunnel_Secure_VideoFlush                     
+            - Sink_Sequential_NonTunnel_Secure_EOS                            
+            - Sink_Sequential_NonTunnel_Secure_UnderflowResumed               
+            - Sink_Sequential_NonTunnel_Secure_DiscardFramesUntil             
+            - Sink_Concurrent_NonTunnel_Secure_QueueDepth                     
+            - Sink_Concurrent_NonTunnel_Secure_FramesReceived                 
+            - Sink_Concurrent_NonTunnel_Secure_FramesDroppedLate              
+            - Sink_Concurrent_NonTunnel_Secure_FramesDroppedFRC               
+            - Sink_Concurrent_NonTunnel_Secure_FramesRepeatedFRC              
+            - Sink_Concurrent_NonTunnel_Secure_FramesMiss                     
+            - Sink_Concurrent_NonTunnel_Secure_VideoFlush                     
+            - Sink_Concurrent_NonTunnel_Secure_EOS                            
+            - Sink_Concurrent_NonTunnel_Secure_UnderflowResumed               
+            - Sink_Concurrent_NonTunnel_Secure_DiscardFramesUntil             
+            - Sink_Sequential_Tunnel_NonSecure_QueueDepth                     
+            - Sink_Sequential_Tunnel_NonSecure_FramesReceived                 
+            - Sink_Sequential_Tunnel_NonSecure_FramesDroppedLate              
+            - Sink_Sequential_Tunnel_NonSecure_FramesRepeatedFRC              
+            - Sink_Sequential_Tunnel_NonSecure_FramesMiss                     
+            - Sink_Sequential_Tunnel_NonSecure_FramesDroppedFRC               
+            - Sink_Sequential_Tunnel_NonSecure_VideoFlush                     
+            - Sink_Sequential_Tunnel_NonSecure_EOS                            
+            - Sink_Sequential_Tunnel_NonSecure_UnderflowResumed               
+            - Sink_Sequential_Tunnel_NonSecure_DiscardFramesUntil             
+            - Sink_Concurrent_Tunnel_NonSecure_QueueDepth                     
+            - Sink_Concurrent_Tunnel_NonSecure_FramesReceived                 
+            - Sink_Concurrent_Tunnel_NonSecure_FramesDroppedLate              
+            - Sink_Concurrent_Tunnel_NonSecure_FramesDroppedFRC               
+            - Sink_Concurrent_Tunnel_NonSecure_FramesRepeatedFRC              
+            - Sink_Concurrent_Tunnel_NonSecure_FramesMiss                     
+            - Sink_Concurrent_Tunnel_NonSecure_VideoFlush                     
+            - Sink_Concurrent_Tunnel_NonSecure_EOS                            
+            - Sink_Concurrent_Tunnel_NonSecure_UnderflowResumed               
+            - Sink_Concurrent_Tunnel_NonSecure_DiscardFramesUntil             
+            - Sink_Sequential_Tunnel_Secure_QueueDepth                        
+            - Sink_Sequential_Tunnel_Secure_FramesReceived                    
+            - Sink_Sequential_Tunnel_Secure_FramesDroppedLate                 
+            - Sink_Sequential_Tunnel_Secure_FramesRepeatedFRC                 
+            - Sink_Sequential_Tunnel_Secure_FramesMiss                        
+            - Sink_Sequential_Tunnel_Secure_FramesDroppedFRC                  
+            - Sink_Sequential_Tunnel_Secure_VideoFlush                        
+            - Sink_Sequential_Tunnel_Secure_EOS                               
+            - Sink_Sequential_Tunnel_Secure_UnderflowResumed                  
+            - Sink_Sequential_Tunnel_Secure_DiscardFramesUntil                
+            - Sink_Concurrent_Tunnel_Secure_QueueDepth                        
+            - Sink_Concurrent_Tunnel_Secure_FramesReceived                    
+            - Sink_Concurrent_Tunnel_Secure_FramesDroppedLate                 
+            - Sink_Concurrent_Tunnel_Secure_FramesDroppedFRC                  
+            - Sink_Concurrent_Tunnel_Secure_FramesRepeatedFRC                 
+            - Sink_Concurrent_Tunnel_Secure_FramesMiss                        
+            - Sink_Concurrent_Tunnel_Secure_VideoFlush                        
+            - Sink_Concurrent_Tunnel_Secure_EOS                               
+            - Sink_Concurrent_Tunnel_Secure_UnderflowResumed                  
+            - Sink_Concurrent_Tunnel_Secure_DiscardFramesUntil                 
+      
+
+
+          
+
+
