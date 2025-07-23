@@ -11,6 +11,6 @@ include_9: test_configuration/vts_l3_H264_UHD_30_YUV420.yaml
 #include_10: test_configuration/vts_l3_H264_UHD_60_YUV420.yaml
 
 IVideoDecoderManager:
-  stream_download_path: "http://hydra.bskyb.com/shared/Projects/RDK-E/streams/PolarisStreams/Video/" #`URL` path to download the video test streams
+  stream_download_path: "" #`URL` path to download the video test streams
   input_streams_path: "test_configuration" #Target path where input streams are stored
   reference_streams_path: "test_configuration" #Target path for reference decoded streams

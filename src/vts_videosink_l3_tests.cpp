@@ -79,6 +79,16 @@ IAVBufferHelper* gAVbufferHelper;
 extern std::vector<int32_t> gAvailableVideosinks_hfp;
 extern std::vector<int32_t> gAvailableVideodecoders_hfp;
 
+static sp<IAVBuffer> vts_avbuffer_getService()
+{
+    return
+        android::interface_cast<IAVBuffer>(
+            android::defaultServiceManager()->getService(
+                android::String16(IAVBuffer::serviceName().c_str())
+            )
+        );
+}
+
 class SinkTest
 {
 public:
@@ -508,7 +518,7 @@ public:
         vector<IVideoSink::Id> sinkIds;
         vector<IVideoDecoder::Id> videoDecoderIds;
 
-        mAVBufferManager = vts_getAVBufferService();
+        mAVBufferManager = vts_avbuffer_getService();
         gVideoSinkTestConfiguration = vts_kvp_create_instance(VIDEO_SINK_TEST_CONFIG_PATH);
 
         gAVbufferHelper = getAVBufferHelperInstance();
