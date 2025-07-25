@@ -1,6 +1,6 @@
 IVideoDecoderManager:
   L3:
-    Sink_Concurrent_FramesReceived_NonTunnel:
+    FramesReceived:
       Controls:
         delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
