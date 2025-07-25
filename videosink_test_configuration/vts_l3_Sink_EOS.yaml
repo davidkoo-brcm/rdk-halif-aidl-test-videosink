@@ -1,6 +1,7 @@
+
 IVideoDecoderManager:
   L3:
-    Sink_Sequential_NonTunnel_NonSecure_VideoFlush:
+    Sink_EOS:
       Controls:
         delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
@@ -13,9 +14,9 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: 299997000
+            sink_flush_pts: -1
             sink_flush_reset_pts: -1
-            sink_eos_pts: -1
+            sink_eos_pts: 299997000
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
@@ -26,9 +27,9 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: 299997000
+            sink_flush_pts: -1
             sink_flush_reset_pts: -1
-            sink_eos_pts: -1
+            sink_eos_pts: 299997000
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
@@ -39,9 +40,9 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: 150000003
+            sink_flush_pts: -1
             sink_flush_reset_pts: -1
-            sink_eos_pts: -1
+            sink_eos_pts: 150000003
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
@@ -52,9 +53,9 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: 150000003
+            sink_flush_pts: -1
             sink_flush_reset_pts: -1
-            sink_eos_pts: -1
+            sink_eos_pts: 150000003
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
@@ -65,9 +66,9 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: 299997000
+            sink_flush_pts: -1
             sink_flush_reset_pts: -1
-            sink_eos_pts: -1
+            sink_eos_pts: 299997000
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
@@ -78,9 +79,9 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: 299997000
+            sink_flush_pts: -1
             sink_flush_reset_pts: -1
-            sink_eos_pts: -1
+            sink_eos_pts: 299997000
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
@@ -91,9 +92,9 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: 150000003
+            sink_flush_pts: -1
             sink_flush_reset_pts: -1
-            sink_eos_pts: -1
+            sink_eos_pts: 150000003
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
@@ -104,9 +105,9 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: 150000003
+            sink_flush_pts: -1
             sink_flush_reset_pts: -1
-            sink_eos_pts: -1
+            sink_eos_pts: 150000003
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
@@ -117,9 +118,9 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: 299997000
+            sink_flush_pts: -1
             sink_flush_reset_pts: -1
-            sink_eos_pts: -1
+            sink_eos_pts: 299997000
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           # - Codec: H264
@@ -130,9 +131,9 @@ IVideoDecoderManager:
           #   sink_underflow_pts: -1
           #   sink_resumeTriggerPts: -1
           #   sink_repeatPerFrame: 1
-          #   sink_flush_pts: 299997000
+          #   sink_flush_pts: -1
           #   sink_flush_reset_pts: -1
-          #   sink_eos_pts: -1
+          #   sink_eos_pts: 299997000
           #   sink_interFrameDelayMs: -1
           #   sink_discontinuityPTS: -1
           - Codec: H264
@@ -143,9 +144,9 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: 150000003
+            sink_flush_pts: -1
             sink_flush_reset_pts: -1
-            sink_eos_pts: -1
+            sink_eos_pts: 150000003
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           # - Codec: H264
@@ -153,11 +154,11 @@ IVideoDecoderManager:
           #   rms_diff_threshold: 0.5
           #   decode_time_threshold: 10000000
           #   sink_discardFramesUntilPts: -1
-          #   sink_underflow_pts: 150000003
+          #   sink_underflow_pts: -1
           #   sink_resumeTriggerPts: -1
           #   sink_repeatPerFrame: 1
           #   sink_flush_pts: -1
           #   sink_flush_reset_pts: -1
-          #   sink_eos_pts: -1
+          #   sink_eos_pts: 150000003
           #   sink_interFrameDelayMs: -1
           #   sink_discontinuityPTS: -1

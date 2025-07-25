@@ -1,16 +1,26 @@
-include_0: videosink_test_configuration/vts_l3_Sink_Testcase_Configurations.yaml
-include_1: videosink_test_configuration/vts_l3_H264_HD_30_YUV420.yaml
-include_2: videosink_test_configuration/vts_l3_H264_HD_30_YUV444.yaml
-include_3: videosink_test_configuration/vts_l3_H264_HD_60_YUV420.yaml
-include_4: videosink_test_configuration/vts_l3_H264_HD_60_YUV444.yaml
-include_5: videosink_test_configuration/vts_l3_H264_SD_30_YUV420.yaml
-include_6: videosink_test_configuration/vts_l3_H264_SD_30_YUV444.yaml
-include_7: videosink_test_configuration/vts_l3_H264_SD_60_YUV420.yaml
-include_8: videosink_test_configuration/vts_l3_H264_SD_60_YUV444.yaml
-include_9: videosink_test_configuration/vts_l3_H264_UHD_30_YUV420.yaml
-#include_10: videosink_test_configuration/vts_l3_H264_UHD_60_YUV420.yaml
+include 0: videosink_test_configuration/vts_l3_Sink_DiscardFramesUntil.yaml
+include 1: videosink_test_configuration/vts_l3_Sink_EOS.yaml
+include 2: videosink_test_configuration/vts_l3_Sink_FramesDroppedFRC.yaml
+include 3: videosink_test_configuration/vts_l3_Sink_FramesDroppedLate.yaml
+include 4: videosink_test_configuration/vts_l3_Sink_FramesMiss.yaml
+include 5: videosink_test_configuration/vts_l3_Sink_FramesReceived.yaml
+include 6: videosink_test_configuration/vts_l3_Sink_FramesRepeatedFRC.yaml
+include 7: videosink_test_configuration/vts_l3_Sink_QueueDepth.yaml
+include 8: videosink_test_configuration/vts_l3_Sink_UnderflowResumed.yaml
+include 9: videosink_test_configuration/vts_l3_Sink_VideoFlush.yaml
+
+include_10: videosink_stream_configuration/vts_l3_H264_HD_30_YUV420.yaml
+include_11: videosink_stream_configuration/vts_l3_H264_HD_30_YUV444.yaml
+include_12: videosink_stream_configuration/vts_l3_H264_HD_60_YUV420.yaml
+include_13: videosink_stream_configuration/vts_l3_H264_HD_60_YUV444.yaml
+include_14: videosink_stream_configuration/vts_l3_H264_SD_30_YUV420.yaml
+include_15: videosink_stream_configuration/vts_l3_H264_SD_30_YUV444.yaml
+include_16: videosink_stream_configuration/vts_l3_H264_SD_60_YUV420.yaml
+include_17: videosink_stream_configuration/vts_l3_H264_SD_60_YUV444.yaml
+include_18: videosink_stream_configuration/vts_l3_H264_UHD_30_YUV420.yaml
+#include_19: videosink_stream_configuration/vts_l3_H264_UHD_60_YUV420.yaml
 
 IVideoDecoderManager:
   stream_download_path: "" #`URL` path to download the video test streams
-  input_streams_path: "videosink_test_configuration" #Target path where input streams are stored
-  reference_streams_path: "videosink_test_configuration" #Target path for reference decoded streams
+  input_streams_path: "assets/streams/input" #Target path where input streams are stored
+  reference_streams_path: "assets/streams/reference/" #Target path for reference decoded streams

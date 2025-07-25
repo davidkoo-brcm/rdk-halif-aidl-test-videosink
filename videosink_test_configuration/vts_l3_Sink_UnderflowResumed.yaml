@@ -1,6 +1,6 @@
 IVideoDecoderManager:
   L3:
-    Sink_Sequential_NonTunnel_NonSecure_UnderflowResumed:
+    Sink_UnderflowResumed:
       Controls:
         delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
