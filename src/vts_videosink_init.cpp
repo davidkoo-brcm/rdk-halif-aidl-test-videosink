@@ -84,7 +84,7 @@ UT_status_t VTS_VideoSink_init()
         UT_LOG_ERROR("Failed to process the HFP file");
         return UT_STATUS_FAILURE;
     }
-    gTestConfiguration = vts_kvp_create_instance(VTS_TEST_CONFIG_PATH);
+    gTestConfiguration = vts_kvp_create_instance(VIDEO_SINK_TEST_CONFIG_PATH);
 
     return UT_STATUS_OK;
 }
