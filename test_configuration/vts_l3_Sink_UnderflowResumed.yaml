@@ -1,6 +1,6 @@
 IVideoDecoderManager:
   L3:
-    Sink_Sequential_NonTunnel_NonSecure_UnderflowResumed:
+    UnderflowResumed:
       Controls:
         delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
@@ -11,7 +11,7 @@ IVideoDecoderManager:
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 133333332
-            sink_resumeTriggerPts: 399999996
+            sink_resumeTriggerPts: 366666663
             sink_repeatPerFrame: 1
             sink_flush_pts: -1
             sink_flush_reset_pts: -1
@@ -24,7 +24,7 @@ IVideoDecoderManager:
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 133333332
-            sink_resumeTriggerPts: 399999996
+            sink_resumeTriggerPts: 366666663
             sink_repeatPerFrame: 1
             sink_flush_pts: -1
             sink_flush_reset_pts: -1
@@ -63,7 +63,7 @@ IVideoDecoderManager:
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 133333332
-            sink_resumeTriggerPts: 399999996
+            sink_resumeTriggerPts: 366666663
             sink_repeatPerFrame: 1
             sink_flush_pts: -1
             sink_flush_reset_pts: -1
@@ -76,7 +76,7 @@ IVideoDecoderManager:
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 133333332
-            sink_resumeTriggerPts: 399999996
+            sink_resumeTriggerPts: 366666663
             sink_repeatPerFrame: 1
             sink_flush_pts: -1
             sink_flush_reset_pts: -1
@@ -102,7 +102,7 @@ IVideoDecoderManager:
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 66666664
-            sink_resumeTriggerPts: 199999992
+            sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
             sink_flush_pts: -1
             sink_flush_reset_pts: -1
