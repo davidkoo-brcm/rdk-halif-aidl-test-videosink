@@ -231,7 +231,6 @@ install_test()
 	install -t ${INSTALL_PATH} ${BUILD_INSTALL_PREFIX}/lib/*
 	install -t ${INSTALL_PATH} run.sh
 	cp -r ${TOP}/profiles/ ${INSTALL_PATH}
-    cp -rf ${TOP}/stream_configuration ${INSTALL_PATH}
     cp -rf ${TOP}/videosink_test_configuration ${INSTALL_PATH}
     mkdir -p ${INSTALL_PATH}/assets/streams/input
     mkdir -p ${INSTALL_PATH}/assets/streams/reference

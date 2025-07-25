@@ -68,6 +68,12 @@
 #include <thread>
 #include <chrono>
 #include <ut.h>
+#include "vts_videosink_helper_functions.h"
+#include "vts_videosink_parse_hfp.h"
+#include "vts_videosink_parse_testconfig.h"
+#include "vts_videosink_init.h"
+#include "vts_avbuffer.h"
+#include "vts_videodecoder.h"
 
 #include "com/rdk/hal/videosink/IVideoSinkManager.h"
 #include "com/rdk/hal/videosink/BnVideoSinkControllerListener.h"
@@ -87,36 +93,11 @@ using namespace com::rdk::hal::videodecoder;
 using namespace com::rdk::hal::avbuffer;
 
 extern sp<IVideoSinkManager> gVideoSinkManager;
-extern void *gTestConfiguration;
+extern void *gVideoSinkTestConfiguration;
 
-/* Status::Exception */
-const static ut_control_keyStringMapping_t statusException_mapTable[] =
-{
-    {"EX_NONE",                  (int32_t) Status::EX_NONE},
-    {"EX_SECURITY",              (int32_t) Status::EX_SECURITY},
-    {"EX_BAD_PARCELABLE",        (int32_t) Status::EX_BAD_PARCELABLE},
-    {"EX_ILLEGAL_ARGUMENT",      (int32_t) Status::EX_ILLEGAL_ARGUMENT},
-    {"EX_NULL_POINTER",          (int32_t) Status::EX_NULL_POINTER},
-    {"EX_ILLEGAL_STATE",         (int32_t) Status::EX_ILLEGAL_STATE},
-    {"EX_NETWORK_MAIN_THREAD",   (int32_t) Status::EX_NETWORK_MAIN_THREAD},
-    {"EX_UNSUPPORTED_OPERATION", (int32_t) Status::EX_UNSUPPORTED_OPERATION},
-    {"EX_SERVICE_SPECIFIC",      (int32_t) Status::EX_SERVICE_SPECIFIC},
-    {"EX_PARCELABLE",            (int32_t) Status::EX_PARCELABLE},
-    {"EX_HAS_REPLY_HEADER",      (int32_t) Status::EX_HAS_REPLY_HEADER},
-    {"EX_TRANSACTION_FAILED",    (int32_t) Status::EX_TRANSACTION_FAILED},
-    {NULL, -1}
-};
 
-/* bool */
-const static ut_control_keyStringMapping_t bool_mapTable[] =
-{
-    {"false", (int32_t) false},
-    {"true",  (int32_t) true},
-    {NULL, -1}
-};
-
-#define MAX_TRANSITORY_STATE_WAIT_MS  5
-#define MAX_FINAL_STATE_WAIT_MS  500
+#define VIDEO_SINK_MAX_TRANSITORY_STATE_WAIT_MS  5
+#define VIDEO_SINK_MAX_FINAL_STATE_WAIT_MS  500
 
 #ifdef DISABLE_UT_DEBUG_LOGGING
 #define UT_LOG_DEBUG(...)
@@ -315,11 +296,11 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
         int32_t sleep_time = 0; \
         do \
         { \
-            std::this_thread::sleep_for(std::chrono::milliseconds(MAX_TRANSITORY_STATE_WAIT_MS)); \
-            sleep_time += MAX_TRANSITORY_STATE_WAIT_MS; \
+            std::this_thread::sleep_for(std::chrono::milliseconds(VIDEO_SINK_MAX_TRANSITORY_STATE_WAIT_MS)); \
+            sleep_time += VIDEO_SINK_MAX_TRANSITORY_STATE_WAIT_MS; \
             /* Check the state of the sink */ \
             VIDEOSINK_GET_STATE((videoSink), lastState); \
-        } while (sleep_time < MAX_FINAL_STATE_WAIT_MS && lastState != desiredState); \
+        } while (sleep_time < VIDEO_SINK_MAX_FINAL_STATE_WAIT_MS && lastState != desiredState); \
     } while (0)
 
 #define VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, stateCheck) \
