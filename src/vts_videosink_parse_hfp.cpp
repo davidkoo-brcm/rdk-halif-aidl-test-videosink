@@ -61,33 +61,55 @@
  * @file vts_vidosink_parse_hfp.cpp
  *
  */
-
+#include "ut_kvp_profile.h"
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
 
 std::vector<int32_t> gVideosinks_hfp;
+std::vector<int32_t> gAvailableVideosinks_hfp;
+std::vector<int32_t> gAvailableVideodecoders_hfp;
 
 UT_status_t vts_videosink_parseVideoSinkHFP()
 {
-    std::map<std::string , int32_t> componentMap;
     std::string vidosinkpath = VIDEOSINKMGR_IVIDEOSINK;
     int32_t number_of_vidosinks;
     int id;
 
     number_of_vidosinks = UT_KVP_PROFILE_GET_LIST_COUNT(vidosinkpath.c_str());
-    if(number_of_vidosinks <= 0)
+    if (number_of_vidosinks <= 0)
     {
         UT_LOG_ERROR("No vidosinks found in the HFP");
         return UT_STATUS_FAILURE;
     }
 
-    for(int32_t i = 0; i < number_of_vidosinks; ++i)
+    for (int32_t i = 0; i < number_of_vidosinks; ++i)
     {
-        std::string vidosinkidpath = vidosinkpath + "." + std::to_string(i) + ".id";
-
+        std::string vidosinkidpath = vidosinkpath + "." + std::to_string(i);
         id = UT_KVP_PROFILE_GET_UINT32(vidosinkidpath.c_str());
         gVideosinks_hfp.push_back(id);
     }
+
+    // Parse availableSinks from YAML
+    std::string availableSinkPath = "IVideoSinkManager.availableSinks";
+    int32_t availableSinkCount = UT_KVP_PROFILE_GET_LIST_COUNT(availableSinkPath.c_str());
+
+    for (int32_t i = 0; i < availableSinkCount; ++i)
+    {
+        std::string sinkIdPath = availableSinkPath + "." + std::to_string(i);
+        int32_t sinkId = UT_KVP_PROFILE_GET_UINT32(sinkIdPath.c_str());
+        gAvailableVideosinks_hfp.push_back(sinkId);
+    }
+
+    std::string decoderListPath = "IVideoSinkManager.IVideoDecoder";
+    int32_t decoderCount = UT_KVP_PROFILE_GET_LIST_COUNT(decoderListPath.c_str());
+
+    for (int32_t i = 0; i < decoderCount; ++i)
+    {
+        std::string decoderIdPath = decoderListPath + "." + std::to_string(i);
+        int32_t decoderId = UT_KVP_PROFILE_GET_UINT32(decoderIdPath.c_str());
+        gAvailableVideodecoders_hfp.push_back(decoderId);
+    }
+
     return UT_STATUS_OK;
 }
 
