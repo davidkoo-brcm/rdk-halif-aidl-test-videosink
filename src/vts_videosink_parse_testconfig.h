@@ -103,15 +103,19 @@ struct videoTestConfiguration_t {
     std::vector<videoFrame_t> frames;
 
     uint64_t signalDiscontinuityPts = 0;
-    uint64_t flushPts = 0;
-    uint64_t flushResetPts = 0;
-    uint64_t eosPts = 0;
-    uint64_t underflowPts = 0;
-    uint64_t resumeTriggerPts = 0;
-    uint64_t discardFramesUntilPts = 0;
-    uint32_t repeatPerFrame = 0;
-    uint32_t interFrameDelayMs = 0;
+    // Sink control fields
+    int64_t sink_discardFramesUntilPts;
+    int64_t sink_underflowPts;
+    int64_t sink_resumeTriggerPts;
+    int32_t sink_repeatPerFrame;
+    int64_t sink_flush_pts;
+    int64_t sink_flush_reset_pts;
+    int64_t sink_eos_pts;
+    int64_t sink_interFrameDelayMs;
+    int64_t sink_discontinuityPTS;
+    std::string sink_testName;
     std::string testName;
+
 };
 
 void* vts_kvp_create_instance(char *fileName);
