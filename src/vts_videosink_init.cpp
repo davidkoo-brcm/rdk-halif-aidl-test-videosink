@@ -68,9 +68,10 @@
 #include "vts_videosink_parse_hfp.h"
 #include "vts_videosink_init.h"
 #include "vts_videosink_parse_testconfig.h"
+#include "vts_videosink.h"
 
 sp<IVideoSinkManager> gVideoSinkManager;
-void *gTestConfiguration;
+void *gVideoSinkTestConfiguration;
 
 UT_status_t VTS_VideoSink_init()
 {
@@ -84,14 +85,14 @@ UT_status_t VTS_VideoSink_init()
         UT_LOG_ERROR("Failed to process the HFP file");
         return UT_STATUS_FAILURE;
     }
-    gTestConfiguration = vts_kvp_create_instance(VTS_TEST_CONFIG_PATH);
+    gVideoSinkTestConfiguration = vts_kvp_create_instance(VIDEO_SINK_TEST_CONFIG_PATH);
 
     return UT_STATUS_OK;
 }
 
 void VTS_VideoSink_destroy()
 {
-    vts_kvp_destroy_instance(gTestConfiguration);
+    vts_kvp_destroy_instance(gVideoSinkTestConfiguration);
 }
 
 /** @} */ // End of VIDEO_SINK_HALTEST_INIT

@@ -64,6 +64,7 @@
 #include "ut_kvp_profile.h"
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
+#include "vts_videosink.h"
 
 std::vector<int32_t> gVideosinks_hfp;
 std::vector<int32_t> gAvailableVideosinks_hfp;
