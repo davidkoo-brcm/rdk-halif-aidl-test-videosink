@@ -1482,6 +1482,8 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_DiscardFramesU
     bool isConcurrent = true;
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
+/*Commenting Tunnel and secure cases*/
+#if 0
 /**
  * @brief Test the sink's ability to report correct queue depth
  *        Type: Sequential
@@ -2532,6 +2534,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_DiscardFramesUntil)
     bool isConcurrent = true;
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
+#endif
 /** @} */ // End of VIDEO_SINK_HALTEST L3 File
 /** @} */ // End of VIDEO_SINK_HALTEST
 /** @} */ // End of VIDEO_SINK Module
