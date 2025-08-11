@@ -49,13 +49,13 @@ export AIDL_BIN=/path/linux_binder_idl/out/aidl
 export LINUX_BINDER_OUT_DIR=/path//linux_binder_idl/local/
 ```
 
-Disable Logging:
+Enable Logging:
 
 Too many logs can slow down the test and delay frame pushing from the decoder to the sink.
-To avoid this and make sure frames are queued on time, run the following command before starting the build:
+By default the logs are disabled, enable the logs using below command
 
 ```bash
-export DISABLE_UT_DEBUG_LOGGING=1
+export ENABLE_UT_INFO_LOGGING=1
 ```
 
 This will turn off debug logs and help the test run smoothly.
