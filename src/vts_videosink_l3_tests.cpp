@@ -56,8 +56,6 @@
  * @file vts_videosink_l3_tests.c
  *
  */
-#include "vts_common.h"
-
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
 #include "vts_videosink_parse_testconfig.h"
@@ -257,9 +255,9 @@ void SinkTest::videoSinkNonTunnelMode()
         int64_t frameTimeoutMs = 500; // Wait up to 5 seconds for a frame
 
         /*Set the "discard until PTS" value for the relevant test cases*/
-        if (mSinkTestConfiguration.sink_discardFramesUntilPts != static_cast<uint64_t>(-1))
+        if (mSinkTestConfiguration.vSink_discardFramesUntilPts != static_cast<uint64_t>(-1))
         {
-            VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, mSinkTestConfiguration.sink_discardFramesUntilPts);
+            VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, mSinkTestConfiguration.vSink_discardFramesUntilPts);
         }
 
         while (true)
@@ -315,7 +313,7 @@ void SinkTest::videoSinkNonTunnelMode()
             }
 
             // Override EOS condition if PTS matches configured EOS PTS
-            if (mSinkTestConfiguration.sink_eos_pts >= 0 && pts == (int64_t)mSinkTestConfiguration.sink_eos_pts)
+            if (mSinkTestConfiguration.vSink_eos_pts >= 0 && pts == (int64_t)mSinkTestConfiguration.vSink_eos_pts)
             {
                 metadata.endOfStream = true;
             }
@@ -324,8 +322,8 @@ void SinkTest::videoSinkNonTunnelMode()
                         mSinkId.value, pts, bufferHandle, metadata.endOfStream, metadata.discontinuity);
 
             // Simulate underflow
-            if (mSinkTestConfiguration.sink_underflowPts != static_cast<uint64_t>(-1)  &&
-                pts == (int64_t)mSinkTestConfiguration.sink_underflowPts)
+            if (mSinkTestConfiguration.vSink_underflowPts != static_cast<uint64_t>(-1)  &&
+                pts == (int64_t)mSinkTestConfiguration.vSink_underflowPts)
             {
                 uint32_t frameDurationMs = 0;
                 if (metadata.frameRateNumerator != 0)
@@ -347,12 +345,12 @@ void SinkTest::videoSinkNonTunnelMode()
                 break;
             }
 
-            if (mSinkTestConfiguration.sink_interFrameDelayMs > 0)
+            if (mSinkTestConfiguration.vSink_interFrameDelayMs > 0)
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(mSinkTestConfiguration.sink_interFrameDelayMs));
+                std::this_thread::sleep_for(std::chrono::milliseconds(mSinkTestConfiguration.vSink_interFrameDelayMs));
             }
 
-            if (mSinkTestConfiguration.sink_flush_pts != static_cast<uint64_t>(-1) && pts == (int64_t)mSinkTestConfiguration.sink_flush_pts)
+            if (mSinkTestConfiguration.vSink_flush_pts != static_cast<uint64_t>(-1) && pts == (int64_t)mSinkTestConfiguration.vSink_flush_pts)
             {
                 VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
             }
@@ -360,26 +358,26 @@ void SinkTest::videoSinkNonTunnelMode()
         }
 
         /*Validation of EOS*/
-        if (mSinkTestConfiguration.sink_eos_pts >= 0)
+        if (mSinkTestConfiguration.vSink_eos_pts >= 0)
         {
             videodecoder::FrameMetadata dummyMeta{};
             dummyMeta.endOfStream = true;
-            handleEosFrame(dummyMeta, mSinkTestConfiguration.sink_eos_pts);
+            handleEosFrame(dummyMeta, mSinkTestConfiguration.vSink_eos_pts);
         }
 
         /*Validation of Simulated Underflow*/
-        if (mSinkTestConfiguration.sink_underflowPts >= 0)
+        if (mSinkTestConfiguration.vSink_underflowPts >= 0)
         {
             verifyUnderflow();
         }
 
         /*Validation of Simulated Resume*/
-        if (mSinkTestConfiguration.sink_resumeTriggerPts >= 0)
+        if (mSinkTestConfiguration.vSink_resumeTriggerPts >= 0)
         {
             verifyResume();
         }
 
-        if (mSinkTestConfiguration.sink_flush_pts >= 0)
+        if (mSinkTestConfiguration.vSink_flush_pts >= 0)
         {
             verifyFlushComplete();
         }
@@ -731,7 +729,7 @@ public:
  */
 void SinkTest::verifyNoUnexpectedUnderflow()
 {
-    if (mSinkTestConfiguration.sink_underflowPts == static_cast<uint64_t>(-1)) {
+    if (mSinkTestConfiguration.vSink_underflowPts == static_cast<uint64_t>(-1)) {
         int countCtrl = mVideoSinkControlListener->getUnderflowCount();
         int countEvent = mVideoSinkEventListner->getUnderflowCount();
         if (countCtrl > 0 || countEvent > 0) {
@@ -1098,7 +1096,7 @@ void SinkTest::verifyFramesMissed()
  * @brief Performs post-verification based on the current sink test name.
  *
  * Determines which verification routine to execute depending on the test scenario
- * defined in `mTestConfiguration.sink_testName`. Handles various cases including
+ * defined in `mTestConfiguration.vSink_testName`. Handles various cases including
  * queue depth, frames received, dropped frames, repeated frames, and missed frames,
  * for both sequential and concurrent non-tunnel modes.
  */

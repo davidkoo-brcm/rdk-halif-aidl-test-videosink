@@ -104,16 +104,16 @@ struct videoTestConfiguration_t {
 
     uint64_t signalDiscontinuityPts = 0;
     // Sink control fields
-    int64_t sink_discardFramesUntilPts;
-    int64_t sink_underflowPts;
-    int64_t sink_resumeTriggerPts;
-    int32_t sink_repeatPerFrame;
-    int64_t sink_flush_pts;
-    int64_t sink_flush_reset_pts;
-    int64_t sink_eos_pts;
-    int64_t sink_interFrameDelayMs;
-    int64_t sink_discontinuityPTS;
-    std::string sink_testName;
+    int64_t vSink_discardFramesUntilPts;
+    int64_t vSink_underflowPts;
+    int64_t vSink_resumeTriggerPts;
+    int32_t vSink_repeatPerFrame;
+    int64_t vSink_flush_pts;
+    int64_t vSink_flush_reset_pts;
+    int64_t vSink_eos_pts;
+    int64_t vSink_interFrameDelayMs;
+    int64_t vSink_discontinuityPTS;
+    std::string vSink_testName;
     std::string testName;
 
 };

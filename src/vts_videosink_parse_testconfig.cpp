@@ -102,25 +102,25 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
         testDetails.signalDiscontinuityPts = ut_kvp_getUInt64Field(kvpTestInstance, (controlList + ".discontinuityPTS").c_str());
         testDetails.testName = std::string(testName ? testName : "");
 
-        string sink_discardFramesUntilPts = streamList + "." + to_string(i) + ".sink_discardFramesUntilPts";
-        string sink_underflowPts          = streamList + "." + to_string(i) + ".sink_underflow_pts";
-        string sink_resumeTriggerPts      = streamList + "." + to_string(i) + ".sink_resumeTriggerPts";
-        string sink_repeatPerFrame        = streamList + "." + to_string(i) + ".sink_repeatPerFrame";
-        string sink_flush_pts             = streamList + "." + to_string(i) + ".sink_flush_pts";
-        string sink_flush_reset_pts       = streamList + "." + to_string(i) + ".sink_flush_reset_pts";
-        string sink_eos_pts               = streamList + "." + to_string(i) + ".sink_eos_pts";
-        string sink_interFrameDelayMs     = streamList + "." + to_string(i) + ".sink_interFrameDelayMs";
-        string sink_discontinuityPTS      = streamList + "." + to_string(i) + ".sink_discontinuityPTS";
+        string vSink_discardFramesUntilPts = streamList + "." + to_string(i) + ".sink_discardFramesUntilPts";
+        string vSink_underflowPts          = streamList + "." + to_string(i) + ".sink_underflow_pts";
+        string vSink_resumeTriggerPts      = streamList + "." + to_string(i) + ".sink_resumeTriggerPts";
+        string vSink_repeatPerFrame        = streamList + "." + to_string(i) + ".sink_repeatPerFrame";
+        string vSink_flush_pts             = streamList + "." + to_string(i) + ".sink_flush_pts";
+        string vSink_flush_reset_pts       = streamList + "." + to_string(i) + ".sink_flush_reset_pts";
+        string vSink_eos_pts               = streamList + "." + to_string(i) + ".sink_eos_pts";
+        string vSink_interFrameDelayMs     = streamList + "." + to_string(i) + ".sink_interFrameDelayMs";
+        string vSink_discontinuityPTS      = streamList + "." + to_string(i) + ".sink_discontinuityPTS";
 
-        testDetails.sink_discardFramesUntilPts = ut_kvp_getUInt64Field(kvpTestInstance, sink_discardFramesUntilPts.c_str());
-        testDetails.sink_underflowPts          = ut_kvp_getUInt64Field(kvpTestInstance, sink_underflowPts.c_str());
-        testDetails.sink_resumeTriggerPts      = ut_kvp_getUInt64Field(kvpTestInstance, sink_resumeTriggerPts.c_str());
-        testDetails.sink_repeatPerFrame        = ut_kvp_getUInt64Field(kvpTestInstance, sink_repeatPerFrame.c_str());
-        testDetails.sink_flush_pts             = ut_kvp_getUInt64Field(kvpTestInstance, sink_flush_pts.c_str());
-        testDetails.sink_flush_reset_pts       = ut_kvp_getUInt64Field(kvpTestInstance, sink_flush_reset_pts.c_str());
-        testDetails.sink_eos_pts               = ut_kvp_getUInt64Field(kvpTestInstance, sink_eos_pts.c_str());
-        testDetails.sink_interFrameDelayMs     = ut_kvp_getUInt64Field(kvpTestInstance, sink_interFrameDelayMs.c_str());
-        testDetails.sink_discontinuityPTS      = ut_kvp_getUInt64Field(kvpTestInstance, sink_discontinuityPTS.c_str());
+        testDetails.vSink_discardFramesUntilPts = ut_kvp_getUInt64Field(kvpTestInstance, vSink_discardFramesUntilPts.c_str());
+        testDetails.vSink_underflowPts          = ut_kvp_getUInt64Field(kvpTestInstance, vSink_underflowPts.c_str());
+        testDetails.vSink_resumeTriggerPts      = ut_kvp_getUInt64Field(kvpTestInstance, vSink_resumeTriggerPts.c_str());
+        testDetails.vSink_repeatPerFrame        = ut_kvp_getUInt64Field(kvpTestInstance, vSink_repeatPerFrame.c_str());
+        testDetails.vSink_flush_pts             = ut_kvp_getUInt64Field(kvpTestInstance, vSink_flush_pts.c_str());
+        testDetails.vSink_flush_reset_pts       = ut_kvp_getUInt64Field(kvpTestInstance, vSink_flush_reset_pts.c_str());
+        testDetails.vSink_eos_pts               = ut_kvp_getUInt64Field(kvpTestInstance, vSink_eos_pts.c_str());
+        testDetails.vSink_interFrameDelayMs     = ut_kvp_getUInt64Field(kvpTestInstance, vSink_interFrameDelayMs.c_str());
+        testDetails.vSink_discontinuityPTS      = ut_kvp_getUInt64Field(kvpTestInstance, vSink_discontinuityPTS.c_str());
 
         // No input or frames parsed here — decoder side provides them
         testConfigurations.push_back(testDetails);
@@ -128,11 +128,11 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
         // Optional: log for debug
         UT_LOG_WARNING("Parsed Sink Config: testName=%s, eos=%ld, underflow=%ld, resume=%ld, flush=%ld, interDelay=%d",
                     testDetails.testName.c_str(),
-                    testDetails.sink_eos_pts,
-                    testDetails.sink_underflowPts,
-                    testDetails.sink_resumeTriggerPts,
-                    testDetails.sink_flush_pts,
-                    testDetails.sink_interFrameDelayMs);
+                    testDetails.vSink_eos_pts,
+                    testDetails.vSink_underflowPts,
+                    testDetails.vSink_resumeTriggerPts,
+                    testDetails.vSink_flush_pts,
+                    testDetails.vSink_interFrameDelayMs);
     }
     return UT_STATUS_OK;
 }
