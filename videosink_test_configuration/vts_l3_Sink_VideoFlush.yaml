@@ -1,6 +1,9 @@
 IVideoDecoderManager:
+  stream_download_path: "" #`URL` path to download the video test streams
+  input_streams_path: "assets/streams/input" #Target path where input streams are stored
+  reference_streams_path: "assets/streams/reference/" #Target path for reference decoded streams
   L3:
-    Sink_Concurrent_NonTunnel_NonSecure_QueueDepth:
+    Sink_VideoFlush:
       Controls:
         delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
@@ -13,7 +16,7 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: -1
+            sink_flush_pts: 299997000
             sink_flush_reset_pts: -1
             sink_eos_pts: -1
             sink_interFrameDelayMs: -1
@@ -26,7 +29,7 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: -1
+            sink_flush_pts: 299997000
             sink_flush_reset_pts: -1
             sink_eos_pts: -1
             sink_interFrameDelayMs: -1
@@ -39,7 +42,7 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: -1
+            sink_flush_pts: 150000003
             sink_flush_reset_pts: -1
             sink_eos_pts: -1
             sink_interFrameDelayMs: -1
@@ -52,7 +55,7 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: -1
+            sink_flush_pts: 150000003
             sink_flush_reset_pts: -1
             sink_eos_pts: -1
             sink_interFrameDelayMs: -1
@@ -65,7 +68,7 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: -1
+            sink_flush_pts: 299997000
             sink_flush_reset_pts: -1
             sink_eos_pts: -1
             sink_interFrameDelayMs: -1
@@ -78,7 +81,7 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: -1
+            sink_flush_pts: 299997000
             sink_flush_reset_pts: -1
             sink_eos_pts: -1
             sink_interFrameDelayMs: -1
@@ -91,7 +94,7 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: -1
+            sink_flush_pts: 150000003
             sink_flush_reset_pts: -1
             sink_eos_pts: -1
             sink_interFrameDelayMs: -1
@@ -104,7 +107,7 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: -1
+            sink_flush_pts: 150000003
             sink_flush_reset_pts: -1
             sink_eos_pts: -1
             sink_interFrameDelayMs: -1
@@ -117,7 +120,7 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: -1
+            sink_flush_pts: 299997000
             sink_flush_reset_pts: -1
             sink_eos_pts: -1
             sink_interFrameDelayMs: -1
@@ -130,7 +133,7 @@ IVideoDecoderManager:
           #   sink_underflow_pts: -1
           #   sink_resumeTriggerPts: -1
           #   sink_repeatPerFrame: 1
-          #   sink_flush_pts: -1
+          #   sink_flush_pts: 299997000
           #   sink_flush_reset_pts: -1
           #   sink_eos_pts: -1
           #   sink_interFrameDelayMs: -1
@@ -143,7 +146,7 @@ IVideoDecoderManager:
             sink_underflow_pts: -1
             sink_resumeTriggerPts: -1
             sink_repeatPerFrame: 1
-            sink_flush_pts: -1
+            sink_flush_pts: 150000003
             sink_flush_reset_pts: -1
             sink_eos_pts: -1
             sink_interFrameDelayMs: -1
@@ -153,7 +156,7 @@ IVideoDecoderManager:
           #   rms_diff_threshold: 0.5
           #   decode_time_threshold: 10000000
           #   sink_discardFramesUntilPts: -1
-          #   sink_underflow_pts: -1
+          #   sink_underflow_pts: 150000003
           #   sink_resumeTriggerPts: -1
           #   sink_repeatPerFrame: 1
           #   sink_flush_pts: -1

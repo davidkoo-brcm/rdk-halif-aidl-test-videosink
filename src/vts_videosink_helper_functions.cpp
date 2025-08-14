@@ -64,6 +64,7 @@
 #include <ut.h>
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
+#include "vts_videosink.h"
 
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
@@ -75,11 +76,11 @@ com::rdk::hal::videodecoder::Codec vts_videodecoder_helper_StringTocodec(const s
     using Codec = com::rdk::hal::videodecoder::Codec;
 
     static const std::unordered_map<std::string, Codec> formatMap = {
-        {"MPEG", Codec::MPEG},
-        {"H264", Codec::H264},
-        {"H265", Codec::H265},
-        {"VP9",  Codec::VP9},
-        {"AV1",  Codec::AV1}
+        {"MPEG", videodecoder::Codec::MPEG},
+        {"H264", videodecoder::Codec::H264},
+        {"H265", videodecoder::Codec::H265},
+        {"VP9",  videodecoder::Codec::VP9},
+        {"AV1",  videodecoder::Codec::AV1}
     };
 
     auto it = formatMap.find(format);
@@ -89,7 +90,7 @@ com::rdk::hal::videodecoder::Codec vts_videodecoder_helper_StringTocodec(const s
     return static_cast<Codec>(-1); // or throw
 }
 
-void vts_videosink_helper_validateCapabilities(int sink_id, const Capabilities& capabilities)
+void vts_videosink_helper_validateCapabilities(int sink_id, const videosink::Capabilities& capabilities)
 {
     bool sinkID = true;
 
@@ -124,7 +125,7 @@ bool vts_videosink_helper_areElementsUnique(const std::vector<int>& values)
     return true;
 }
 
-bool vts_videosink_helper_validatePropertyValue(int sink_id, const std::optional<PropertyValue>& propertyValue, const Property property)
+bool vts_videosink_helper_validatePropertyValue(int sink_id, const std::optional<PropertyValue>& propertyValue, const videosink::Property property)
 {
     std::vector<int32_t> avSourceValues = {
         static_cast<int32_t>(com::rdk::hal::AVSource::AUTO),
@@ -178,7 +179,7 @@ bool vts_videosink_helper_validatePropertyValue(int sink_id, const std::optional
 
     switch (property)
     {
-        case Property::RESOURCE_ID:
+        case videosink::Property::RESOURCE_ID:
              if(std::holds_alternative<int>(val) && std::get<int>(val) == sink_id)
              {
                 return true;
@@ -187,15 +188,15 @@ bool vts_videosink_helper_validatePropertyValue(int sink_id, const std::optional
              {
                 return false;
              }
-        case Property::SINK_QUEUE_DEPTH:
-        case Property::METRIC_FRAMES_RECEIVED:
-        case Property::METRIC_FRAMES_PRESENTED:
-        case Property::METRIC_FRAMES_DROPPED_LATE:
-        case Property::METRIC_FRAMES_DROPPED_FRC:
-        case Property::METRIC_FRAMES_REPEATED_FRC:
-        case Property::METRIC_FRAMES_REPEATED_MISSING_FRAME:
-        case Property::RENDER_FIRST_FRAME:
-        case Property::METRIC_UNDERFLOWED:
+        case videosink::Property::SINK_QUEUE_DEPTH:
+        case videosink::Property::METRIC_FRAMES_RECEIVED:
+        case videosink::Property::METRIC_FRAMES_PRESENTED:
+        case videosink::Property::METRIC_FRAMES_DROPPED_LATE:
+        case videosink::Property::METRIC_FRAMES_DROPPED_FRC:
+        case videosink::Property::METRIC_FRAMES_REPEATED_FRC:
+        case videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME:
+        case videosink::Property::RENDER_FIRST_FRAME:
+        case videosink::Property::METRIC_UNDERFLOWED:
             if(propVal.getTag() == com::rdk::hal::PropertyValue::Value::Tag::intValue)
             {
                 return true;

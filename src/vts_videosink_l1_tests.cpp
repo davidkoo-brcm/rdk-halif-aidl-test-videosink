@@ -1616,7 +1616,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, queueVideoFrame_neg) {
     int64_t *tempFrameBuffer=0x0;
     ::com::rdk::hal::State state;
     ::android::binder::Status status;
-    FrameMetadata metadata;
+    videodecoder::FrameMetadata metadata;
     metadata.parX = 1;
     metadata.parY = 1;
     metadata.sarX = 16;

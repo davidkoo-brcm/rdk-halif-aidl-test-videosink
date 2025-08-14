@@ -70,11 +70,11 @@
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
 
-#define VTS_TEST_CONFIG_PATH "./test_configuration/vts_l3_test_config.yaml"
-#define VTS_STREAM_CONFIG_PATH "./test_configuration/vts_stream_list.yaml"
-#define STREAM_DOWNLOAD_PATH "IVideoSinkManager.stream_download_path"
-#define STREAM_INPUT_PATH "IVideoSinkManager.input_streams_path"
-#define STREAM_REF_PATH "IVideoSinkManager.reference_streams_path"
+#define VIDEO_SINK_TEST_CONFIG_PATH "./videosink_test_configuration/vts_l3_VideoSink_test_config.yaml"
+#define VIDEO_SINK_STREAM_CONFIG_PATH "./videosink_test_configuration/vts_stream_list.yaml"
+#define VIDEO_SINK_STREAM_DOWNLOAD_PATH "IVideoSinkManager.stream_download_path"
+#define VIDEO_SINK_STREAM_INPUT_PATH "IVideoSinkManager.input_streams_path"
+#define VIDEO_SINK_STREAM_REF_PATH "IVideoSinkManager.reference_streams_path"
 
 struct frameMetadata_t {
     std::string name;
@@ -103,15 +103,19 @@ struct videoTestConfiguration_t {
     std::vector<videoFrame_t> frames;
 
     uint64_t signalDiscontinuityPts = 0;
-    uint64_t flushPts = 0;
-    uint64_t flushResetPts = 0;
-    uint64_t eosPts = 0;
-    uint64_t underflowPts = 0;
-    uint64_t resumeTriggerPts = 0;
-    uint64_t discardFramesUntilPts = 0;
-    uint32_t repeatPerFrame = 0;
-    uint32_t interFrameDelayMs = 0;
+    // Sink control fields
+    int64_t vSink_discardFramesUntilPts;
+    int64_t vSink_underflowPts;
+    int64_t vSink_resumeTriggerPts;
+    int32_t vSink_repeatPerFrame;
+    int64_t vSink_flush_pts;
+    int64_t vSink_flush_reset_pts;
+    int64_t vSink_eos_pts;
+    int64_t vSink_interFrameDelayMs;
+    int64_t vSink_discontinuityPTS;
+    std::string vSink_testName;
     std::string testName;
+
 };
 
 void* vts_kvp_create_instance(char *fileName);
