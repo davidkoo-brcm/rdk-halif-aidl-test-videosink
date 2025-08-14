@@ -1,12 +1,16 @@
+
 IVideoDecoderManager:
+  stream_download_path: "" #`URL` path to download the video test streams
+  input_streams_path: "assets/streams/input" #Target path where input streams are stored
+  reference_streams_path: "assets/streams/reference/" #Target path for reference decoded streams
   L3:
-    Sink_Sequential_NonTunnel_NonSecure_FramesReceived:
+    Sink_FramesDroppedLate:
       Controls:
         delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
         Streams:
           - Codec: H264
-            Name: H264_HD_30_YUV420
+            Name: H264_HD_30_YUV420_DROPPED_LATE
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
@@ -19,7 +23,7 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_HD_30_YUV444
+            Name: H264_HD_30_YUV444_DROPPED_LATE
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
@@ -32,7 +36,7 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_HD_60_YUV420
+            Name: H264_HD_60_YUV420_DROPPED_LATE
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
@@ -45,7 +49,7 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_HD_60_YUV444
+            Name: H264_HD_60_YUV444_DROPPED_LATE
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
@@ -58,7 +62,7 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_SD_30_YUV420
+            Name: H264_SD_30_YUV420_DROPPED_LATE
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
@@ -71,7 +75,7 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_SD_30_YUV444
+            Name: H264_SD_30_YUV444_DROPPED_LATE
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
@@ -84,7 +88,7 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_SD_60_YUV420
+            Name: H264_SD_60_YUV420_DROPPED_LATE
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
@@ -97,7 +101,7 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_SD_60_YUV444
+            Name: H264_SD_60_YUV444_DROPPED_LATE
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
@@ -110,7 +114,7 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_UHD_30_YUV420
+            Name: H264_UHD_30_YUV420_DROPPED_LATE
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
@@ -123,7 +127,7 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           # - Codec: H264
-          #   Name: H264_UHD_30_YUV444
+          #   Name: H264_UHD_30_YUV444_DROPPED_LATE
           #   rms_diff_threshold: 0.5
           #   decode_time_threshold: 10000000
           #   sink_discardFramesUntilPts: -1
@@ -136,7 +140,7 @@ IVideoDecoderManager:
           #   sink_interFrameDelayMs: -1
           #   sink_discontinuityPTS: -1
           - Codec: H264
-            Name: H264_UHD_60_YUV420
+            Name: H264_UHD_60_YUV420_DROPPED_LATE
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
@@ -149,7 +153,7 @@ IVideoDecoderManager:
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
           # - Codec: H264
-          #   Name: H264_UHD_60_YUV444
+          #   Name: H264_UHD_60_YUV444_DROPPED_LATE
           #   rms_diff_threshold: 0.5
           #   decode_time_threshold: 10000000
           #   sink_discardFramesUntilPts: -1
