@@ -141,7 +141,7 @@ extern void *gVideoSinkTestConfiguration;
         UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
-#define VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(_sinkId, videoSink) \
+#define VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(_sinkId, videoSink, exception) \
     do { \
         ::android::binder::Status status; \
         UT_LOG_DEBUG("Calling getVideoSink(IN:_sinkId:[%d], OUT:videoSink[])", _sinkId.value); \
@@ -150,6 +150,7 @@ extern void *gVideoSinkTestConfiguration;
                                 _sinkId.value, videoSink.get(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
         UT_ASSERT_TRUE(videoSink.get() == nullptr); \
     } while (0)
 
