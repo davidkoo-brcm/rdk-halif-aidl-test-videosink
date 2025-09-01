@@ -422,12 +422,28 @@ public:
 
     void SetUp() override
     {
+        mAVBufferManager = vts_avbuffer_getService();
+
+        if (mAVBufferManager == nullptr) {
+                UT_FAIL_FATAL("AVBuffer Service not available");
+        }
+
+        if (gVideoDecoderManager == nullptr) {
+                UT_FAIL_FATAL("VideoDecoder Service not available");
+        }
+
+        if (gVideoSinkManager == nullptr) {
+                UT_FAIL_FATAL("VideoSink Service not available");
+        }
+
         vector<IVideoSink::Id> sinkIds;
         vector<IVideoDecoder::Id> videoDecoderIds;
 
-        mAVBufferManager = vts_avbuffer_getService();
-
         mAVbufferHelper = getAVBufferHelperInstance();
+
+        if (mAVbufferHelper == nullptr) {
+                UT_FAIL_FATAL("AVBuffer Helper not available");
+        }
 
         /*Get the Video Sink IDs*/
         VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
