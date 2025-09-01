@@ -56,6 +56,10 @@ public:
 
     void SetUp() override
     {
+        if (gVideoSinkManager == nullptr) {
+                UT_FAIL_FATAL("VideoSink Service not available");
+        }
+
         UTCore::SetUp();
     }
 
@@ -247,16 +251,16 @@ UT_ADD_TEST(VTS_L1_VideoSink, getVideoSink_neg) {
     invalidID = sinkIds.front();
     invalidID.value -= 1;
     //02 - Retrieve the video sink object for invalid ID less than minimum value
-    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink);
+    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink, Status::EX_ILLEGAL_ARGUMENT);
 
     invalidID = sinkIds.back();
     invalidID.value += 1;
     //03 - Retrieve the video sink object for invalid ID greater than maximum value
-    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink);
+    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink, Status::EX_ILLEGAL_ARGUMENT);
 
     //04 - Retrieve the video sink object for undefined value
     invalidID.value = IVideoSink::Id::UNDEFINED;
-    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink);
+    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink, Status::EX_ILLEGAL_ARGUMENT);
 
 }
 
@@ -1019,7 +1023,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg) {
             PropertyValue propertyValue;
             propertyValue.value = PropertyValue::Value::make<PropertyValue::Value::Tag::intValue>(1);
             // Test Case 1: Set a READ-ONLY property
-            VIDEOSINK_SETPROPERTY_FAILURE(videoSinkController, property, propertyValue, Status::EX_ILLEGAL_ARGUMENT);
+            VIDEOSINK_SETPROPERTY_FAILURE(videoSinkController, property, propertyValue, Status::EX_UNSUPPORTED_OPERATION);
         }
         /* Close the sink */
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
