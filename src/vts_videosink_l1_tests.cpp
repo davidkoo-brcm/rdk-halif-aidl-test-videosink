@@ -56,6 +56,10 @@ public:
 
     void SetUp() override
     {
+        if (gVideoSinkManager == nullptr) {
+                UT_FAIL_FATAL("VideoSink Service not available");
+        }
+
         UTCore::SetUp();
     }
 

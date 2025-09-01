@@ -68,6 +68,11 @@ public:
     void SetUp() override
     {
         UTCore::SetUp();
+
+        if (gVideoSinkManager == nullptr) {
+                UT_FAIL_FATAL("VideoSink Service not available");
+        }
+
         std::vector<IVideoSink::Id> sinkIds;
         /* Get the Video Sink IDs */
         VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
