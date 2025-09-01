@@ -441,6 +441,10 @@ public:
 
         mAVbufferHelper = getAVBufferHelperInstance();
 
+        if (mAVbufferHelper == nullptr) {
+                UT_FAIL_FATAL("AVBuffer Helper not available");
+        }
+
         /*Get the Video Sink IDs*/
         VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
 
