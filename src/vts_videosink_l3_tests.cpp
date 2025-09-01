@@ -428,6 +428,10 @@ public:
                 UT_FAIL_FATAL("AVBuffer Service not available");
         }
 
+        if (gVideoDecoderManager == nullptr) {
+                UT_FAIL_FATAL("VideoDecoder Service not available");
+        }
+
         if (gVideoSinkManager == nullptr) {
                 UT_FAIL_FATAL("VideoSink Service not available");
         }
