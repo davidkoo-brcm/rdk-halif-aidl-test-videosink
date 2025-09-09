@@ -121,7 +121,7 @@ VideoSinkControllerListener::~VideoSinkControllerListener() = default;
  */
 android::binder::Status VideoSinkControllerListener::onFirstFrameRendered(int64_t nsPresentationTime)
 {
-    UT_LOG_INFO("[SinkID %d] [PTS %lld]  VideoSinkControllerListener : onFirstFrameRendered Callback Received", mSinkID, nsPresentationTime);
+    UT_LOG_INFO("[Video SinkID: %d] [PTS %lld]  VideoSinkControllerListener : onFirstFrameRendered Callback Received", mSinkID, nsPresentationTime);
     {
         std::lock_guard<std::mutex> lock(mMutex);
         if (!mFirstFrameRendered)
@@ -362,7 +362,7 @@ VideoSinkEventListener::VideoSinkEventListener()
  */
 ::android::binder::Status VideoSinkEventListener::onFirstFrameRendered(int64_t nsPresentationTime)
 {
-    UT_LOG_INFO("[SinkID %d] [PTS %lld] VideoSinkEventListener: onFirstFrameRendered Callback Received", mSinkID, nsPresentationTime);
+    UT_LOG_INFO("[Video SinkID: %d] [PTS %lld] VideoSinkEventListener: onFirstFrameRendered Callback Received", mSinkID, nsPresentationTime);
     {
         std::lock_guard<std::mutex> lock(mMutex);
         if (!mFirstFrameRendered)
@@ -632,6 +632,9 @@ void VideoSinkEventListener::setSinkID(int32_t id)
 {
     mSinkID = id;
 }
+
+int32_t VideoSinkEventListener::mUsedDecoderID = -1;
+
 /** @} */ // End of VIDEO_SINK_HALTEST_HEADER
 /** @} */ // End of VIDEO_SINK_HALTEST
 /** @} */ // End of VIDEO_SINK

@@ -745,6 +745,7 @@ class VideoSinkEventListener : public BnVideoSinkEventListener
 public:
     VideoSinkEventListener();
     virtual ~VideoSinkEventListener() = default;
+    static int32_t mUsedDecoderID;
 
     // Override methods from BnVideoSinkEventListener
     ::android::binder::Status onFirstFrameRendered(int64_t nsPresentationTime) override;
@@ -784,6 +785,10 @@ public:
 
     void setSinkID(int32_t id);
 
+    static int32_t getUsedDecoder()
+    {
+        return VideoSinkEventListener::mUsedDecoderID;
+    }
 private:
     mutable std::mutex mMutex;
     std::condition_variable mCV;
