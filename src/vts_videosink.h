@@ -101,8 +101,14 @@ extern void *gVideoSinkTestConfiguration;
 #define VIDEO_SINK_MAX_FINAL_STATE_WAIT_MS  500
 
 #ifndef ENABLE_UT_INFO_LOGGING
+#ifdef UT_LOG_DEBUG
+#undef UT_LOG_DEBUG
 #define UT_LOG_DEBUG(...)
+#endif
+#ifdef UT_LOG_INFO
+#undef UT_LOG_INFO
 #define UT_LOG_INFO(...)
+#endif
 #endif
 
 #define VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds) \
@@ -234,7 +240,6 @@ extern void *gVideoSinkTestConfiguration;
 #define VIDEOSINK_GET_PROPERTY_SUCCESS(videoSink, property, propertyValue) \
     do { \
         ::android::binder::Status status; \
-        ::com::rdk::hal::State state; \
         UT_LOG_DEBUG("Calling getProperty(IN:property[%s], OUT:propertyValue[]", videosink::toString(property).c_str()); \
         status = (videoSink)->getProperty(property, &propertyValue); \
         switch (propertyValue->value.value().getTag()) \
@@ -251,6 +256,8 @@ extern void *gVideoSinkTestConfiguration;
                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
                 break; \
+            default: \
+                break; \
         } \
         UT_ASSERT_TRUE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
@@ -259,7 +266,6 @@ extern void *gVideoSinkTestConfiguration;
 #define VIDEOSINK_GET_PROPERTY_FAILURE(videoSink, property, propertyValue, exception) \
     do { \
         ::android::binder::Status status; \
-        ::com::rdk::hal::State state; \
         UT_LOG_DEBUG("Calling getProperty(IN:property[%s], OUT:propertyValue[]", videosink::toString(property).c_str()); \
         status = (videoSink)->getProperty(property, &propertyValue); \
         UT_LOG_DEBUG("Result getProperty(IN:property[%s], OUT:propertyValue[]), status:[isOK:%s, exception:%s]", videosink::toString(property).c_str(), \
@@ -308,7 +314,6 @@ extern void *gVideoSinkTestConfiguration;
 #define VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, stateCheck) \
     do { \
         ::android::binder::Status status; \
-        bool _aidl_return = false; \
         UT_LOG_DEBUG("Calling open(IN:controllerListener[0x%p], OUT:videoSinkController[])", \
             controllerListener); \
         status = (videoSink)->open(controllerListener,&videoSinkController); \
@@ -548,9 +553,9 @@ extern void *gVideoSinkTestConfiguration;
     do { \
         ::android::binder::Status status; \
         bool _aidl_return=false; \
-        UT_LOG_DEBUG("Calling queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[0x%016"PRIx64"], IN:metadata:[...])", nsPresentationTime, frameBufferHandle); \
+        UT_LOG_DEBUG("Calling queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...])", nsPresentationTime, frameBufferHandle); \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
-        UT_LOG_DEBUG("Result queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[0x%016"PRIx64"], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
                     nsPresentationTime, frameBufferHandle,\
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(_aidl_return); \
@@ -566,12 +571,12 @@ extern void *gVideoSinkTestConfiguration;
         auto epoch = now_ms.time_since_epoch(); \
         long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count(); \
         \
-        UT_LOG_DEBUG("Calling queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016"PRIx64"], IN:metadata:[...])", \
+        UT_LOG_DEBUG("Calling queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...])", \
                     nsPresentationTime, ms, frameBufferHandle); \
         \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
         \
-        UT_LOG_DEBUG("Result queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016"PRIx64"], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_DEBUG("Result queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
                     nsPresentationTime, ms, frameBufferHandle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -656,7 +661,7 @@ extern void *gVideoSinkTestConfiguration;
     do { \
         ::android::binder::Status status; \
         bool _aidl_return = false; \
-        UT_LOG_DEBUG("Calling queueVideoFrame(IN:nsPresentationTime[%ld], IN:frameBufferHandle[0x%016"PRIx64"], IN:metadata{width:%d, height:%d, format:%d}, OUT:_aidl_return[])", \
+        UT_LOG_DEBUG("Calling queueVideoFrame(IN:nsPresentationTime[%ld], IN:frameBufferHandle[0x%016" PRIx64 "], IN:metadata{width:%d, height:%d, format:%d}, OUT:_aidl_return[])", \
             nsPresentationTime, frameBufferHandle, metadata.width, metadata.height, metadata.format); \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
         UT_LOG_DEBUG("Result queueVideoFrame(..., OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
