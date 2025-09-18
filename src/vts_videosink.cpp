@@ -599,8 +599,12 @@ void VideoSinkEventListener::resetStateChanges()
  */
 bool VideoSinkEventListener::checkStateTransistion(State expOldState, State expNewState)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
-    for (const auto& [oldState, newState] : mStateChanges) {
+    vector<pair<State, State>> stateChange;
+    {
+        std::lock_guard<mutex> lock(mMutex);
+        stateChange = mStateChanges;
+    }
+    for (const auto& [oldState, newState] : stateChange) {
         if (oldState == expOldState && newState == expNewState) {
             return true;
         }
