@@ -42,7 +42,6 @@
 #include "vts_videosink.h"
 
 UT_ADD_TEST_TO_GROUP(VTS_L1_VideoSink, UT_TESTS_L1)
-static UT_status_t getVideoSinkService();
 
 extern sp<IVideoSinkManager> gVideoSinkManager;
 extern std::vector<int32_t> gVideosinks_hfp;
@@ -491,7 +490,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, open_pos)
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
     ::android::binder::Status status;
-    bool _aidl_return;
 
     /* Get the Video sink IDs */
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
@@ -542,8 +540,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, open_neg) {
     sp<IVideoSinkController> videoSinkController_nullptr = nullptr;
     sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
 
-    bool _aidl_return;
-
     /* Get the Video sink IDs */
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
 
@@ -590,7 +586,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, close_pos)
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
     ::android::binder::Status status;
-    bool _aidl_return;
 
     /* Get the Video sink IDs */
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
@@ -793,7 +788,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, unregisterEventListener_pos)
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
     ::android::binder::Status status;
-    bool _aidl_return;
 
     /* Get the Video sink IDs */
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
@@ -1221,7 +1215,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, setVideodecoder_neg) {
     // Sort the IDs to find the least and highest values
     std::sort(videodecoderIds.begin(), videodecoderIds.end());
     int32_t leastValue = videodecoderIds.front();
-    int32_t highestValue = videodecoderIds.back();
+    //int32_t highestValue = videodecoderIds.back();
 
     for(const auto& _sinkId: sinkIds)
     {
@@ -1392,7 +1386,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, start_pos) {
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
     ::android::binder::Status status;
-    bool _aidl_return;
 
     /* Get the Video sink IDs */
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
@@ -1559,7 +1552,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, stop_neg)
 {
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
-    ::com::rdk::hal::State state;
     ::android::binder::Status status;
 
     /* Get the Video sink IDs */
@@ -1618,7 +1610,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, queueVideoFrame_neg) {
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
     int64_t *tempFrameBuffer=0x0;
-    ::com::rdk::hal::State state;
     ::android::binder::Status status;
     videodecoder::FrameMetadata metadata;
     metadata.parX = 1;

@@ -68,16 +68,6 @@
 
 using namespace std;
 
-static uint32_t codecFromString(const std::string& codecStr)
-{
-    if (codecStr == "MPEG") return 1;
-    if (codecStr == "H264") return 2;
-    if (codecStr == "H265") return 3;
-    if (codecStr == "VP9")  return 4;
-    if (codecStr == "AV1")  return 5;
-    return 0; // unknown codec
-}
-
 UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *module, const char *testGroup, const char *testName, vector<videoTestConfiguration_t>& testConfigurations)
 {
     ut_kvp_instance_t* kvpTestInstance = (ut_kvp_instance_t*)pTestInstance;

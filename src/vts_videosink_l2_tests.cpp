@@ -99,6 +99,7 @@ public:
     void checkCompleteStateTransition(sp<IVideoSink> sink, sp<VideoSinkEventListener> eventListener, State oldState, State intermediateState, State newState)
     {
         ::com::rdk::hal::State currentState;
+        eventListener->waitForState(intermediateState, std::chrono::milliseconds(VIDEO_MAX_TRANSITORY_STATE_WAIT_MS));
 
         UT_ASSERT_TRUE(eventListener->checkStateTransistion(oldState, intermediateState));
 
