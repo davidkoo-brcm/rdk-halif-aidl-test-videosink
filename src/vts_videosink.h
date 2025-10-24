@@ -327,8 +327,8 @@ extern void *gVideoSinkTestConfiguration;
         if (stateCheck) \
         { \
             ::com::rdk::hal::State lastState; \
-            VIDEOSINK_WAIT_FOR_STATE(videoSink, State::READY, lastState); \
-            UT_ASSERT_EQUAL(lastState, State::READY); \
+            VIDEOSINK_WAIT_FOR_STATE(videoSink, ::com::rdk::hal::State::READY, lastState); \
+            UT_ASSERT_EQUAL(lastState, ::com::rdk::hal::State::READY); \
         } \
     } while (0)
 
@@ -360,8 +360,8 @@ extern void *gVideoSinkTestConfiguration;
         if (stateCheck) \
         { \
             ::com::rdk::hal::State lastState; \
-            VIDEOSINK_WAIT_FOR_STATE(videoSink, State::CLOSED, lastState); \
-            UT_ASSERT_EQUAL(lastState, State::CLOSED); \
+            VIDEOSINK_WAIT_FOR_STATE(videoSink, ::com::rdk::hal::State::CLOSED, lastState); \
+            UT_ASSERT_EQUAL(lastState, ::com::rdk::hal::State::CLOSED); \
         } \
     } while (0)
 
@@ -455,8 +455,8 @@ extern void *gVideoSinkTestConfiguration;
         if (stateCheck) \
         { \
             ::com::rdk::hal::State lastState; \
-            VIDEOSINK_WAIT_FOR_STATE(videoSink, State::STARTED, lastState); \
-            UT_ASSERT_EQUAL(lastState, State::STARTED); \
+            VIDEOSINK_WAIT_FOR_STATE(videoSink, ::com::rdk::hal::State::STARTED, lastState); \
+            UT_ASSERT_EQUAL(lastState, ::com::rdk::hal::State::STARTED); \
         } \
     } while (0)
 
@@ -485,8 +485,8 @@ extern void *gVideoSinkTestConfiguration;
         if (stateCheck) \
         { \
             ::com::rdk::hal::State lastState; \
-            VIDEOSINK_WAIT_FOR_STATE(videoSink, State::READY, lastState); \
-            UT_ASSERT_EQUAL(lastState, State::READY); \
+            VIDEOSINK_WAIT_FOR_STATE(videoSink, ::com::rdk::hal::State::READY, lastState); \
+            UT_ASSERT_EQUAL(lastState, ::com::rdk::hal::State::READY); \
         } \
     } while (0)
 
@@ -695,7 +695,7 @@ public:
     android::binder::Status onEndOfStream(int64_t nsPresentationTime) override;
     android::binder::Status onVideoUnderflow() override;
     android::binder::Status onVideoResumed() override;
-    android::binder::Status onStateChanged(State oldState, State newState) override;
+    android::binder::Status onStateChanged(::com::rdk::hal::State oldState, ::com::rdk::hal::State newState) override;
 
     // Utility functions: Flush complete
     void resetFlushComplete();
@@ -721,8 +721,8 @@ private:
     std::condition_variable mCV;
 
     // Current state and history
-    State mCurrentState;
-    std::vector<std::pair<State, State>> mStateChanges;
+    ::com::rdk::hal::State mCurrentState;
+    std::vector<std::pair<::com::rdk::hal::State, ::com::rdk::hal::State>> mStateChanges;
 
     // First frame rendered info
     bool mFirstFrameRendered;
@@ -758,7 +758,7 @@ public:
     ::android::binder::Status onVideoUnderflow() override;
     ::android::binder::Status onVideoResumed() override;
     ::android::binder::Status onFlushComplete() override;
-    ::android::binder::Status onStateChanged(State oldState, State newState) override;
+    ::android::binder::Status onStateChanged(::com::rdk::hal::State oldState, ::com::rdk::hal::State newState) override;
 
     // Flush helpers
     void resetFlushComplete();
@@ -778,12 +778,12 @@ public:
     int getResumedCount();
 
     // State transition helpers
-    std::vector<std::pair<State, State>> getStateChanges() const;
+    std::vector<std::pair<::com::rdk::hal::State, ::com::rdk::hal::State>> getStateChanges() const;
     void resetStateChanges();
-    bool checkStateTransistion(State expOldState, State expNewState);
+    bool checkStateTransistion(::com::rdk::hal::State expOldState, ::com::rdk::hal::State expNewState);
 
     // Wait functions (blocking with timeout)
-    bool waitForState(State desiredState, std::chrono::milliseconds timeout);
+    bool waitForState(::com::rdk::hal::State desiredState, std::chrono::milliseconds timeout);
 
     // Error helpers
     std::vector<int32_t> getErrors() const;
@@ -803,8 +803,8 @@ private:
     int64_t mFirstPTS;
 
     // State info
-    State mCurrentState;
-    std::vector<std::pair<State, State>> mStateChanges;
+    ::com::rdk::hal::State mCurrentState;
+    std::vector<std::pair<::com::rdk::hal::State, ::com::rdk::hal::State>> mStateChanges;
 
     // Errors
     std::vector<int32_t> mErrors;
