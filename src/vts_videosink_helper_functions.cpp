@@ -71,25 +71,6 @@
 #include <binder/IPCThreadState.h>
 #include <binder/Status.h>
 
-com::rdk::hal::videodecoder::Codec vts_videodecoder_helper_StringTocodec(const std::string& format)
-{
-    using Codec = com::rdk::hal::videodecoder::Codec;
-
-    static const std::unordered_map<std::string, Codec> formatMap = {
-        {"MPEG", videodecoder::Codec::MPEG},
-        {"H264", videodecoder::Codec::H264},
-        {"H265", videodecoder::Codec::H265},
-        {"VP9",  videodecoder::Codec::VP9},
-        {"AV1",  videodecoder::Codec::AV1}
-    };
-
-    auto it = formatMap.find(format);
-    if (it != formatMap.end()) {
-        return it->second;
-    }
-    return static_cast<Codec>(-1); // or throw
-}
-
 void vts_videosink_helper_validateCapabilities(int sink_id, const videosink::Capabilities& capabilities)
 {
     bool sinkID = true;
