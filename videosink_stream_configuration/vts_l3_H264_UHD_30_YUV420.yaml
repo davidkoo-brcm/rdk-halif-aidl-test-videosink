@@ -23,7 +23,7 @@
 VideoStreams:
   H264_UHD_30_YUV420:
     input: H264_UHD_30_YUV420.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 3840
     codedHeight: 2160
     colorDepth: 8
@@ -71,7 +71,7 @@ VideoStreams:
       - 299997000
   H264_UHD_30_YUV420_DROPPED_LATE:
     input: H264_UHD_30_YUV420.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 3840
     codedHeight: 2160
     colorDepth: 8
@@ -120,7 +120,7 @@ VideoStreams:
       - 66666666      # Frame 2 (valid)
   H264_UHD_30_YUV420_REPEATED_FRC:
     input: H264_UHD_30_YUV420.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 3840
     codedHeight: 2160
     colorDepth: 8
@@ -170,7 +170,7 @@ VideoStreams:
       - 219999998      # Repeat Frame 7
   H264_UHD_30_YUV420_DROPPED_FRC:
     input: H264_UHD_30_YUV420.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 3840
     codedHeight: 2160
     colorDepth: 8
@@ -220,7 +220,7 @@ VideoStreams:
       - 293333338      # Frame 11 (+33,333,333)  – RECOVERY to normal
   H264_UHD_30_YUV420_FRAME_MISS:
     input: H264_UHD_30_YUV420.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 3840
     codedHeight: 2160
     colorDepth: 8
@@ -270,7 +270,7 @@ VideoStreams:
       - 533333328         # Frame 17 (skip Frame 16)
   H264_UHD_30_YUV420_UNDERFLOW_RESUME:
     input: H264_UHD_30_YUV420.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 3840
     codedHeight: 2160
     colorDepth: 8

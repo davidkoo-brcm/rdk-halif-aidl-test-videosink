@@ -23,7 +23,7 @@
 VideoStreams:
   H264_HD_60_YUV444:
     input: H264_HD_60_YUV444.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
@@ -71,7 +71,7 @@ VideoStreams:
       - 150000003
   H264_HD_60_YUV444_DROPPED_LATE:
     input: H264_HD_60_YUV444.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
@@ -120,7 +120,7 @@ VideoStreams:
       - 33333334      # Frame 2 (valid)
   H264_HD_60_YUV444_REPEATED_FRC:
     input: H264_HD_60_YUV444.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
@@ -170,7 +170,7 @@ VideoStreams:
       - 159999996      # Repeat Frame 7
   H264_HD_60_YUV444_FRAME_MISS:
     input: H264_HD_60_YUV444.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
@@ -220,7 +220,7 @@ VideoStreams:
       - 266666672         # Frame 17 (skip Frame 16)
   H264_HD_60_YUV444_DROPPED_FRC:
     input: H264_HD_60_YUV444.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
@@ -270,7 +270,7 @@ VideoStreams:
       - 110000003      # Frame 11 (+16,666,667) – RECOVERY to normal
   H264_SD_60_YUV420_DROPPED_FRC:
     input: H264_SD_60_YUV420.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 640
     codedHeight: 480
     colorDepth: 8
@@ -320,7 +320,7 @@ VideoStreams:
       - 110000003      # Frame 11 (+16,666,667) – RECOVERY to normal
   H264_HD_60_YUV444_UNDERFLOW_RESUME:
     input: H264_HD_60_YUV444.es #Stream Name
-    codec: H264  #Video codec information, Refer `Codec` enum
+    codec: H264_AVC  #Video codec information, Refer `Codec` enum
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
