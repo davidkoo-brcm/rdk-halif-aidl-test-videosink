@@ -88,50 +88,6 @@ static sp<IAVBuffer> vts_avbuffer_getService()
         );
 }
 
-class SinkTest
-{
-public:
-    SinkTest(IVideoSink::Id sinkId,
-        sp<IVideoSink> sinkHandle,
-        sp<VideoSinkControllerListener> VideoSinkControllerListener,
-        sp<VideoSinkEventListener> VideoSinkEventListner,
-        sp<VideoDecoderControllerListener> decoderControllerListener,
-        videoDecoderTestConfiguration_t& config,
-        videoTestConfiguration_t& sinkConfig);
-
-    void verifyNoUnexpectedUnderflow();
-    void verifyUnderflow();
-    void verifyResume();
-    void verifyQueueDepth();
-    void verifyFramesReceived();
-    void verifyFramesDroppedLate();
-    void verifyFramesDroppedFRC();
-    void verifyFramesRepeatedFRC();
-    void verifyFramesMissed();
-    void verifyFlushComplete();
-    void handleEosFrame(const videodecoder::FrameMetadata& metadata, int64_t pts);
-    void runPostVerification();
-    void run ( bool isTunnel );
-    bool getSinkPropertyInt(videosink::Property property, int32_t& outValue);
-
-private:
-    IVideoSink::Id mSinkId;
-    sp<IVideoSink> mSinkHandle;
-    sp<VideoSinkControllerListener> mVideoSinkControlListener;
-    sp<VideoSinkEventListener> mVideoSinkEventListner;
-    sp<VideoDecoderControllerListener> mDecoderControllerListener;
-    videoDecoderTestConfiguration_t mTestConfiguration;
-    videoTestConfiguration_t mSinkTestConfiguration;
-    std::set<int64_t> receivedPtsSet;
-    int actualFramesReceived = 0;
-
-    float getBytesPerPixelMultiplier(const std::string& basePixelFormat, int colorDepth) const;
-    PixelFormat getPixelFormatEnum(const std::string& basePixelFormat);
-    void videoSinkNonTunnelMode();
-    void videoSinkTunnelMode();
-
-};
-
 SinkTest :: SinkTest(
         IVideoSink::Id sinkId,
         sp<IVideoSink> sinkHandle,

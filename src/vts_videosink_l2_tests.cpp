@@ -96,7 +96,7 @@ public:
             mVideoSinkList.push_back({videoSink, controlListener, eventListener});
         }
     }
-    void checkCompleteStateTransition(sp<IVideoSink> sink, sp<VideoSinkEventListener> eventListener, State oldState, State intermediateState, State newState)
+    void checkCompleteStateTransition(sp<IVideoSink> sink, sp<VideoSinkEventListener> eventListener, ::com::rdk::hal::State oldState, ::com::rdk::hal::State intermediateState, ::com::rdk::hal::State newState)
     {
         ::com::rdk::hal::State currentState;
         eventListener->waitForState(intermediateState, std::chrono::milliseconds(VIDEO_MAX_TRANSITORY_STATE_WAIT_MS));
@@ -248,23 +248,23 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions) {
 
         /* Open the sink */
         VIDEOSINK_OPEN_SUCCESS(videoSink, controlListener, videoSinkController, false);
-        checkCompleteStateTransition(videoSink,eventListener,State::CLOSED,State::OPENING,State::READY);
+        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::CLOSED,::com::rdk::hal::State::OPENING,::com::rdk::hal::State::READY);
 
         // Transition to STARTED state
         VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,State::READY,State::STARTING,State::STARTED);
+        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::READY,::com::rdk::hal::State::STARTING,::com::rdk::hal::State::STARTED);
 
 		// Transition to FLUSHING state
         VIDEOSINK_FLUSH_SUCCESS(videoSink, videoSinkController, false);
-        checkCompleteStateTransition(videoSink,eventListener,State::STARTED,State::FLUSHING,State::STARTED);
+        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::STARTED,::com::rdk::hal::State::FLUSHING,::com::rdk::hal::State::STARTED);
 
 		// Transition to READY state
         VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,State::STARTED,State::STOPPING,State::READY);
+        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::STARTED,::com::rdk::hal::State::STOPPING,::com::rdk::hal::State::READY);
 
 		// Transition to CLOSED state
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,State::READY,State::CLOSING,State::CLOSED);
+        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::READY,::com::rdk::hal::State::CLOSING,::com::rdk::hal::State::CLOSED);
     }
 }
 
@@ -288,7 +288,7 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions_multipleInstance) {
 
         /* Open the sink */
         VIDEOSINK_OPEN_SUCCESS(videoSink, controlListener, videoSinkController, false);
-        checkCompleteStateTransition(videoSink,eventListener,State::CLOSED,State::OPENING,State::READY);
+        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::CLOSED,::com::rdk::hal::State::OPENING,::com::rdk::hal::State::READY);
         videoSinkControllersList.push_back(videoSinkController);
     }
 
@@ -300,19 +300,19 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions_multipleInstance) {
 
         // Transition to STARTED state
         VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,State::READY,State::STARTING,State::STARTED);
+        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::READY,::com::rdk::hal::State::STARTING,::com::rdk::hal::State::STARTED);
 
 		// Transition to FLUSHING state
         VIDEOSINK_FLUSH_SUCCESS(videoSink, videoSinkController, false);
-        checkCompleteStateTransition(videoSink,eventListener,State::STARTED,State::FLUSHING,State::STARTED);
+        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::STARTED,::com::rdk::hal::State::FLUSHING,::com::rdk::hal::State::STARTED);
 
 		// Transition to READY state
         VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,State::STARTED,State::STOPPING,State::READY);
+        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::STARTED,::com::rdk::hal::State::STOPPING,::com::rdk::hal::State::READY);
 
 		// Transition to CLOSED state
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,State::READY,State::CLOSING,State::CLOSED);
+        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::READY,::com::rdk::hal::State::CLOSING,::com::rdk::hal::State::CLOSED);
     }
 }
 
