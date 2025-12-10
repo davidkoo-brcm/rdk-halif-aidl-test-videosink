@@ -30,7 +30,7 @@ IVideoDecoderManager:
         delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
       Inputs:
         Streams:
-          - Codec: H264
+          - Codec: H264_AVC
             Name: H264_HD_30_YUV420
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
@@ -43,7 +43,7 @@ IVideoDecoderManager:
             sink_eos_pts: 299997000
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
-          - Codec: H264
+          - Codec: H264_AVC
             Name: H264_HD_30_YUV444
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
@@ -56,7 +56,7 @@ IVideoDecoderManager:
             sink_eos_pts: 299997000
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
-          - Codec: H264
+          - Codec: H264_AVC
             Name: H264_HD_60_YUV420
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
@@ -69,7 +69,7 @@ IVideoDecoderManager:
             sink_eos_pts: 150000003
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
-          - Codec: H264
+          - Codec: H264_AVC
             Name: H264_HD_60_YUV444
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
@@ -82,7 +82,7 @@ IVideoDecoderManager:
             sink_eos_pts: 150000003
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
-          - Codec: H264
+          - Codec: H264_AVC
             Name: H264_SD_30_YUV420
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
@@ -95,7 +95,7 @@ IVideoDecoderManager:
             sink_eos_pts: 299997000
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
-          - Codec: H264
+          - Codec: H264_AVC
             Name: H264_SD_30_YUV444
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
@@ -108,7 +108,7 @@ IVideoDecoderManager:
             sink_eos_pts: 299997000
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
-          - Codec: H264
+          - Codec: H264_AVC
             Name: H264_SD_60_YUV420
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
@@ -121,7 +121,7 @@ IVideoDecoderManager:
             sink_eos_pts: 150000003
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
-          - Codec: H264
+          - Codec: H264_AVC
             Name: H264_SD_60_YUV444
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
@@ -134,7 +134,7 @@ IVideoDecoderManager:
             sink_eos_pts: 150000003
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
-          - Codec: H264
+          - Codec: H264_AVC
             Name: H264_UHD_30_YUV420
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
@@ -147,7 +147,7 @@ IVideoDecoderManager:
             sink_eos_pts: 299997000
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
-          # - Codec: H264
+          # - Codec: H264_AVC
           #   Name: H264_UHD_30_YUV444
           #   rms_diff_threshold: 0.5
           #   decode_time_threshold: 10000000
@@ -160,7 +160,7 @@ IVideoDecoderManager:
           #   sink_eos_pts: 299997000
           #   sink_interFrameDelayMs: -1
           #   sink_discontinuityPTS: -1
-          - Codec: H264
+          - Codec: H264_AVC
             Name: H264_UHD_60_YUV420
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
@@ -173,7 +173,7 @@ IVideoDecoderManager:
             sink_eos_pts: 150000003
             sink_interFrameDelayMs: -1
             sink_discontinuityPTS: -1
-          # - Codec: H264
+          # - Codec: H264_AVC
           #   Name: H264_UHD_60_YUV444
           #   rms_diff_threshold: 0.5
           #   decode_time_threshold: 10000000
