@@ -90,8 +90,8 @@ UT_status_t vts_videosink_parseVideoSinkHFP()
         gVideosinks_hfp.push_back(id);
     }
 
-    // Parse availableSinks from YAML
-    std::string availableSinkPath = "IVideoSinkManager.availableSinks";
+    // Parse IVideoSink from YAML
+    std::string availableSinkPath = "IVideoSinkManager.IVideoSink";
     int32_t availableSinkCount = UT_KVP_PROFILE_GET_LIST_COUNT(availableSinkPath.c_str());
 
     for (int32_t i = 0; i < availableSinkCount; ++i)
