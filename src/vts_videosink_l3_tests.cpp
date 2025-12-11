@@ -492,7 +492,7 @@ public:
                 sp<VideoDecoderControllerListener> decoderControlListener;
                 sp<VideoDecoderEventListener> decoderEventListener;
                 bool foundDecoder = false;
-                bool isSinkAvailable = true;
+                bool isSinkAttached = true;
 
                 for (const auto& [_decoderId, _decoderHandle, _controlListener, _eventListener, _capabilities] : mVideoDecoderList)
                 {
@@ -517,7 +517,7 @@ public:
                 AVBUFFER_GETMETRICS(mAVBufferManager, secureDecode, beforeHeapMetrics);
 
                 videoDecoderTest decodeTest(decoderId, decoderHandle, decoderControlListener,
-                                        decoderEventListener, mAVBufferManager, secureDecode, isTunnel, testConfig, mAVbufferHelper, isSinkAvailable);
+                                        decoderEventListener, mAVBufferManager, secureDecode, isTunnel, testConfig, mAVbufferHelper, isSinkAttached);
 
                 std::thread decodeThread(&videoDecoderTest::run, &decodeTest, true);
 
@@ -565,7 +565,7 @@ public:
             vector<unique_ptr<videoDecoderTest>> decoderTests;
             HeapMetrics beforeHeapMetrics, afterHeapMetrics;
             vector<std::tuple<IVideoDecoder::Id, sp<IVideoDecoder>, sp<VideoDecoderControllerListener>, sp<VideoDecoderEventListener>>> availableDecoderList;
-            bool isSinkAvailable = true;
+            bool isSinkAttached = true;
 
             /* Get heap metrics */
             AVBUFFER_GETMETRICS(mAVBufferManager, secure, beforeHeapMetrics);
@@ -577,7 +577,7 @@ public:
                         sp<VideoDecoderControllerListener>::cast(decoderControlListener),
                         sp<VideoDecoderEventListener>::cast(decoderEventListener),
                         sp<IAVBuffer>::cast(mAVBufferManager),
-                        secure, tunnel, decoderConfig, mAVbufferHelper, isSinkAvailable);
+                        secure, tunnel, decoderConfig, mAVbufferHelper, isSinkAttached);
 
                 decoderThreads.emplace_back(&videoDecoderTest::run, decoderTest.get(), true);
 
