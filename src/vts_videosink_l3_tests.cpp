@@ -208,7 +208,7 @@ void SinkTest::videoSinkNonTunnelMode()
         /*Start the Video Sink*/
         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
 
-        int64_t frameTimeoutMs = 500; // Wait up to 5 seconds for a frame
+        int64_t frameTimeoutMs = 5000; // Wait up to 5 seconds for a frame
 
         /*Set the "discard until PTS" value for the relevant test cases*/
         if (mSinkTestConfiguration.vSink_discardFramesUntilPts != static_cast<uint64_t>(-1))
@@ -530,7 +530,7 @@ public:
                     continue; // skip this sink
                 }
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
                 sinkTest->run(isTunnel);
 
@@ -589,7 +589,7 @@ public:
                                             });
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
             for(uint32_t i = 0; i < availableDecoderList.size(); i++)
             {
