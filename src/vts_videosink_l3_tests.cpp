@@ -67,6 +67,10 @@ using namespace std;
 
 #define UT_LOG_WARN
 
+// Timeout and delay constants for L3 tests
+static const int64_t FRAME_TIMEOUT_MS = 5000;  // Wait up to 5 seconds for a frame from decoder
+static const int64_t DECODER_INITIALIZATION_DELAY_MS = 2000;  // Wait 2 seconds for decoder to initialize before sink starts
+
 /* Test class registration with UT_Core */
 UT_ADD_TEST_TO_GROUP(VTS_L3_VideoSink, UT_TESTS_L3)
 
@@ -208,7 +212,7 @@ void SinkTest::videoSinkNonTunnelMode()
         /*Start the Video Sink*/
         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
 
-        int64_t frameTimeoutMs = 5000; // Wait up to 5 seconds for a frame
+        int64_t frameTimeoutMs = FRAME_TIMEOUT_MS;
 
         /*Set the "discard until PTS" value for the relevant test cases*/
         if (mSinkTestConfiguration.vSink_discardFramesUntilPts != static_cast<uint64_t>(-1))
@@ -530,7 +534,7 @@ public:
                     continue; // skip this sink
                 }
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                std::this_thread::sleep_for(std::chrono::milliseconds(DECODER_INITIALIZATION_DELAY_MS));
 
                 sinkTest->run(isTunnel);
 
@@ -589,7 +593,7 @@ public:
                                             });
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+            std::this_thread::sleep_for(std::chrono::milliseconds(DECODER_INITIALIZATION_DELAY_MS));
 
             for(uint32_t i = 0; i < availableDecoderList.size(); i++)
             {
