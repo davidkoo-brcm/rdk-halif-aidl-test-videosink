@@ -72,6 +72,10 @@
 #include <ut_kvp_profile.h>
 #include <ut_log.h>
 
+extern std::vector<int32_t> gVideosinks_hfp;
+extern std::vector<int32_t> gAvailableVideosinks_hfp;
+extern std::vector<int32_t> gAvailableVideodecoders_hfp;
+
 #define VIDEOSINKMGR_IVIDEOSINK "IVideoSinkManager.IVideoSink"
 
 UT_status_t vts_videosink_parseVideoSinkHFP();
