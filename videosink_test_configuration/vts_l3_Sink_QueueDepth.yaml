@@ -28,6 +28,7 @@ videodecoder:
     Sink_QueueDepth:
       Controls:
         delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
+        discontinuityPTS: -1
       Inputs:
         Streams:
           - Codec: H264_AVC
