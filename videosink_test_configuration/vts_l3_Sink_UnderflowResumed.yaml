@@ -20,7 +20,7 @@
 # *
 #** ******************************************************************************
 
-IVideoDecoderManager:
+videodecoder:
   stream_download_path: "" #`URL` path to download the video test streams
   input_streams_path: "assets/streams/input" #Target path where input streams are stored
   reference_streams_path: "assets/streams/reference/" #Target path for reference decoded streams
