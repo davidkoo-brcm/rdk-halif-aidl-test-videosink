@@ -286,7 +286,7 @@ void SinkTest::videoSinkNonTunnelMode()
                 metadata.endOfStream = true;
             }
 
-            UT_LOG_WARNING("[SinkID: %d] Queueing frame: PTS=%lld, Handle=%llx, EOS=%d, Discontinuity=%d",
+            UT_LOG_INFO("[SinkID: %d] Queueing frame: PTS=%" PRId64 ", Handle=%" PRIx64 ", EOS=%d, Discontinuity=%d",
                         mSinkId.value, pts, bufferHandle, metadata.endOfStream, metadata.discontinuity);
 
             // Simulate underflow
