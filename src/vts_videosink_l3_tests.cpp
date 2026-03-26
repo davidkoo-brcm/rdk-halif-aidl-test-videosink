@@ -70,8 +70,6 @@ using namespace std;
 /* Test class registration with UT_Core */
 UT_ADD_TEST_TO_GROUP(VTS_L3_VideoSink, UT_TESTS_L3)
 
-static const char *gModuleName = "IVideoSinkManager";
-static const char *gVideoDecoderModuleName = "IVideoDecoderManager";
 const char *gTestGroup = "L3";
 IAVBufferHelper* gAVbufferHelper;
 
@@ -208,7 +206,10 @@ void SinkTest::videoSinkNonTunnelMode()
         /*Start the Video Sink*/
         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
 
-        int64_t frameTimeoutMs = 500; // Wait up to 5 seconds for a frame
+        /*Wait up to 500 ms for a frame, and tolerate a few consecutive misses*/
+        const int64_t frameTimeoutMs = 500; // Wait up to 500 ms for a frame
+        int timeoutCount = 0;
+        const int maxTimeoutCount = 3;
 
         /*Set the "discard until PTS" value for the relevant test cases*/
         if (mSinkTestConfiguration.vSink_discardFramesUntilPts != static_cast<uint64_t>(-1))
@@ -222,17 +223,26 @@ void SinkTest::videoSinkNonTunnelMode()
 
             if (!mDecoderControllerListener)
             {
-                UT_LOG_WARNING("Decoder listener not available, exiting sink loop");
+                UT_LOG_WARNING("[SinkID: %d] Decoder listener not available, exiting sink loop", mSinkId.value);
                 break;
             }
 
-            bool success = mDecoderControllerListener && mDecoderControllerListener->getNextFrame(decodedFrame, std::chrono::milliseconds(frameTimeoutMs));
+            bool success = mDecoderControllerListener->getNextFrame(decodedFrame, std::chrono::milliseconds(frameTimeoutMs));
 
             if (!success)
             {
-                UT_LOG_DEBUG("[SinkID: %d] Timeout waiting for frame from decoder, exiting loop", mSinkId.value);
-                break;
+                ++timeoutCount;
+                UT_LOG_WARNING("[SinkID: %d] Timeout %d/%d waiting for frame from decoder", mSinkId.value, timeoutCount, maxTimeoutCount);
+
+                if (timeoutCount >= maxTimeoutCount)
+                {
+                    UT_LOG_WARNING("[SinkID: %d] Exiting loop after repeated decoder timeouts", mSinkId.value);
+                    break;
+                }
+                continue;
             }
+
+            timeoutCount = 0;
 
             int64_t pts = decodedFrame.framePTS;
             int64_t bufferHandle = decodedFrame.frameBufferHandle;
@@ -269,24 +279,27 @@ void SinkTest::videoSinkNonTunnelMode()
             }
 
             // Override EOS condition if PTS matches configured EOS PTS
-            if (mSinkTestConfiguration.vSink_eos_pts >= 0 && pts == (int64_t)mSinkTestConfiguration.vSink_eos_pts)
+            if (mSinkTestConfiguration.vSink_eos_pts >= 0 && pts == static_cast<int64_t>(mSinkTestConfiguration.vSink_eos_pts))
             {
                 metadata.endOfStream = true;
             }
 
-            UT_LOG_INFO("[SinkID: %d] Queueing frame: PTS=%ld, Handle=%llx, EOS=%d, Discontinuity=%d",
+            UT_LOG_INFO("[SinkID: %d] Queueing frame: PTS=%" PRId64 ", Handle=%" PRIx64 ", EOS=%d, Discontinuity=%d",
                         mSinkId.value, pts, bufferHandle, metadata.endOfStream, metadata.discontinuity);
 
             // Simulate underflow
-            if (mSinkTestConfiguration.vSink_underflowPts != static_cast<uint64_t>(-1)  &&
-                pts == (int64_t)mSinkTestConfiguration.vSink_underflowPts)
+            if (mSinkTestConfiguration.vSink_underflowPts != static_cast<uint64_t>(-1) &&
+                pts == static_cast<int64_t>(mSinkTestConfiguration.vSink_underflowPts))
             {
                 uint32_t frameDurationMs = 0;
-                if (metadata.frameRateNumerator != 0)
+                if (metadata.frameRateNumerator > 0 && metadata.frameRateDenominator > 0)
+                {
                     frameDurationMs = static_cast<uint32_t>(
                         1000.0 * metadata.frameRateDenominator / metadata.frameRateNumerator);
+                }
 
-                UT_LOG_DEBUG("[SinkID: %d] Injecting delay at PTS %ld to simulate underflow", mSinkId.value, pts);
+                UT_LOG_DEBUG("[SinkID: %d] Injecting delay at PTS %lld to simulate underflow",
+                             mSinkId.value, static_cast<long long>(pts));
                 std::this_thread::sleep_for(std::chrono::milliseconds(frameDurationMs));
             }
 
@@ -297,7 +310,8 @@ void SinkTest::videoSinkNonTunnelMode()
 
             if (metadata.endOfStream)
             {
-                UT_LOG_DEBUG("EOS frame received, stopping video sink input loop");
+                UT_LOG_DEBUG("[SinkID: %d] EOS frame received, stopping video sink input loop",
+                             mSinkId.value);
                 break;
             }
 
