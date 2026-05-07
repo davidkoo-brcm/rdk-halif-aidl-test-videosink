@@ -75,6 +75,7 @@
 #include "vts_videosink_init.h"
 #include "vts_avbuffer.h"
 #include "vts_videodecoder.h"
+#include "vts_avclock.h"
 
 #include "com/rdk/hal/videosink/IVideoSinkManager.h"
 #include "com/rdk/hal/videosink/BnVideoSinkControllerListener.h"
@@ -678,6 +679,95 @@ extern void *gVideoSinkTestConfiguration;
         UT_ASSERT_EQUAL(_aidl_return, expectedReturn); \
     } while (0)
 
+// Clock Attachment Macros for AV Clock Control
+#define VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, clockId) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_DEBUG("Calling attachClock(IN:clockId[%d])", clockId.value); \
+        status = videoSinkController->attachClock(clockId); \
+        UT_LOG_DEBUG("Result attachClock(IN:clockId[%d]), status:[isOK:%s, exception:%s]", \
+            clockId.value, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
+#define VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, clockId, exception) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_DEBUG("Calling attachClock(IN:clockId[%d])", clockId.value); \
+        status = videoSinkController->attachClock(clockId); \
+        UT_LOG_DEBUG("Result attachClock(IN:clockId[%d]), status:[isOK:%s, exception:%s]", \
+            clockId.value, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_FALSE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+    } while (0)
+
+#define VIDEOSINK_DETACH_CLOCK_SUCCESS(videoSinkController) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_DEBUG("Calling detachClock()"); \
+        status = videoSinkController->detachClock(); \
+        UT_LOG_DEBUG("Result detachClock(), status:[isOK:%s, exception:%s]", \
+            UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
+#define VIDEOSINK_DETACH_CLOCK_FAILURE(videoSinkController, exception) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_DEBUG("Calling detachClock()"); \
+        status = videoSinkController->detachClock(); \
+        UT_LOG_DEBUG("Result detachClock(), status:[isOK:%s, exception:%s]", \
+            UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_FALSE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+    } while (0)
+
+#define VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, clockId) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_DEBUG("Calling getClock(OUT:clockId)"); \
+        status = videoSinkController->getClock(&clockId); \
+        UT_LOG_DEBUG("Result getClock(OUT:clockId[%d]), status:[isOK:%s, exception:%s]", \
+            clockId.value, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
+#define VIDEOSINK_GET_CLOCK_FAILURE(videoSinkController, clockId, exception) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_DEBUG("Calling getClock(OUT:clockId)"); \
+        status = videoSinkController->getClock(&clockId); \
+        UT_LOG_DEBUG("Result getClock(OUT:clockId), status:[isOK:%s, exception:%s]", \
+            UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_FALSE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+    } while (0)
+
+// AVClock Service initialization function for L1 and L3 tests
+inline int getAVClockService()
+{
+    gAVClockManagerService = android::interface_cast<::com::rdk::hal::avclock::IAVClockManager>(
+        android::defaultServiceManager()->getService(
+            android::String16(::com::rdk::hal::avclock::IAVClockManager::serviceName().c_str())));
+
+    if (gAVClockManagerService == nullptr)
+    {
+        UT_LOG_ERROR("AVClock Service not available");
+        return UT_STATUS_FAILURE;
+    }
+
+    return UT_STATUS_OK;
+}
+
 struct VideoSinkData
 {
 
@@ -698,6 +788,7 @@ public:
     android::binder::Status onFirstFrameRendered(int64_t nsPresentationTime) override;
     android::binder::Status onFlushComplete() override;
     android::binder::Status onEndOfStream(int64_t nsPresentationTime) override;
+    android::binder::Status onFrameBufferAvailable() override;
     android::binder::Status onVideoUnderflow() override;
     android::binder::Status onVideoResumed() override;
     android::binder::Status onStateChanged(::com::rdk::hal::State oldState, ::com::rdk::hal::State newState) override;
@@ -710,6 +801,11 @@ public:
     void resetEos();
     int64_t getEosPTS();
     bool waitForEosEvent(int timeoutSeconds);
+
+    // Utility functions: Frame buffer available
+    void resetFrameBufferAvailable();
+    int getFrameBufferAvailableCount();
+    bool waitForFrameBufferAvailableEvent(int timeoutSeconds);
 
     // Utility functions: Underflow
     void resetUnderflow();
@@ -740,6 +836,10 @@ private:
     // EOS info
     bool mEosReceived;
     int64_t mEosPTS;
+
+    // Frame buffer available info
+    bool mFrameBufferAvailable;
+    int mFrameBufferAvailableCount = 0;
 
     // Counters for events
     int mUnderflowCount = 0;

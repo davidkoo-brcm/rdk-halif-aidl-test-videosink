@@ -40,3 +40,4 @@ include_16: videosink_test_configuration/vts_l3_Sink_FramesRepeatedFRC.yaml
 include_17: videosink_test_configuration/vts_l3_Sink_QueueDepth.yaml
 include_18: videosink_test_configuration/vts_l3_Sink_UnderflowResumed.yaml
 include_19: videosink_test_configuration/vts_l3_Sink_VideoFlush.yaml
+include_20: videosink_test_configuration/vts_l3_Sink_FrameBufferAvailable.yaml

@@ -210,6 +210,13 @@ void SinkTest::videoSinkNonTunnelMode()
         const int64_t frameTimeoutMs = 500; // Wait up to 500 ms for a frame
         int timeoutCount = 0;
         const int maxTimeoutCount = 3;
+        const bool verifyFrameBufferAvailable = (mSinkTestConfiguration.testName == "Sink_FrameBufferAvailable");
+        bool frameBufferEpisodeVerified = false;
+
+        if (verifyFrameBufferAvailable)
+        {
+            mVideoSinkControlListener->resetFrameBufferAvailable();
+        }
 
         /*Set the "discard until PTS" value for the relevant test cases*/
         if (mSinkTestConfiguration.vSink_discardFramesUntilPts != static_cast<uint64_t>(-1))
@@ -303,6 +310,57 @@ void SinkTest::videoSinkNonTunnelMode()
                 std::this_thread::sleep_for(std::chrono::milliseconds(frameDurationMs));
             }
 
+            if (verifyFrameBufferAvailable && !frameBufferEpisodeVerified)
+            {
+                int refusedCount = 0;
+                int acceptedCount = 0;
+                const int burstDepth = 64;
+
+                UT_LOG_INFO("[SinkID: %d] Triggering queue back-pressure burst for onFrameBufferAvailable verification", mSinkId.value);
+                for (int i = 0; i < burstDepth; ++i)
+                {
+                    bool aidlReturn = false;
+                    ::android::binder::Status status = controller->queueVideoFrame(pts + i, bufferHandle, metadata, &aidlReturn);
+
+                    if (aidlReturn)
+                    {
+                        UT_ASSERT_TRUE(status.isOk());
+                        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE);
+                        acceptedCount++;
+                    }
+                    else
+                    {
+                        // Some implementations report queue full with EX_NONE + false, others with an exception code.
+                        UT_ASSERT_TRUE(status.exceptionCode() == Status::EX_NONE ||
+                                       status.exceptionCode() == Status::EX_UNSUPPORTED_OPERATION);
+                        refusedCount++;
+                    }
+                }
+
+                UT_LOG_INFO("[SinkID: %d] Back-pressure burst result accepted=%d refused=%d",
+                            mSinkId.value, acceptedCount, refusedCount);
+                UT_ASSERT_TRUE_FATAL(refusedCount > 0);
+
+                // Keep retrying while back-pressure is active; callback should still be one-per-transition.
+                for (int i = 0; i < 5; ++i)
+                {
+                    bool aidlReturn = true;
+                    ::android::binder::Status status = controller->queueVideoFrame(pts + burstDepth + i, bufferHandle, metadata, &aidlReturn);
+                    if (!aidlReturn)
+                    {
+                        UT_ASSERT_TRUE(status.exceptionCode() == Status::EX_NONE ||
+                                       status.exceptionCode() == Status::EX_UNSUPPORTED_OPERATION);
+                    }
+                }
+
+                bool callbackArrived = mVideoSinkControlListener->waitForFrameBufferAvailableEvent(3);
+                UT_ASSERT_TRUE_FATAL(callbackArrived);
+                UT_ASSERT_EQUAL(mVideoSinkControlListener->getFrameBufferAvailableCount(), 1);
+
+                frameBufferEpisodeVerified = true;
+                break;
+            }
+
             VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, pts, bufferHandle, metadata);
 
             receivedPtsSet.insert(pts);
@@ -325,6 +383,11 @@ void SinkTest::videoSinkNonTunnelMode()
                 VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
             }
 
+        }
+
+        if (verifyFrameBufferAvailable)
+        {
+            UT_ASSERT_TRUE_FATAL(frameBufferEpisodeVerified);
         }
 
         /*Validation of EOS*/
@@ -1129,6 +1192,24 @@ void SinkTest::runPostVerification()
 UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_QueueDepth)
 {
     const char *testName = "Sink_QueueDepth";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test back-pressure behavior and onFrameBufferAvailable callback semantics
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 001A@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_FrameBufferAvailable)
+{
+    const char *testName = "Sink_FrameBufferAvailable";
     bool secureMode = false;
     bool isTunnel = false;
     bool isConcurrent = false;
