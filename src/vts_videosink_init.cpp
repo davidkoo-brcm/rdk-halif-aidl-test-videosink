@@ -71,6 +71,8 @@
 #include "vts_videosink.h"
 
 sp<IVideoSinkManager> gVideoSinkManager;
+sp<IAVClockManager> gAVClockManagerService;
+
 void *gVideoSinkTestConfiguration;
 
 UT_status_t VTS_VideoSink_init()

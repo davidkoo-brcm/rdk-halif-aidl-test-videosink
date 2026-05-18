@@ -75,7 +75,6 @@
 #include "vts_videosink_init.h"
 #include "vts_avbuffer.h"
 #include "vts_videodecoder.h"
-#include "vts_avclock.h"
 
 #include "com/rdk/hal/videosink/IVideoSinkManager.h"
 #include "com/rdk/hal/videosink/BnVideoSinkControllerListener.h"
@@ -83,6 +82,8 @@
 
 #include "com/rdk/hal/avbuffer/IAVBuffer.h"
 #include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
+
+#include "com/rdk/hal/avclock/IAVClockManager.h"
 
 using android::sp;
 using android::String16;
@@ -93,6 +94,7 @@ using namespace com::rdk::hal;
 using namespace com::rdk::hal::videosink;
 using namespace com::rdk::hal::videodecoder;
 using namespace com::rdk::hal::avbuffer;
+using namespace com::rdk::hal::avclock;
 
 extern sp<IVideoSinkManager> gVideoSinkManager;
 extern void *gVideoSinkTestConfiguration;
@@ -111,6 +113,9 @@ extern void *gVideoSinkTestConfiguration;
 #define UT_LOG_INFO(...)
 #endif
 #endif
+
+
+extern sp<IAVClockManager> gAVClockManagerService;
 
 #define VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds) \
     do { \
@@ -767,6 +772,16 @@ inline int getAVClockService()
 
     return UT_STATUS_OK;
 }
+
+#define AVCLOCK_MANAGER_GETAVCLOCKIDS(clockIds) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_INFO("Calling getAVClockIds(OUT:clockIds:[])"); \
+        status = gAVClockManagerService->getAVClockIds(&clockIds); \
+        UT_LOG_INFO("Result getAVClockIds(OUT:clockIds:[size: %d]), status:[isOK:%s, exception:%s]", \
+                    clockIds.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+    } while (0)
 
 struct VideoSinkData
 {

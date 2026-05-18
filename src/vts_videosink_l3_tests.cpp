@@ -203,6 +203,15 @@ void SinkTest::videoSinkNonTunnelMode()
         mVideoSinkControlListener->resetFlushComplete();
         mVideoSinkEventListner->resetFlushComplete();
 
+
+        // --- AVClock attach sequence (required before queuing frames) ---
+        UT_ASSERT_EQUAL(getAVClockService(), UT_STATUS_OK);
+        std::vector<IAVClock::Id> clockIds;
+        AVCLOCK_MANAGER_GETAVCLOCKIDS(clockIds);
+        UT_ASSERT_FALSE(clockIds.empty());
+        IAVClock::Id clockId = clockIds.front();
+        VIDEOSINK_ATTACH_CLOCK_SUCCESS(controller, clockId);
+
         /*Start the Video Sink*/
         VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
 
@@ -219,9 +228,9 @@ void SinkTest::videoSinkNonTunnelMode()
         }
 
         /*Set the "discard until PTS" value for the relevant test cases*/
-        if (mSinkTestConfiguration.vSink_discardFramesUntilPts != static_cast<uint64_t>(-1))
+        if (mSinkTestConfiguration.vSink_discardFramesUntilPts >= 0)
         {
-            VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, mSinkTestConfiguration.vSink_discardFramesUntilPts);
+            VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, static_cast<uint64_t>(mSinkTestConfiguration.vSink_discardFramesUntilPts));
         }
 
         while (true)
@@ -252,7 +261,7 @@ void SinkTest::videoSinkNonTunnelMode()
             timeoutCount = 0;
 
             int64_t pts = decodedFrame.framePTS;
-            int64_t bufferHandle = decodedFrame.frameBufferHandle;
+            int64_t bufferHandle = decodedFrame.frameAVBufferHandle;
 
             // Use fully qualified name to avoid ambiguity
             videodecoder::FrameMetadata metadata{};
@@ -295,7 +304,7 @@ void SinkTest::videoSinkNonTunnelMode()
                         mSinkId.value, pts, bufferHandle, metadata.endOfStream, metadata.discontinuity);
 
             // Simulate underflow
-            if (mSinkTestConfiguration.vSink_underflowPts != static_cast<uint64_t>(-1) &&
+            if (mSinkTestConfiguration.vSink_underflowPts >= 0 &&
                 pts == static_cast<int64_t>(mSinkTestConfiguration.vSink_underflowPts))
             {
                 uint32_t frameDurationMs = 0;
@@ -378,7 +387,7 @@ void SinkTest::videoSinkNonTunnelMode()
                 std::this_thread::sleep_for(std::chrono::milliseconds(mSinkTestConfiguration.vSink_interFrameDelayMs));
             }
 
-            if (mSinkTestConfiguration.vSink_flush_pts != static_cast<uint64_t>(-1) && pts == (int64_t)mSinkTestConfiguration.vSink_flush_pts)
+            if (mSinkTestConfiguration.vSink_flush_pts >= 0 && pts == static_cast<int64_t>(mSinkTestConfiguration.vSink_flush_pts))
             {
                 VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
             }
@@ -452,6 +461,34 @@ public:
     vector<tuple<IVideoDecoder::Id, sp<IVideoDecoder>, sp<VideoDecoderControllerListener>, sp<VideoDecoderEventListener>, videodecoder::Capabilities*>> mVideoDecoderList;
     sp<IAVBuffer> mAVBufferManager;
     IAVBufferHelper* mAVbufferHelper;
+    bool mIsTunnelSupported = false;
+
+    bool isSecureSupportedByDecoder(const videodecoder::Capabilities* capabilities) const
+    {
+        return (capabilities != nullptr) && capabilities->supportsSecure;
+    }
+
+    bool isSecureModeSupportedByAnyUsableDecoder() const
+    {
+        for (const auto& [decoderId, decoderHandle, controlListener, eventListener, capabilities] : mVideoDecoderList)
+        {
+            (void)decoderHandle;
+            (void)controlListener;
+            (void)eventListener;
+
+            if (!isVideoDecoderUsable(decoderId))
+            {
+                continue;
+            }
+
+            if (isSecureSupportedByDecoder(capabilities))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     void SetUp() override
     {
@@ -489,6 +526,18 @@ public:
         {
             /*Get the Video Decoder IDs*/
             VIDEODECODER_MANAGER_GETVIDEODECODERIDS(videoDecoderIds);
+
+            vector<videodecoder::OperationalMode> supportedModes;
+            Status opModeStatus = gVideoDecoderManager->getSupportedOperationalModes(&supportedModes);
+            if (opModeStatus.isOk() && opModeStatus.exceptionCode() == Status::EX_NONE)
+            {
+                mIsTunnelSupported = std::find(supportedModes.begin(), supportedModes.end(), videodecoder::OperationalMode::TUNNELLED) != supportedModes.end();
+            }
+            else
+            {
+                mIsTunnelSupported = false;
+                UT_LOG_WARNING("Failed to query decoder operational modes. Tunnel tests will be skipped.");
+            }
 
             android::ProcessState::self()->startThreadPool();
 
@@ -540,12 +589,12 @@ public:
 
     }
 
-    bool isVideoSinkUsable(const IVideoSink::Id& sinkId)
+    bool isVideoSinkUsable(const IVideoSink::Id& sinkId) const
     {
         return std::find(gAvailableVideosinks_hfp.begin(), gAvailableVideosinks_hfp.end(), sinkId.value) != gAvailableVideosinks_hfp.end();
     }
 
-    bool isVideoDecoderUsable(const IVideoDecoder::Id& decoderId)
+    bool isVideoDecoderUsable(const IVideoDecoder::Id& decoderId) const
     {
         return std::find(gAvailableVideodecoders_hfp.begin(),
                             gAvailableVideodecoders_hfp.end(),
@@ -573,15 +622,23 @@ public:
 
                 for (const auto& [_decoderId, _decoderHandle, _controlListener, _eventListener, _capabilities] : mVideoDecoderList)
                 {
-                    if (isVideoDecoderUsable(_decoderId))
+                    if (!isVideoDecoderUsable(_decoderId))
                     {
-                        decoderId = _decoderId;
-                        decoderHandle = _decoderHandle;
-                        decoderControlListener = _controlListener;
-                        decoderEventListener = _eventListener;
-                        foundDecoder = true;
-                        break;
+                        continue;
                     }
+
+                    if (secureDecode && !isSecureSupportedByDecoder(_capabilities))
+                    {
+                        UT_LOG_INFO("[DecoderID: %d] Secure decode requested but unsupported, skipping decoder.", _decoderId.value);
+                        continue;
+                    }
+
+                    decoderId = _decoderId;
+                    decoderHandle = _decoderHandle;
+                    decoderControlListener = _controlListener;
+                    decoderEventListener = _eventListener;
+                    foundDecoder = true;
+                    break;
                 }
 
                 if (!foundDecoder)
@@ -649,6 +706,17 @@ public:
 
             for (const auto& [_decoderId, decoderHandle, decoderControlListener, decoderEventListener, decoderCapabilities] : mVideoDecoderList)
             {
+                if (!isVideoDecoderUsable(_decoderId))
+                {
+                    UT_LOG_INFO("[DecoderID: %d] is not usable for this test configuration, skipping.", _decoderId.value);
+                    continue;
+                }
+
+                if (secure && !isSecureSupportedByDecoder(decoderCapabilities))
+                {
+                    UT_LOG_INFO("[DecoderID: %d] Secure decode requested but unsupported, skipping decoder.", _decoderId.value);
+                    continue;
+                }
 
                 auto decoderTest = make_unique<videoDecoderTest>(_decoderId, decoderHandle,
                         sp<VideoDecoderControllerListener>::cast(decoderControlListener),
@@ -666,6 +734,12 @@ public:
                                                 sp<VideoDecoderControllerListener>::cast(decoderControlListener),
                                                 sp<VideoDecoderEventListener>::cast(decoderEventListener)
                                             });
+            }
+
+            if (availableDecoderList.empty())
+            {
+                UT_LOG_WARNING("No compatible decoders found for secure=%d tunnel=%d, skipping concurrent run.", secure, tunnel);
+                return;
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -722,21 +796,28 @@ public:
         vector<videoDecoderTestConfiguration_t> decoderConfigs;
         vector<videoTestConfiguration_t> sinkConfigs;
 
-        if(secureMode)
+        if (secureMode && !isSecureModeSupportedByAnyUsableDecoder())
         {
-            UT_LOG_WARNING("Video Sink does not support secure mode, skipping test!");
+            GTEST_SKIP() << "Secure mode is not supported by any decoder";
             return;
         }
 
-        if(isTunnel)
+        if (isTunnel && !mIsTunnelSupported)
         {
-            UT_LOG_WARNING("Video Sink does not support tunnel mode, skipping test!");
+            GTEST_SKIP() << "Tunnel mode is not supported by decoder capabilities";
             return;
         }
 
         vts_videodecoder_parse_testconfig(gVideoSinkTestConfiguration, VIDEODECODERMGR, gTestGroup, testName, decoderConfigs);
 
         vts_videosink_parse_testconfig(gVideoSinkTestConfiguration, VIDEODECODERMGR, gTestGroup, testName, sinkConfigs);
+
+        if (decoderConfigs.empty())
+        {
+            std::string errorMsg = std::string("No valid test configurations found - missing test streams or invalid configuration for test: ") + testName;
+            UT_FAIL_FATAL(errorMsg.c_str());
+            return;
+        }
 
         for (size_t i = 0; i < decoderConfigs.size(); ++i)
         {
@@ -780,7 +861,7 @@ public:
  */
 void SinkTest::verifyNoUnexpectedUnderflow()
 {
-    if (mSinkTestConfiguration.vSink_underflowPts == static_cast<uint64_t>(-1)) {
+    if (mSinkTestConfiguration.vSink_underflowPts < 0) {
         int countCtrl = mVideoSinkControlListener->getUnderflowCount();
         int countEvent = mVideoSinkEventListner->getUnderflowCount();
         if (countCtrl > 0 || countEvent > 0) {
@@ -1549,8 +1630,6 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_DiscardFramesU
     bool isConcurrent = true;
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
-/*Commenting Tunnel and secure cases*/
-#if 0
 /**
  * @brief Test the sink's ability to report correct queue depth
  *        Type: Sequential
@@ -2601,7 +2680,6 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_DiscardFramesUntil)
     bool isConcurrent = true;
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
-#endif
 /** @} */ // End of VIDEO_SINK_HALTEST L3 File
 /** @} */ // End of VIDEO_SINK_HALTEST
 /** @} */ // End of VIDEO_SINK Module
