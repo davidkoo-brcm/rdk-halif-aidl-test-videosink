@@ -27,7 +27,7 @@ VideoStreams:
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
-    pixelFormat: YUV
+    pixelFormat: YCBCR444
     dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
     scanType: PROGRESSIVE_FRAME
     frameRateNumerator: 60 #Frame Rate
@@ -79,7 +79,7 @@ VideoStreams:
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
-    pixelFormat: YUV
+    pixelFormat: YCBCR444
     dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
     scanType: PROGRESSIVE_FRAME
     frameRateNumerator: 60 #Frame Rate
@@ -128,7 +128,7 @@ VideoStreams:
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
-    pixelFormat: YUV
+    pixelFormat: YCBCR444
     dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
     scanType: PROGRESSIVE_FRAME
     frameRateNumerator: 60 #Frame Rate
@@ -178,7 +178,7 @@ VideoStreams:
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
-    pixelFormat: YUV
+    pixelFormat: YCBCR444
     dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
     scanType: PROGRESSIVE_FRAME
     frameRateNumerator: 60 #Frame Rate
@@ -228,7 +228,7 @@ VideoStreams:
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
-    pixelFormat: YUV
+    pixelFormat: YCBCR444
     dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
     scanType: PROGRESSIVE_FRAME
     frameRateNumerator: 60 #Frame Rate
@@ -278,7 +278,7 @@ VideoStreams:
     codedWidth: 640
     codedHeight: 480
     colorDepth: 8
-    pixelFormat: YUV
+    pixelFormat: YCBCR444
     dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
     scanType: PROGRESSIVE_FRAME
     frameRateNumerator: 60 #Frame Rate
@@ -328,7 +328,7 @@ VideoStreams:
     codedWidth: 1920
     codedHeight: 1080
     colorDepth: 8
-    pixelFormat: YUV
+    pixelFormat: YCBCR444
     dynamic_range: SDR #com.rdk.hal.video.decoder.DynamicRange enum.
     scanType: PROGRESSIVE_FRAME
     frameRateNumerator: 60 #Frame Rate

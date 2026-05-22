@@ -2137,85 +2137,13 @@ UT_ADD_TEST(VTS_L1_VideoSink, detachClock_getClock_pos) {
 
         // Step 12-13: Detach in STARTED state
         VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
-        
+
         VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, clockId0);
         VIDEOSINK_DETACH_CLOCK_SUCCESS(videoSinkController);
         VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
         UT_ASSERT_EQUAL(retrievedClockId.value, ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED);
 
         // Step 14: Stop and close
-        VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
-        VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
-    }
-}
-
-/**
- * @brief Test clock management with frame queue behavior
- *
- * This test validates the interaction between clock attachment and frame queue behavior.
- * Verifies that frames are queued appropriately based on clock state and that attaching
- * a clock after queueing enables frame consumption. Tests state-dependent queue behavior.
- *
- * **Test Group ID:** Clock Management: 30@n
- * **Test Case ID:** 033@n
- * **Priority:** High@n
- * @n
- * **Pre-Conditions:** VideoSink available@n
- * **Dependencies:** None@n
- * **User Interaction:** None@n
- * @n
- * **Test Procedure:**@n
- * | Variation / Step | Description | Test Data | Expected Result | Notes |
- * | :----: | --------- | ---------- |-------------- | ----- |
- * |01|Get sink IDs|None|Non-empty list|Should Pass|
- * |02|Open and start sink|listener = valid|Status OK, STARTED|Should Pass|
- * |03|Verify no clock attached|getClock|UNDEFINED|Should Pass|
- * |04|Note queue behavior without clock|no clock|Frames queue but no render|Should Pass|
- * |05|Attach clock|clockId = 0|Status OK|Should Pass|
- * |06|Verify clock attached|getClock|clockId = 0|Should Pass|
- * |07|Note queue behavior with clock|clock present|Frames consume/render|Should Pass|
- * |08|Detach clock|N/A|Status OK|Should Pass|
- * |09|Verify consumption pauses|no clock|Queue pauses, intact|Should Pass|
- * |10|Stop and close|N/A|Status OK|Should Pass|
- */
-UT_ADD_TEST(VTS_L1_VideoSink, queueBehavior_with_clock_pos) {
-    std::vector<IVideoSink::Id> sinkIds;
-    std::vector<::com::rdk::hal::avclock::IAVClock::Id> clockIds;
-    sp<IVideoSink> videoSink;
-    sp<IVideoSinkController> videoSinkController;
-    sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
-
-    UT_ASSERT_EQUAL(getAVClockService(), UT_STATUS_OK);
-    AVCLOCK_MANAGER_GETAVCLOCKIDS(clockIds);
-    UT_ASSERT_FALSE(clockIds.empty());
-
-    ::com::rdk::hal::avclock::IAVClock::Id validClockId = clockIds.front();
-    ::com::rdk::hal::avclock::IAVClock::Id retrievedClockId{};
-
-    VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
-
-    for(const auto& _sinkId: sinkIds) {
-        VIDEOSINK_MANAGER_GETVIDEOSINK(_sinkId, videoSink);
-
-        // Step 02: Open and start sink
-        VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
-        VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
-
-        // Step 03-04: Verify no clock and queue behavior without clock
-        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
-        UT_ASSERT_EQUAL(retrievedClockId.value, ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED);
-
-        // Step 05-07: Attach clock and verify queue behavior changes
-        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId);
-        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
-        UT_ASSERT_EQUAL(retrievedClockId.value, validClockId.value);
-
-        // Step 08-09: Detach and verify consumption pauses
-        VIDEOSINK_DETACH_CLOCK_SUCCESS(videoSinkController);
-        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
-        UT_ASSERT_EQUAL(retrievedClockId.value, ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED);
-
-        // Step 10: Stop and close
         VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
     }

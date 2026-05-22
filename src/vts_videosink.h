@@ -103,7 +103,7 @@ extern void *gVideoSinkTestConfiguration;
 #define VIDEO_SINK_MAX_TRANSITORY_STATE_WAIT_MS  5
 #define VIDEO_SINK_MAX_FINAL_STATE_WAIT_MS  500
 
-#ifndef ENABLE_UT_INFO_LOGGING
+#if !defined(ENABLE_UT_INFO_LOGGING) || (ENABLE_UT_INFO_LOGGING != 1)
 #ifdef UT_LOG_DEBUG
 #undef UT_LOG_DEBUG
 #define UT_LOG_DEBUG(...)
@@ -672,25 +672,32 @@ extern sp<IAVClockManager> gAVClockManagerService;
     do { \
         ::android::binder::Status status; \
         bool _aidl_return = false; \
-        UT_LOG_DEBUG("Calling queueVideoFrame(IN:nsPresentationTime[%ld], IN:frameBufferHandle[0x%016" PRIx64 "], IN:metadata{width:%d, height:%d, format:%d}, OUT:_aidl_return[])", \
+        UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime[%ld], IN:frameBufferHandle[0x%016" PRIx64 "], IN:metadata{width:%d, height:%d, format:%d}, OUT:_aidl_return[])", \
             nsPresentationTime, frameBufferHandle, metadata.width, metadata.height, metadata.format); \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
-        UT_LOG_DEBUG("Result queueVideoFrame(..., OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result queueVideoFrame(..., OUT:_aidl_return[%s]), status:[isOK:%s, exception:%s]", \
             UT_Control_GetMapString(bool_mapTable, _aidl_return), \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
         UT_ASSERT_EQUAL(_aidl_return, expectedReturn); \
+        if(_aidl_return == false || status.isOk() == false || status.exceptionCode() != Status::EX_NONE) \
+        { \
+            if(frameBufferHandle != -1) \
+            { \
+                AVBUFFER_FREE_SUCCESS(gAVBufferManager, frameBufferHandle);\
+            } \
+        } \
     } while (0)
 
 // Clock Attachment Macros for AV Clock Control
 #define VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, clockId) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_DEBUG("Calling attachClock(IN:clockId[%d])", clockId.value); \
+        UT_LOG_INFO("Calling attachClock(IN:clockId[%d])", clockId.value); \
         status = videoSinkController->attachClock(clockId); \
-        UT_LOG_DEBUG("Result attachClock(IN:clockId[%d]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result attachClock(IN:clockId[%d]), status:[isOK:%s, exception:%s]", \
             clockId.value, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -700,9 +707,9 @@ extern sp<IAVClockManager> gAVClockManagerService;
 #define VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, clockId, exception) \
     do { \
         ::android::binder::Status status; \
-        UT_LOG_DEBUG("Calling attachClock(IN:clockId[%d])", clockId.value); \
+        UT_LOG_INFO("Calling attachClock(IN:clockId[%d])", clockId.value); \
         status = videoSinkController->attachClock(clockId); \
-        UT_LOG_DEBUG("Result attachClock(IN:clockId[%d]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result attachClock(IN:clockId[%d]), status:[isOK:%s, exception:%s]", \
             clockId.value, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
@@ -953,6 +960,7 @@ public:
         sp<VideoSinkControllerListener> VideoSinkControllerListener,
         sp<VideoSinkEventListener> VideoSinkEventListner,
         sp<VideoDecoderControllerListener> decoderControllerListener,
+        IVideoDecoder::Id decoderId,
         videoDecoderTestConfiguration_t& config,
         videoTestConfiguration_t& sinkConfig);
 
@@ -977,6 +985,7 @@ private:
     sp<VideoSinkControllerListener> mVideoSinkControlListener;
     sp<VideoSinkEventListener> mVideoSinkEventListner;
     sp<VideoDecoderControllerListener> mDecoderControllerListener;
+    IVideoDecoder::Id mDecoderId;
     videoDecoderTestConfiguration_t mTestConfiguration;
     videoTestConfiguration_t mSinkTestConfiguration;
     std::set<int64_t> receivedPtsSet;
