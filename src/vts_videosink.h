@@ -75,6 +75,7 @@
 #include "vts_videosink_init.h"
 #include "vts_avbuffer.h"
 #include "vts_videodecoder.h"
+#include "vts_avclock.h"
 
 #include "com/rdk/hal/videosink/IVideoSinkManager.h"
 #include "com/rdk/hal/videosink/BnVideoSinkControllerListener.h"
@@ -115,7 +116,7 @@ extern void *gVideoSinkTestConfiguration;
 #endif
 
 
-extern sp<IAVClockManager> gAVClockManagerService;
+
 
 #define VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds) \
     do { \
@@ -764,31 +765,8 @@ extern sp<IAVClockManager> gAVClockManagerService;
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
     } while (0)
 
-// AVClock Service initialization function for L1 and L3 tests
-inline int getAVClockService()
-{
-    gAVClockManagerService = android::interface_cast<::com::rdk::hal::avclock::IAVClockManager>(
-        android::defaultServiceManager()->getService(
-            android::String16(::com::rdk::hal::avclock::IAVClockManager::serviceName().c_str())));
 
-    if (gAVClockManagerService == nullptr)
-    {
-        UT_LOG_ERROR("AVClock Service not available");
-        return UT_STATUS_FAILURE;
-    }
 
-    return UT_STATUS_OK;
-}
-
-#define AVCLOCK_MANAGER_GETAVCLOCKIDS(clockIds) \
-    do { \
-        ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getAVClockIds(OUT:clockIds:[])"); \
-        status = gAVClockManagerService->getAVClockIds(&clockIds); \
-        UT_LOG_INFO("Result getAVClockIds(OUT:clockIds:[size: %d]), status:[isOK:%s, exception:%s]", \
-                    clockIds.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-    } while (0)
 
 struct VideoSinkData
 {
