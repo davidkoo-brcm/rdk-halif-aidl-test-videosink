@@ -33,4 +33,7 @@ videosink:          # Component object begins
   availableSinks:           # Add this list for available sinks
     - 0
     - 1
+  availableClocks:           # Add this list for available clocks
+    - 0
+    - 1
 
