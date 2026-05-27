@@ -69,6 +69,7 @@
 std::vector<int32_t> gVideosinks_hfp;
 std::vector<int32_t> gAvailableVideosinks_hfp;
 std::vector<int32_t> gAvailableVideodecoders_hfp;
+std::vector<int32_t> gAvailableClocks_hfp;
 
 
 UT_status_t vts_videosink_parseVideoSinkHFP()
@@ -118,6 +119,20 @@ UT_status_t vts_videosink_parseVideoSinkHFP()
         std::string decoderIdPath = decoderListPath + "." + std::to_string(i);
         int32_t decoderId = UT_KVP_PROFILE_GET_UINT32(decoderIdPath.c_str());
         gAvailableVideodecoders_hfp.push_back(decoderId);
+    }
+
+    std::string clockListPath = VIDEOSINKMGR_CLOCK_AVAILABLE;
+    int32_t clockCount = UT_KVP_PROFILE_GET_LIST_COUNT(clockListPath.c_str());
+    if (clockCount <= 0)
+    {
+        UT_LOG_WARNING("No available clocks found in the HFP");
+    }
+
+    for (int32_t i = 0; i < clockCount; ++i)
+    {
+        std::string clockIdPath = clockListPath + "." + std::to_string(i);
+        int32_t clockId = UT_KVP_PROFILE_GET_UINT32(clockIdPath.c_str());
+        gAvailableClocks_hfp.push_back(clockId);
     }
 
     return UT_STATUS_OK;

@@ -62,6 +62,11 @@
 #include "vts_videosink.h"
 #include "vts_videodecoder.h"
 
+#include <condition_variable>
+#include <mutex>
+
+#define VIDEOSINK_USE_SHARED_AVCLOCK_LISTENER 1
+
 using namespace std::chrono;
 using namespace std;
 
@@ -86,12 +91,346 @@ static sp<IAVBuffer> vts_avbuffer_getService()
         );
 }
 
+namespace {
+
+#if VIDEOSINK_USE_SHARED_AVCLOCK_LISTENER
+class VideoSinkAVClockControllerListener final : public ::AVClockControllerListener
+#else
+class VideoSinkAVClockControllerListener final : public BnAVClockControllerListener
+#endif
+{
+public:
+#if VIDEOSINK_USE_SHARED_AVCLOCK_LISTENER
+    VideoSinkAVClockControllerListener()
+        : ::AVClockControllerListener()
+    {
+    }
+#endif
+
+    ::android::binder::Status onStateChanged(::com::rdk::hal::State oldState,
+                                             ::com::rdk::hal::State newState) override
+    {
+        UT_LOG_DEBUG("AVClock state changed from %s to %s",
+                     toString(oldState).c_str(),
+                     toString(newState).c_str());
+        return Status::ok();
+    }
+
+    ::android::binder::Status onPrimed(const ::com::rdk::hal::avclock::ClockTime& currentClockTime) override
+    {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            if (!primed)
+            {
+                firstPrimedClockTime = currentClockTime;
+                primed = true;
+            }
+        }
+
+        primedCondition.notify_all();
+        UT_LOG_DEBUG("AVClock primed: clockTimeNs=%lld sampleTimestampNs=%lld",
+                     static_cast<long long>(currentClockTime.clockTimeNs),
+                     static_cast<long long>(currentClockTime.sampleTimestampNs));
+        return Status::ok();
+    }
+
+    void resetPrimed()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        primed = false;
+        firstPrimedClockTime = {};
+    }
+
+    bool waitForPrimed(std::chrono::milliseconds timeout,
+                       ::com::rdk::hal::avclock::ClockTime* outClockTime = nullptr)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        if (!primedCondition.wait_for(lock, timeout, [this]() { return primed; }))
+        {
+            return false;
+        }
+
+        if (outClockTime != nullptr)
+        {
+            *outClockTime = firstPrimedClockTime;
+        }
+
+        return true;
+    }
+
+private:
+    std::mutex mutex;
+    std::condition_variable primedCondition;
+    bool primed = false;
+    ::com::rdk::hal::avclock::ClockTime firstPrimedClockTime{};
+};
+
+class SharedAVClockSession
+{
+public:
+    IAVClock::Id acquireStartedAVClock()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        if (refCount == 0)
+        {
+            ::android::binder::Status status;
+
+            if (getAVClockService() != UT_STATUS_OK)
+            {
+                UT_LOG_ERROR("Failed to get AVClock service");
+                clockId.value = IAVClock::Id::UNDEFINED;
+                return clockId;
+            }
+
+            std::vector<IAVClock::Id> clockIds;
+            AVCLOCK_MANAGER_GETAVCLOCKIDS(clockIds);
+            if (clockIds.empty())
+            {
+                UT_LOG_ERROR("No AVClock IDs available");
+                clockId.value = IAVClock::Id::UNDEFINED;
+                return clockId;
+            }
+
+            bool acquired = false;
+
+            for (const auto& candidateClockId : clockIds)
+            {
+                clockId = candidateClockId;
+                UT_LOG_INFO("[AVClock] Trying clockId=%d", clockId.value);
+
+                avClock = nullptr;
+                controller = nullptr;
+                listener = nullptr;
+
+                status = gAVClockManagerService->getAVClock(clockId, &avClock);
+                if (!status.isOk() || status.exceptionCode() != Status::EX_NONE || avClock == nullptr)
+                {
+                    UT_LOG_WARNING("[AVClock] getAVClock failed for clockId=%d (isOk=%d, exception=%d)",
+                                   clockId.value,
+                                   status.isOk(),
+                                   status.exceptionCode());
+                    continue;
+                }
+
+                listener = new VideoSinkAVClockControllerListener();
+                status = avClock->open(listener, &controller);
+                if (!status.isOk() || status.exceptionCode() != Status::EX_NONE || controller == nullptr)
+                {
+                    UT_LOG_WARNING("[AVClock] open failed for clockId=%d (isOk=%d, exception=%d). Trying next clock.",
+                                   clockId.value,
+                                   status.isOk(),
+                                   status.exceptionCode());
+                    controller = nullptr;
+                    listener = nullptr;
+                    avClock = nullptr;
+                    continue;
+                }
+
+                listener->resetPrimed();
+
+                bool setClockModeResult = false;
+                status = controller->setClockMode(::com::rdk::hal::avclock::ClockMode::VIDEO_MASTER, &setClockModeResult);
+                if (!status.isOk() || status.exceptionCode() != Status::EX_NONE || !setClockModeResult)
+                {
+                    UT_LOG_WARNING("[AVClock] setClockMode(VIDEO_MASTER) failed for clockId=%d (isOk=%d, exception=%d, result=%d). Trying next clock.",
+                                   clockId.value,
+                                   status.isOk(),
+                                   status.exceptionCode(),
+                                   setClockModeResult);
+
+                    bool closeResult = false;
+                    (void)avClock->close(controller, &closeResult);
+                    controller = nullptr;
+                    listener = nullptr;
+                    avClock = nullptr;
+                    continue;
+                }
+
+                ::com::rdk::hal::avclock::ClockMode effectiveClockMode = ::com::rdk::hal::avclock::ClockMode::AUTO;
+                status = controller->getClockMode(&effectiveClockMode);
+                if (!status.isOk() ||
+                    status.exceptionCode() != Status::EX_NONE ||
+                    effectiveClockMode != ::com::rdk::hal::avclock::ClockMode::VIDEO_MASTER)
+                {
+                    UT_LOG_WARNING("[AVClock] getClockMode verification failed for clockId=%d (isOk=%d, exception=%d, mode=%d). Trying next clock.",
+                                   clockId.value,
+                                   status.isOk(),
+                                   status.exceptionCode(),
+                                   static_cast<int>(effectiveClockMode));
+
+                    bool closeResult = false;
+                    (void)avClock->close(controller, &closeResult);
+                    controller = nullptr;
+                    listener = nullptr;
+                    avClock = nullptr;
+                    continue;
+                }
+
+                status = controller->start();
+                if (!status.isOk() || status.exceptionCode() != Status::EX_NONE)
+                {
+                    UT_LOG_WARNING("[AVClock] start failed for clockId=%d (isOk=%d, exception=%d). Trying next clock.",
+                                   clockId.value,
+                                   status.isOk(),
+                                   status.exceptionCode());
+
+                    bool closeResult = false;
+                    (void)avClock->close(controller, &closeResult);
+                    controller = nullptr;
+                    listener = nullptr;
+                    avClock = nullptr;
+                    continue;
+                }
+
+                UT_LOG_INFO("[AVClock] Using clockId=%d in VIDEO_MASTER mode", clockId.value);
+                acquired = true;
+                break;
+            }
+
+            if (!acquired)
+            {
+                UT_LOG_ERROR("[AVClock] Failed to acquire/start any AVClock instance");
+                clockId.value = IAVClock::Id::UNDEFINED;
+                return clockId;
+            }
+        }
+
+        ++refCount;
+        return clockId;
+    }
+
+    bool verifyStartedAVClockPrimedForVideoPts(const int64_t expectedFirstVideoPts,
+                                               const std::chrono::milliseconds timeout)
+    {
+        sp<VideoSinkAVClockControllerListener> localListener;
+        sp<IAVClockController> localController;
+
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            localListener = listener;
+            localController = controller;
+        }
+
+        if (localListener == nullptr || localController == nullptr)
+        {
+            UT_LOG_ERROR("[AVClock] Primed verification skipped because listener/controller is unavailable");
+            return false;
+        }
+
+        ::com::rdk::hal::avclock::ClockTime primedClockTime{};
+        const bool primedArrived = localListener->waitForPrimed(timeout, &primedClockTime);
+        if (!primedArrived)
+        {
+            UT_LOG_ERROR("[AVClock] Timed out waiting for onPrimed callback");
+            return false;
+        }
+
+        UT_LOG_INFO("[AVClock] onPrimed received with clockTimeNs=%lld sampleTimestampNs=%lld (expected first queued pts=%lld)",
+                    static_cast<long long>(primedClockTime.clockTimeNs),
+                    static_cast<long long>(primedClockTime.sampleTimestampNs),
+                    static_cast<long long>(expectedFirstVideoPts));
+
+        if (primedClockTime.clockTimeNs != expectedFirstVideoPts)
+        {
+            UT_LOG_ERROR("[AVClock] onPrimed clockTimeNs mismatch. expected=%lld actual=%lld",
+                         static_cast<long long>(expectedFirstVideoPts),
+                         static_cast<long long>(primedClockTime.clockTimeNs));
+            return false;
+        }
+
+        std::optional<::com::rdk::hal::avclock::ClockTime> currentClockTime;
+        const ::android::binder::Status status = localController->getCurrentClockTime(&currentClockTime);
+        if (!status.isOk() || status.exceptionCode() != Status::EX_NONE || !currentClockTime.has_value())
+        {
+            UT_LOG_ERROR("[AVClock] getCurrentClockTime invalid after onPrimed (isOk=%d, exception=%d, hasValue=%d)",
+                         status.isOk(),
+                         status.exceptionCode(),
+                         currentClockTime.has_value());
+            return false;
+        }
+
+        UT_LOG_INFO("[AVClock] getCurrentClockTime after primed: clockTimeNs=%lld, sampleTimestampNs=%lld",
+                    static_cast<long long>(currentClockTime->clockTimeNs),
+                    static_cast<long long>(currentClockTime->sampleTimestampNs));
+
+        return true;
+    }
+
+    void releaseStartedAVClock()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        UT_ASSERT_TRUE_FATAL(refCount > 0);
+        --refCount;
+
+        if (refCount != 0)
+        {
+            return;
+        }
+
+        ::android::binder::Status status;
+        bool closeResult = false;
+
+        status = controller->stop();
+        UT_ASSERT_TRUE_FATAL(status.isOk());
+        UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE);
+
+        status = avClock->close(controller, &closeResult);
+        UT_ASSERT_TRUE_FATAL(status.isOk());
+        UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE);
+        UT_ASSERT_TRUE_FATAL(closeResult);
+
+        controller = nullptr;
+        listener = nullptr;
+        avClock = nullptr;
+        clockId.value = IAVClock::Id::UNDEFINED;
+    }
+
+private:
+    std::mutex mutex;
+    sp<IAVClock> avClock;
+    sp<IAVClockController> controller;
+    sp<VideoSinkAVClockControllerListener> listener;
+    IAVClock::Id clockId = []() {
+        IAVClock::Id id;
+        id.value = IAVClock::Id::UNDEFINED;
+        return id;
+    }();
+    size_t refCount = 0;
+};
+
+SharedAVClockSession& getSharedAVClockSession()
+{
+    static SharedAVClockSession session;
+    return session;
+}
+
+IAVClock::Id acquireStartedAVClock()
+{
+    return getSharedAVClockSession().acquireStartedAVClock();
+}
+
+bool verifyStartedAVClockPrimedForVideoPts(const int64_t expectedFirstVideoPts,
+                                           const std::chrono::milliseconds timeout)
+{
+    return getSharedAVClockSession().verifyStartedAVClockPrimedForVideoPts(expectedFirstVideoPts, timeout);
+}
+
+void releaseStartedAVClock()
+{
+    getSharedAVClockSession().releaseStartedAVClock();
+}
+
+} // namespace
+
 SinkTest :: SinkTest(
         IVideoSink::Id sinkId,
         sp<IVideoSink> sinkHandle,
         sp<VideoSinkControllerListener> VideoSinkControllerListener,
         sp<VideoSinkEventListener> VideoSinkEventListner,
         sp<VideoDecoderControllerListener> decoderControllerListener,
+    IVideoDecoder::Id decoderId,
         videoDecoderTestConfiguration_t& config,
         videoTestConfiguration_t& sinkConfig)
 {
@@ -100,6 +439,7 @@ SinkTest :: SinkTest(
     mVideoSinkControlListener = VideoSinkControllerListener;
     mVideoSinkEventListner = VideoSinkEventListner;
     mDecoderControllerListener = decoderControllerListener;
+    mDecoderId = decoderId;
     mTestConfiguration = config;
     mSinkTestConfiguration = sinkConfig;
 }
@@ -184,14 +524,34 @@ PixelFormat SinkTest::getPixelFormatEnum(const std::string& basePixelFormat)
 
 void SinkTest::videoSinkNonTunnelMode()
 {
+    sp<IVideoSinkController> controller;
+    IAVClock::Id clockId;
+    clockId.value = IAVClock::Id::UNDEFINED;
+    bool clockAttached = false;
+    bool clockSessionAcquired = false;
+
+    auto cleanupClock = [&]() {
+        if (clockAttached && controller != nullptr)
+        {
+            VIDEOSINK_DETACH_CLOCK_SUCCESS(controller);
+            clockAttached = false;
+        }
+
+        if (clockSessionAcquired)
+        {
+            releaseStartedAVClock();
+            clockSessionAcquired = false;
+        }
+    };
 
     try {
-        sp<IVideoSinkController> controller;
-
         UT_LOG_WARNING("[SinkID: %d] Start of Testing Stream: %s", mSinkId.value, mTestConfiguration.input.c_str());
 
         /*Open the Video Sink*/
         VIDEOSINK_OPEN_SUCCESS(mSinkHandle, mVideoSinkControlListener, controller, true);
+
+        /*Associate sink with decoder before starting queue operations.*/
+        VIDEOSINK_CONTROLLER_SETVIDEODECODER_SUCCESS(controller, mDecoderId);
 
         /*Reset the Flush, EOS, Underflow and Resume Counts*/
         mVideoSinkControlListener->resetUnderflow();
@@ -203,18 +563,40 @@ void SinkTest::videoSinkNonTunnelMode()
         mVideoSinkControlListener->resetFlushComplete();
         mVideoSinkEventListner->resetFlushComplete();
 
-        /*Start the Video Sink*/
-        VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
-
         /*Wait up to 500 ms for a frame, and tolerate a few consecutive misses*/
         const int64_t frameTimeoutMs = 500; // Wait up to 500 ms for a frame
         int timeoutCount = 0;
         const int maxTimeoutCount = 3;
+        const bool verifyFrameBufferAvailable = (mSinkTestConfiguration.testName == "Sink_FrameBufferAvailable");
+        const bool verifyFrameBufferAvailableNoClockAttach =
+            (mSinkTestConfiguration.testName == "Sink_FrameBufferAvailable_NoClockAttach");
+        const bool verifyAnyFrameBufferAvailable =
+            verifyFrameBufferAvailable || verifyFrameBufferAvailableNoClockAttach;
+        const bool verifyPrimedAgainstVideoPts = !verifyAnyFrameBufferAvailable;
+        bool frameBufferEpisodeVerified = false;
+        bool avClockPrimedVerified = false;
+
+        if (!verifyFrameBufferAvailableNoClockAttach)
+        {
+            UT_LOG_INFO("[SinkID: %d] acquireStartedAVClock; attaching and starting AVClock now", mSinkId.value);
+            clockId = acquireStartedAVClock();
+            clockSessionAcquired = true;
+            VIDEOSINK_ATTACH_CLOCK_SUCCESS(controller, clockId);
+            clockAttached = true;
+        }
+
+        if (verifyAnyFrameBufferAvailable)
+        {
+            mVideoSinkControlListener->resetFrameBufferAvailable();
+        }
+
+        /*Start the Video Sink*/
+        VIDEOSINK_START_SUCCESS(mSinkHandle, controller, true);
 
         /*Set the "discard until PTS" value for the relevant test cases*/
-        if (mSinkTestConfiguration.vSink_discardFramesUntilPts != static_cast<uint64_t>(-1))
+        if (mSinkTestConfiguration.vSink_discardFramesUntilPts >= 0)
         {
-            VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, mSinkTestConfiguration.vSink_discardFramesUntilPts);
+            VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, static_cast<uint64_t>(mSinkTestConfiguration.vSink_discardFramesUntilPts));
         }
 
         while (true)
@@ -245,7 +627,7 @@ void SinkTest::videoSinkNonTunnelMode()
             timeoutCount = 0;
 
             int64_t pts = decodedFrame.framePTS;
-            int64_t bufferHandle = decodedFrame.frameBufferHandle;
+            int64_t bufferHandle = decodedFrame.frameAVBufferHandle;
 
             // Use fully qualified name to avoid ambiguity
             videodecoder::FrameMetadata metadata{};
@@ -288,7 +670,7 @@ void SinkTest::videoSinkNonTunnelMode()
                         mSinkId.value, pts, bufferHandle, metadata.endOfStream, metadata.discontinuity);
 
             // Simulate underflow
-            if (mSinkTestConfiguration.vSink_underflowPts != static_cast<uint64_t>(-1) &&
+            if (mSinkTestConfiguration.vSink_underflowPts >= 0 &&
                 pts == static_cast<int64_t>(mSinkTestConfiguration.vSink_underflowPts))
             {
                 uint32_t frameDurationMs = 0;
@@ -303,7 +685,79 @@ void SinkTest::videoSinkNonTunnelMode()
                 std::this_thread::sleep_for(std::chrono::milliseconds(frameDurationMs));
             }
 
+            if (verifyAnyFrameBufferAvailable && !frameBufferEpisodeVerified)
+            {
+                int refusedCount = 0;
+                int acceptedCount = 0;
+                const int burstDepth = 64;
+
+                UT_LOG_INFO("[SinkID: %d] Triggering queue back-pressure burst for onFrameBufferAvailable verification", mSinkId.value);
+                for (int i = 0; i < burstDepth; ++i)
+                {
+                    bool aidlReturn = false;
+                    ::android::binder::Status status = controller->queueVideoFrame(pts + i, bufferHandle, metadata, &aidlReturn);
+
+                    if (aidlReturn)
+                    {
+                        UT_ASSERT_TRUE(status.isOk());
+                        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE);
+                        acceptedCount++;
+                    }
+                    else
+                    {
+                        // Some implementations report queue full with EX_NONE + false, others with an exception code.
+                        UT_ASSERT_TRUE(status.exceptionCode() == Status::EX_NONE ||
+                                       status.exceptionCode() == Status::EX_UNSUPPORTED_OPERATION);
+                        refusedCount++;
+                    }
+                }
+
+                UT_LOG_INFO("[SinkID: %d] Back-pressure burst result accepted=%d refused=%d",
+                            mSinkId.value, acceptedCount, refusedCount);
+                UT_ASSERT_TRUE_FATAL(refusedCount > 0);
+
+                if (verifyFrameBufferAvailableNoClockAttach)
+                {
+                    UT_LOG_INFO("[SinkID: %d] Queue is full without AVClock; attaching and starting AVClock now", mSinkId.value);
+                    clockId = acquireStartedAVClock();
+                    UT_ASSERT_TRUE_FATAL(clockId.value != IAVClock::Id::UNDEFINED);
+                    clockSessionAcquired = true;
+                    VIDEOSINK_ATTACH_CLOCK_SUCCESS(controller, clockId);
+                    clockAttached = true;
+                }
+
+                // Keep retrying while back-pressure is active; callback should still be one-per-transition.
+                for (int i = 0; i < 5; ++i)
+                {
+                    bool aidlReturn = true;
+                    ::android::binder::Status status = controller->queueVideoFrame(pts + burstDepth + i, bufferHandle, metadata, &aidlReturn);
+                    if (!aidlReturn)
+                    {
+                        UT_ASSERT_TRUE(status.exceptionCode() == Status::EX_NONE ||
+                                       status.exceptionCode() == Status::EX_UNSUPPORTED_OPERATION);
+                    }
+                }
+
+                bool callbackArrived = mVideoSinkControlListener->waitForFrameBufferAvailableEvent(3);
+                UT_ASSERT_TRUE_FATAL(callbackArrived);
+                UT_ASSERT_EQUAL(mVideoSinkControlListener->getFrameBufferAvailableCount(), 1);
+
+                frameBufferEpisodeVerified = true;
+                break;
+            }
+
             VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, pts, bufferHandle, metadata);
+
+            if (clockAttached && clockSessionAcquired && verifyPrimedAgainstVideoPts && !avClockPrimedVerified)
+            {
+                const bool primedVerified =
+                    verifyStartedAVClockPrimedForVideoPts(pts, std::chrono::milliseconds(3000));
+                UT_ASSERT_TRUE(primedVerified);
+                if (primedVerified)
+                {
+                    avClockPrimedVerified = true;
+                }
+            }
 
             receivedPtsSet.insert(pts);
             ++actualFramesReceived;
@@ -320,11 +774,21 @@ void SinkTest::videoSinkNonTunnelMode()
                 std::this_thread::sleep_for(std::chrono::milliseconds(mSinkTestConfiguration.vSink_interFrameDelayMs));
             }
 
-            if (mSinkTestConfiguration.vSink_flush_pts != static_cast<uint64_t>(-1) && pts == (int64_t)mSinkTestConfiguration.vSink_flush_pts)
+            if (mSinkTestConfiguration.vSink_flush_pts >= 0 && pts == static_cast<int64_t>(mSinkTestConfiguration.vSink_flush_pts))
             {
                 VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
             }
 
+        }
+
+        if (verifyAnyFrameBufferAvailable)
+        {
+            UT_ASSERT_TRUE_FATAL(frameBufferEpisodeVerified);
+        }
+
+        if (clockAttached && clockSessionAcquired && verifyPrimedAgainstVideoPts && actualFramesReceived > 0)
+        {
+            UT_ASSERT_TRUE(avClockPrimedVerified);
         }
 
         /*Validation of EOS*/
@@ -358,14 +822,18 @@ void SinkTest::videoSinkNonTunnelMode()
         /* Validating the metrics data after the queuing process is complete. */
         runPostVerification();
 
+        cleanupClock();
+
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
         VIDEOSINK_STOP_SUCCESS(mSinkHandle, controller, true);
         VIDEOSINK_CLOSE_SUCCESS(mSinkHandle, controller, true);
     }
     catch (const std::exception& ex) {
+        cleanupClock();
         UT_LOG_ERROR("[SinkID: %d] Exception in videoSinkNonTunnelMode: %s", mSinkId.value, ex.what());
         UT_ASSERT_TRUE(false);
     } catch (...) {
+        cleanupClock();
         UT_LOG_ERROR("[SinkID: %d] Unknown exception in videoSinkNonTunnelMode", mSinkId.value);
         UT_ASSERT_TRUE(false);
     }
@@ -389,6 +857,297 @@ public:
     vector<tuple<IVideoDecoder::Id, sp<IVideoDecoder>, sp<VideoDecoderControllerListener>, sp<VideoDecoderEventListener>, videodecoder::Capabilities*>> mVideoDecoderList;
     sp<IAVBuffer> mAVBufferManager;
     IAVBufferHelper* mAVbufferHelper;
+    bool mIsTunnelSupported = false;
+
+    bool isSecureSupportedByDecoder(const videodecoder::Capabilities* capabilities) const
+    {
+        return (capabilities != nullptr) && capabilities->supportsSecure;
+    }
+
+    const decoder_t* getDecoderHfpCapabilities(const IVideoDecoder::Id& decoderId) const
+    {
+        auto it = std::find_if(gVideodecoders_hfp.begin(),
+                               gVideodecoders_hfp.end(),
+                               [&decoderId](const decoder_t& item) {
+                                   return item.id == decoderId.value;
+                               });
+
+        if (it == gVideodecoders_hfp.end())
+        {
+            return nullptr;
+        }
+
+        return &(*it);
+    }
+
+    bool isDecoderCompatibleWithStreamFromHfp(const IVideoDecoder::Id& decoderId,
+                                              const videoDecoderTestConfiguration_t& streamConfig,
+                                              std::string& reason) const
+    {
+        const decoder_t* hfpDecoder = getDecoderHfpCapabilities(decoderId);
+        if (hfpDecoder == nullptr)
+        {
+            reason = "decoder HFP capabilities unavailable";
+            return false;
+        }
+
+        if (hfpDecoder->supportedCodecs.empty())
+        {
+            reason = "decoder HFP has no supportedCodecs";
+            return false;
+        }
+
+        const double requestedFrameRate = (streamConfig.frameRateDenominator > 0)
+                                              ? static_cast<double>(streamConfig.frameRateNumerator) /
+                                                    static_cast<double>(streamConfig.frameRateDenominator)
+                                              : 0.0;
+
+        bool codecSeen = false;
+        bool pixelFormatSeen = false;
+        bool resolutionSeen = false;
+        bool frameRateSeen = false;
+
+        for (const auto& codecCaps : hfpDecoder->supportedCodecs)
+        {
+            if (codecCaps.codec != streamConfig.codec)
+            {
+                continue;
+            }
+
+            codecSeen = true;
+
+            if (codecCaps.supportedOutputPixelFormats.empty())
+            {
+                reason = "decoder HFP missing supportedOutputPixelFormats";
+                return false;
+            }
+
+            if (std::find(codecCaps.supportedOutputPixelFormats.begin(),
+                          codecCaps.supportedOutputPixelFormats.end(),
+                          streamConfig.pixelFormat) == codecCaps.supportedOutputPixelFormats.end())
+            {
+                continue;
+            }
+            pixelFormatSeen = true;
+
+            if ((codecCaps.maxFrameWidth > 0 && streamConfig.codedWidth > codecCaps.maxFrameWidth) ||
+                (codecCaps.maxFrameHeight > 0 && streamConfig.codedHeight > codecCaps.maxFrameHeight))
+            {
+                continue;
+            }
+            resolutionSeen = true;
+
+            if (codecCaps.maxFrameRate > 0 && requestedFrameRate > static_cast<double>(codecCaps.maxFrameRate))
+            {
+                continue;
+            }
+            frameRateSeen = true;
+
+            if (streamConfig.dynamicRange != videodecoder::DynamicRange::UNKNOWN &&
+                !hfpDecoder->supportedDynamicRanges.empty())
+            {
+                if (std::find(hfpDecoder->supportedDynamicRanges.begin(),
+                              hfpDecoder->supportedDynamicRanges.end(),
+                              streamConfig.dynamicRange) == hfpDecoder->supportedDynamicRanges.end())
+                {
+                    reason = "dynamic range unsupported";
+                    return false;
+                }
+            }
+
+            if (streamConfig.colorimetry != videodecoder::Colorimetry::UNKNOWN &&
+                !hfpDecoder->supportedColorimetries.empty())
+            {
+                if (std::find(hfpDecoder->supportedColorimetries.begin(),
+                              hfpDecoder->supportedColorimetries.end(),
+                              streamConfig.colorimetry) == hfpDecoder->supportedColorimetries.end())
+                {
+                    reason = "colorimetry unsupported";
+                    return false;
+                }
+            }
+
+            reason.clear();
+            return true;
+        }
+
+        if (!codecSeen)
+        {
+            reason = "codec unsupported";
+        }
+        else if (!pixelFormatSeen)
+        {
+            reason = "pixel format unsupported";
+        }
+        else if (!resolutionSeen)
+        {
+            reason = "resolution exceeds decoder capabilities";
+        }
+        else if (!frameRateSeen)
+        {
+            reason = "frame rate exceeds decoder capabilities";
+        }
+        else
+        {
+            reason = "stream parameters unsupported";
+        }
+
+        return false;
+    }
+
+    bool isDecoderCompatibleWithStream(const IVideoDecoder::Id& decoderId,
+                                       const videodecoder::Capabilities* capabilities,
+                                       const videoDecoderTestConfiguration_t& streamConfig,
+                                       std::string& reason) const
+    {
+        if (capabilities == nullptr)
+        {
+            std::string hfpReason;
+            if (isDecoderCompatibleWithStreamFromHfp(decoderId, streamConfig, hfpReason))
+            {
+                UT_LOG_WARNING("[DecoderID: %d] Stream '%s' using HFP fallback because decoder getCapabilities is unavailable.",
+                               decoderId.value,
+                               streamConfig.input.c_str());
+                reason.clear();
+                return true;
+            }
+
+            reason = "decoder capabilities unavailable; HFP fallback failed: " + hfpReason;
+            return false;
+        }
+
+        const double requestedFrameRate = (streamConfig.frameRateDenominator > 0)
+                                              ? static_cast<double>(streamConfig.frameRateNumerator) /
+                                                    static_cast<double>(streamConfig.frameRateDenominator)
+                                              : 0.0;
+
+        bool codecSeen = false;
+        bool pixelFormatCapabilityMissing = false;
+        bool pixelFormatSeen = false;
+        bool resolutionSeen = false;
+        bool frameRateSeen = false;
+
+        for (const auto& codecCaps : capabilities->supportedCodecs)
+        {
+            if (codecCaps.codec != streamConfig.codec)
+            {
+                continue;
+            }
+
+            codecSeen = true;
+
+            // L3 stream selection is gated by decoder getCapabilities output pixel formats.
+            if (codecCaps.supportedOutputPixelFormats.empty())
+            {
+                pixelFormatCapabilityMissing = true;
+                continue;
+            }
+
+            if (std::find(codecCaps.supportedOutputPixelFormats.begin(),
+                          codecCaps.supportedOutputPixelFormats.end(),
+                          streamConfig.pixelFormat) == codecCaps.supportedOutputPixelFormats.end())
+            {
+                continue;
+            }
+            pixelFormatSeen = true;
+
+            if ((codecCaps.maxFrameWidth > 0 && streamConfig.codedWidth > codecCaps.maxFrameWidth) ||
+                (codecCaps.maxFrameHeight > 0 && streamConfig.codedHeight > codecCaps.maxFrameHeight))
+            {
+                continue;
+            }
+            resolutionSeen = true;
+
+            if (codecCaps.maxFrameRate > 0 && requestedFrameRate > static_cast<double>(codecCaps.maxFrameRate))
+            {
+                continue;
+            }
+            frameRateSeen = true;
+
+            if (streamConfig.dynamicRange != videodecoder::DynamicRange::UNKNOWN &&
+                !capabilities->supportedDynamicRanges.empty() &&
+                std::find(capabilities->supportedDynamicRanges.begin(),
+                          capabilities->supportedDynamicRanges.end(),
+                          streamConfig.dynamicRange) == capabilities->supportedDynamicRanges.end())
+            {
+                reason = "dynamic range unsupported";
+                return false;
+            }
+
+            if (streamConfig.colorimetry != videodecoder::Colorimetry::UNKNOWN &&
+                !capabilities->supportedColorimetries.empty() &&
+                std::find(capabilities->supportedColorimetries.begin(),
+                          capabilities->supportedColorimetries.end(),
+                          streamConfig.colorimetry) == capabilities->supportedColorimetries.end())
+            {
+                reason = "colorimetry unsupported";
+                return false;
+            }
+
+            (void)decoderId;
+            reason.clear();
+            return true;
+        }
+
+        if (!codecSeen)
+        {
+            reason = "codec unsupported";
+        }
+        else if (pixelFormatCapabilityMissing && !pixelFormatSeen)
+        {
+            std::string hfpReason;
+            if (isDecoderCompatibleWithStreamFromHfp(decoderId, streamConfig, hfpReason))
+            {
+                UT_LOG_WARNING("[DecoderID: %d] Stream '%s' decoder getCapabilities missing supportedOutputPixelFormats; using HFP fallback.",
+                               decoderId.value,
+                               streamConfig.input.c_str());
+                reason.clear();
+                return true;
+            }
+
+            reason = "decoder getCapabilities missing supportedOutputPixelFormats; HFP fallback failed: " + hfpReason;
+        }
+        else if (!pixelFormatSeen)
+        {
+            reason = "pixel format unsupported";
+        }
+        else if (!resolutionSeen)
+        {
+            reason = "resolution exceeds decoder capabilities";
+        }
+        else if (!frameRateSeen)
+        {
+            reason = "frame rate exceeds decoder capabilities";
+        }
+        else
+        {
+            reason = "stream parameters unsupported";
+        }
+
+        return false;
+    }
+
+    bool isSecureModeSupportedByAnyUsableDecoder() const
+    {
+        for (const auto& [decoderId, decoderHandle, controlListener, eventListener, capabilities] : mVideoDecoderList)
+        {
+            (void)decoderHandle;
+            (void)controlListener;
+            (void)eventListener;
+
+            if (!isVideoDecoderUsable(decoderId))
+            {
+                continue;
+            }
+
+            if (isSecureSupportedByDecoder(capabilities))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     void SetUp() override
     {
@@ -424,8 +1183,28 @@ public:
         }
         else
         {
+            if (gVideodecoders_hfp.empty())
+            {
+                if (vts_videodecoder_parseVideoDecoderHFP() != UT_STATUS_OK)
+                {
+                    UT_LOG_WARNING("Failed to parse VideoDecoder HFP capabilities for fallback path.");
+                }
+            }
+
             /*Get the Video Decoder IDs*/
             VIDEODECODER_MANAGER_GETVIDEODECODERIDS(videoDecoderIds);
+
+            vector<videodecoder::OperationalMode> supportedModes;
+            Status opModeStatus = gVideoDecoderManager->getSupportedOperationalModes(&supportedModes);
+            if (opModeStatus.isOk() && opModeStatus.exceptionCode() == Status::EX_NONE)
+            {
+                mIsTunnelSupported = std::find(supportedModes.begin(), supportedModes.end(), videodecoder::OperationalMode::TUNNELLED) != supportedModes.end();
+            }
+            else
+            {
+                mIsTunnelSupported = false;
+                UT_LOG_WARNING("Failed to query decoder operational modes. Tunnel tests will be skipped.");
+            }
 
             android::ProcessState::self()->startThreadPool();
 
@@ -477,20 +1256,21 @@ public:
 
     }
 
-    bool isVideoSinkUsable(const IVideoSink::Id& sinkId)
+    bool isVideoSinkUsable(const IVideoSink::Id& sinkId) const
     {
         return std::find(gAvailableVideosinks_hfp.begin(), gAvailableVideosinks_hfp.end(), sinkId.value) != gAvailableVideosinks_hfp.end();
     }
 
-    bool isVideoDecoderUsable(const IVideoDecoder::Id& decoderId)
+    bool isVideoDecoderUsable(const IVideoDecoder::Id& decoderId) const
     {
         return std::find(gAvailableVideodecoders_hfp.begin(),
                             gAvailableVideodecoders_hfp.end(),
                             decoderId.value) != gAvailableVideodecoders_hfp.end();
     }
 
-    void runSequentialSink(videoDecoderTestConfiguration_t testConfig, videoTestConfiguration_t sinkConfig, bool secureDecode, bool isTunnel)
+    bool runSequentialSink(videoDecoderTestConfiguration_t testConfig, videoTestConfiguration_t sinkConfig, bool secureDecode, bool isTunnel)
     {
+        bool executedAtLeastOne = false;
         try {
             for (const auto& [_sinkId, sinkHandle, controlListener, eventListener] : mVideoSinkList)
             {
@@ -510,15 +1290,33 @@ public:
 
                 for (const auto& [_decoderId, _decoderHandle, _controlListener, _eventListener, _capabilities] : mVideoDecoderList)
                 {
-                    if (isVideoDecoderUsable(_decoderId))
+                    if (!isVideoDecoderUsable(_decoderId))
                     {
-                        decoderId = _decoderId;
-                        decoderHandle = _decoderHandle;
-                        decoderControlListener = _controlListener;
-                        decoderEventListener = _eventListener;
-                        foundDecoder = true;
-                        break;
+                        continue;
                     }
+
+                    if (secureDecode && !isSecureSupportedByDecoder(_capabilities))
+                    {
+                        UT_LOG_INFO("[DecoderID: %d] Secure decode requested but unsupported, skipping decoder.", _decoderId.value);
+                        continue;
+                    }
+
+                    std::string unsupportedReason;
+                    if (!isDecoderCompatibleWithStream(_decoderId, _capabilities, testConfig, unsupportedReason))
+                    {
+                        UT_LOG_WARNING("[DecoderID: %d] Stream '%s' unsupported (%s), skipping decoder and trying next.",
+                                       _decoderId.value,
+                                       testConfig.input.c_str(),
+                                       unsupportedReason.c_str());
+                        continue;
+                    }
+
+                    decoderId = _decoderId;
+                    decoderHandle = _decoderHandle;
+                    decoderControlListener = _controlListener;
+                    decoderEventListener = _eventListener;
+                    foundDecoder = true;
+                    break;
                 }
 
                 if (!foundDecoder)
@@ -536,7 +1334,7 @@ public:
                 std::thread decodeThread(&videoDecoderTest::run, &decodeTest, true);
 
                 SinkTest *sinkTest = new SinkTest(_sinkId, sinkHandle, controlListener, eventListener,
-                                                decoderControlListener, testConfig, sinkConfig);
+                                                decoderControlListener, decoderId, testConfig, sinkConfig);
 
                 if (!sinkTest)
                 {
@@ -548,11 +1346,14 @@ public:
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
                 sinkTest->run(isTunnel);
+                executedAtLeastOne = true;
 
                 if (decodeThread.joinable())
                 {
                     decodeThread.join();
                 }
+
+                decodeTest.closeDecoderSession();
 
                 AVBUFFER_GETMETRICS(mAVBufferManager, secureDecode, afterHeapMetrics);
                 UT_ASSERT_TRUE(beforeHeapMetrics.secure == afterHeapMetrics.secure);
@@ -562,15 +1363,20 @@ public:
         } catch (const std::exception& ex) {
             UT_LOG_ERROR("Exception in runSequentialSink: %s", ex.what());
             UT_ASSERT_TRUE(false);
+            return false;
         } catch (...) {
             UT_LOG_ERROR("Unknown exception in runSequentialSink");
             UT_ASSERT_TRUE(false);
+            return false;
         }
+
+        return executedAtLeastOne;
     }
 
-    void runConcurrentSink(videoDecoderTestConfiguration_t decoderConfig, videoTestConfiguration_t sinkConfig, bool secure, bool tunnel)
+    bool runConcurrentSink(videoDecoderTestConfiguration_t decoderConfig, videoTestConfiguration_t sinkConfig, bool secure, bool tunnel)
     {
 
+        bool executedAtLeastOne = false;
         try{
             std::vector<std::thread> threads;
             vector<thread> decoderThreads;
@@ -586,6 +1392,27 @@ public:
 
             for (const auto& [_decoderId, decoderHandle, decoderControlListener, decoderEventListener, decoderCapabilities] : mVideoDecoderList)
             {
+                if (!isVideoDecoderUsable(_decoderId))
+                {
+                    UT_LOG_INFO("[DecoderID: %d] is not usable for this test configuration, skipping.", _decoderId.value);
+                    continue;
+                }
+
+                if (secure && !isSecureSupportedByDecoder(decoderCapabilities))
+                {
+                    UT_LOG_INFO("[DecoderID: %d] Secure decode requested but unsupported, skipping decoder.", _decoderId.value);
+                    continue;
+                }
+
+                std::string unsupportedReason;
+                if (!isDecoderCompatibleWithStream(_decoderId, decoderCapabilities, decoderConfig, unsupportedReason))
+                {
+                    UT_LOG_WARNING("[DecoderID: %d] Stream '%s' unsupported (%s), skipping decoder and trying next.",
+                                   _decoderId.value,
+                                   decoderConfig.input.c_str(),
+                                   unsupportedReason.c_str());
+                    continue;
+                }
 
                 auto decoderTest = make_unique<videoDecoderTest>(_decoderId, decoderHandle,
                         sp<VideoDecoderControllerListener>::cast(decoderControlListener),
@@ -605,6 +1432,12 @@ public:
                                             });
             }
 
+            if (availableDecoderList.empty())
+            {
+                UT_LOG_WARNING("No compatible decoders found for secure=%d tunnel=%d, skipping concurrent run.", secure, tunnel);
+                return false;
+            }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
             for(uint32_t i = 0; i < availableDecoderList.size(); i++)
@@ -621,9 +1454,10 @@ public:
 
                 auto sinkTest = std::make_unique<SinkTest>(_sinkId, videoSink,
                                     videoSinkControlListener, videoSinkEventListener,
-                                    decoderControlListener, decoderConfig, sinkConfig);
+                                    decoderControlListener, _decoderId, decoderConfig, sinkConfig);
 
                 sinkThreads.emplace_back(&SinkTest::run, sinkTest.get(), tunnel);
+                executedAtLeastOne = true;
 
                 sinkTests.push_back(std::move(sinkTest));
             }
@@ -638,6 +1472,12 @@ public:
                 if (t.joinable())
                     t.join();
             }
+
+            for (auto& decoderTest : decoderTests)
+            {
+                decoderTest->closeDecoderSession();
+            }
+
             /* Get heap metrics */
             AVBUFFER_GETMETRICS(mAVBufferManager, secure, afterHeapMetrics);
 
@@ -648,10 +1488,14 @@ public:
         } catch (const std::exception& ex) {
             UT_LOG_ERROR("Exception in runConcurrentSink: %s", ex.what());
             UT_ASSERT_TRUE(false);
+            return false;
         } catch (...) {
             UT_LOG_ERROR("Unknown exception in runConcurrentSink");
             UT_ASSERT_TRUE(false);
+            return false;
         }
+
+        return executedAtLeastOne;
     }
 
     void runSingleProcessTest(const char *testName, bool secureMode, bool isTunnel, bool concurrentMode)
@@ -659,21 +1503,30 @@ public:
         vector<videoDecoderTestConfiguration_t> decoderConfigs;
         vector<videoTestConfiguration_t> sinkConfigs;
 
-        if(secureMode)
+        if (secureMode && !isSecureModeSupportedByAnyUsableDecoder())
         {
-            UT_LOG_WARNING("Video Sink does not support secure mode, skipping test!");
+            GTEST_SKIP() << "Secure mode is not supported by any decoder";
             return;
         }
 
-        if(isTunnel)
+        if (isTunnel && !mIsTunnelSupported)
         {
-            UT_LOG_WARNING("Video Sink does not support tunnel mode, skipping test!");
+            GTEST_SKIP() << "Tunnel mode is not supported by decoder capabilities";
             return;
         }
 
         vts_videodecoder_parse_testconfig(gVideoSinkTestConfiguration, VIDEODECODERMGR, gTestGroup, testName, decoderConfigs);
 
         vts_videosink_parse_testconfig(gVideoSinkTestConfiguration, VIDEODECODERMGR, gTestGroup, testName, sinkConfigs);
+
+        if (decoderConfigs.empty())
+        {
+            std::string errorMsg = std::string("No valid test configurations found - missing test streams or invalid configuration for test: ") + testName;
+            UT_FAIL_FATAL(errorMsg.c_str());
+            return;
+        }
+
+        bool executedAnyConfig = false;
 
         for (size_t i = 0; i < decoderConfigs.size(); ++i)
         {
@@ -682,11 +1535,16 @@ public:
 
             if (concurrentMode)
             {
-                runConcurrentSink(decoderConfig, sinkConfig, secureMode, isTunnel);
+                executedAnyConfig = runConcurrentSink(decoderConfig, sinkConfig, secureMode, isTunnel) || executedAnyConfig;
             } else
             {
-                runSequentialSink(decoderConfig, sinkConfig, secureMode, isTunnel);
+                executedAnyConfig = runSequentialSink(decoderConfig, sinkConfig, secureMode, isTunnel) || executedAnyConfig;
             }
+        }
+
+        if (!executedAnyConfig)
+        {
+            GTEST_SKIP() << "No usable decoder/sink combination for this test configuration (capability filtered)";
         }
     }
 
@@ -717,7 +1575,7 @@ public:
  */
 void SinkTest::verifyNoUnexpectedUnderflow()
 {
-    if (mSinkTestConfiguration.vSink_underflowPts == static_cast<uint64_t>(-1)) {
+    if (mSinkTestConfiguration.vSink_underflowPts < 0) {
         int countCtrl = mVideoSinkControlListener->getUnderflowCount();
         int countEvent = mVideoSinkEventListner->getUnderflowCount();
         if (countCtrl > 0 || countEvent > 0) {
@@ -1137,6 +1995,42 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_QueueDepth)
 }
 
 /**
+ * @brief Test back-pressure behavior and onFrameBufferAvailable callback semantics
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 001A@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_FrameBufferAvailable)
+{
+    const char *testName = "Sink_FrameBufferAvailable";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
+ * @brief Test back-pressure callback when queue fills without AVClock, then AVClock is attached.
+ *        Type: Sequential
+ *        Modes: Non-Tunnel, Non-Secure
+ *
+ * **Test Group ID:** 003@n
+ * **Test Case ID:** 001B@n
+ */
+UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_FrameBufferAvailable_NoClockAttach)
+{
+    const char *testName = "Sink_FrameBufferAvailable_NoClockAttach";
+    bool secureMode = false;
+    bool isTunnel = false;
+    bool isConcurrent = false;
+
+    runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
+}
+
+/**
  * @brief Test the number of frames received by video sink
  *        Type: Sequential
  *        Modes: Non-Tunnel, Non-Secure
@@ -1468,8 +2362,6 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_DiscardFramesU
     bool isConcurrent = true;
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
-/*Commenting Tunnel and secure cases*/
-#if 0
 /**
  * @brief Test the sink's ability to report correct queue depth
  *        Type: Sequential
@@ -2520,7 +3412,6 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_DiscardFramesUntil)
     bool isConcurrent = true;
     runSingleProcessTest(testName, secureMode, isTunnel, isConcurrent);
 }
-#endif
 /** @} */ // End of VIDEO_SINK_HALTEST L3 File
 /** @} */ // End of VIDEO_SINK_HALTEST
 /** @} */ // End of VIDEO_SINK Module

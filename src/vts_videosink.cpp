@@ -103,6 +103,8 @@ VideoSinkControllerListener::VideoSinkControllerListener()
       mFlushComplete(false),
       mEosReceived(false),
       mEosPTS(-1),
+    mFrameBufferAvailable(false),
+    mFrameBufferAvailableCount(0),
       mUnderflowCount(0),
       mResumeCount(0)
 {
@@ -193,6 +195,25 @@ android::binder::Status VideoSinkControllerListener::onEndOfStream(int64_t nsPre
         std::lock_guard<std::mutex> lock(mMutex);
         mEosReceived = true;
         mEosPTS = nsPresentationTime;
+    }
+    mCV.notify_all();
+    return android::binder::Status::ok();
+}
+
+/**
+ * @brief Callback invoked when the sink queue has space after back-pressure.
+ *
+ * Increments frame-buffer-available count and notifies waiting threads.
+ *
+ * @return android::binder::Status indicating success.
+ */
+android::binder::Status VideoSinkControllerListener::onFrameBufferAvailable()
+{
+    UT_LOG_INFO("[Sink ID : %d] VideoSinkControllerListener: onFrameBufferAvailable Callback Received", mSinkID);
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mFrameBufferAvailable = true;
+        mFrameBufferAvailableCount++;
     }
     mCV.notify_all();
     return android::binder::Status::ok();
@@ -336,6 +357,45 @@ bool VideoSinkControllerListener::waitForEosEvent(int timeoutSeconds)
 {
     std::unique_lock<std::mutex> lock(mMutex);
     return mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] { return mEosReceived; });
+}
+
+/**
+ * @brief Resets frame-buffer-available callback state.
+ */
+void VideoSinkControllerListener::resetFrameBufferAvailable()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    mFrameBufferAvailable = false;
+    mFrameBufferAvailableCount = 0;
+}
+
+/**
+ * @brief Returns the number of onFrameBufferAvailable callbacks received.
+ *
+ * @return int frame-buffer-available callback count.
+ */
+int VideoSinkControllerListener::getFrameBufferAvailableCount()
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mFrameBufferAvailableCount;
+}
+
+/**
+ * @brief Waits for onFrameBufferAvailable callback for up to timeoutSeconds.
+ *
+ * @param timeoutSeconds Maximum wait in seconds.
+ * @return true if callback was observed, false otherwise.
+ */
+bool VideoSinkControllerListener::waitForFrameBufferAvailableEvent(int timeoutSeconds)
+{
+    std::unique_lock<std::mutex> lock(mMutex);
+    const bool callbackReceived = mCV.wait_for(
+        lock, std::chrono::seconds(timeoutSeconds), [this] { return mFrameBufferAvailable; });
+    if (callbackReceived)
+    {
+        mFrameBufferAvailable = false;
+    }
+    return callbackReceived;
 }
 
 /**

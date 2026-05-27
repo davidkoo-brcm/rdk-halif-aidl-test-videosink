@@ -116,7 +116,7 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
         testConfigurations.push_back(testDetails);
 
         // Optional: log for debug
-        UT_LOG_WARNING("Parsed Sink Config: testName=%s, eos=%ld, underflow=%ld, resume=%ld, flush=%ld, interDelay=%d",
+        UT_LOG_INFO("Parsed Sink Config: testName=%s, eos=%ld, underflow=%ld, resume=%ld, flush=%ld, interDelay=%d",
                     testDetails.testName.c_str(),
                     testDetails.vSink_eos_pts,
                     testDetails.vSink_underflowPts,

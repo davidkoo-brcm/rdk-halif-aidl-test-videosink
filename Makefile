@@ -53,6 +53,10 @@ INC_DIRS += $(ROOT_DIR)/build/videosink_gen/current/h
 INC_DIRS += $(ROOT_DIR)/build/usr/include
 INC_DIRS += $(ROOT_DIR)/mockservice/avbufferhelper
 INC_DIRS += $(ROOT_DIR)/src
+INC_DIRS += $(ROOT_DIR)/../avclock/src
+INC_DIRS += $(ROOT_DIR)/../audiodecoder/src
+INC_DIRS += $(ROOT_DIR)/../audiosink/src
+INC_DIRS += $(ROOT_DIR)/../videodecoder/src
 
 XLDFLAGS := -L$(ROOT_DIR)/build/usr/lib
 XLDFLAGS += -Wl,-rpath-link=$(ROOT_DIR)/build/usr/lib -Wl,--export-dynamic

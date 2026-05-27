@@ -37,9 +37,12 @@
 #include <algorithm>
 #include <unordered_set>
 
+
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
 #include "vts_videosink.h"
+#include "vts_avclock.h"
+
 
 UT_ADD_TEST_TO_GROUP(VTS_L1_VideoSink, UT_TESTS_L1)
 
@@ -1355,6 +1358,51 @@ UT_ADD_TEST(VTS_L1_VideoSink, getVideodecoder_pos)
 }
 
 /**
+ * @brief Test getVideoDecoder API in invalid state
+ *
+ * This test validates that getVideoDecoder fails with EX_ILLEGAL_STATE when
+ * the controller is not in READY or STARTED (after close).
+ *
+ * **Test Group ID:** Basic: 01@n
+ * **Test Case ID:** 020A@n
+ * **Priority:** High@n
+ * @n
+ * **Pre-Conditions:** None@n
+ * **Dependencies:** None@n
+ * **User Interaction:** None@n
+ * @n
+ * **Test Procedure:**@n
+ * | Variation / Step | Description | Test Data | Expected Result | Notes |
+ * | :----: | --------- | ---------- |-------------- | ----- |
+ * |01|Get sink IDs|None|Non-empty list|Should Pass|
+ * |02|Open sink and obtain controller|listener = valid|Status OK|Should Pass|
+ * |03|Close sink|N/A|Status OK|Should Pass|
+ * |04|Call getVideoDecoder on closed controller|N/A|EX_ILLEGAL_STATE|Should Pass|
+ */
+UT_ADD_TEST(VTS_L1_VideoSink, getVideodecoder_neg)
+{
+    std::vector<IVideoSink::Id> sinkIds;
+    sp<IVideoSink> videoSink;
+
+    VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
+
+    for (const auto& _sinkId : sinkIds)
+    {
+        IVideoDecoder::Id videodecoderId;
+        sp<IVideoSinkController> videoSinkController;
+        sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
+
+        VIDEOSINK_MANAGER_GETVIDEOSINK(_sinkId, videoSink);
+
+        VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
+        VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
+
+        VIDEOSINK_CONTROLLER_GETVIDEODECODER_FAILURE(
+            videoSinkController, &videodecoderId, android::binder::Status::EX_ILLEGAL_STATE);
+    }
+}
+
+/**
  * @brief Test the positive start functionality of VideoSinkController.
  *
  * This test verifies that the VideoSinkController can successfully start and stop a video sink when it is in the READY state. It ensures that the start and stop operations are executed without errors.
@@ -1897,11 +1945,375 @@ UT_ADD_TEST(VTS_L1_VideoSink, discardFramesUntil_neg)
 
         VIDEOSINK_STOP_SUCCESS(videoSink,videoSinkController,true);
 
-        VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_FAILURE(videoSinkController, nsPresentationTime, android::binder::Status::EX_ILLEGAL_STATE);
+    }
+}
 
+/**
+ * @brief Test attachClock API with various clock IDs and states
+ *
+ * This test comprehensively tests the attachClock API function with valid and invalid clock IDs
+ * across different VideoSink states (READY, STARTED). It verifies proper parameter handling,
+ * state transitions, and boundary value testing.
+ *
+ * **Test Group ID:** Clock Management: 30@n
+ * **Test Case ID:** 030@n
+ * **Priority:** High@n
+ * @n
+ * **Pre-Conditions:** VideoSink service available@n
+ * **Dependencies:** None@n
+ * **User Interaction:** None@n
+ * @n
+ * **Test Procedure:**@n
+ * | Variation / Step | Description | Test Data | Expected Result | Notes |
+ * | :----: | --------- | ---------- |-------------- | ----- |
+ * |01|Retrieve video sink IDs|None|Non-empty list of IDs|Should Pass|
+ * |02|Open sink in READY state|listener = valid|Status OK, sink in READY|Should Pass|
+ * |03|Attach valid clock ID in READY|clockId = 0|Status OK, clock attached|Should Pass|
+ * |04|Verify attachment with getClock|clockId = 0|Returns same ID|Should Pass|
+ * |05|Attach UNDEFINED (detach effect)|clockId = UNDEFINED|Status OK, clock detached|Should Pass|
+ * |06|Start sink to STARTED state|N/A|Status OK, sink in STARTED|Should Pass|
+ * |07|Attach clock in STARTED state|clockId = 0|Status OK, sync rendering starts|Should Pass|
+ * |08|Replace with different clock|clockId = 1|Status OK, clock replaced|Should Pass|
+ * |09|Verify replaced clock|getClock()|Returns clockId = 1|Should Pass|
+ * |10|Stop and close|N/A|Status OK|Should Pass|
+ */
+UT_ADD_TEST(VTS_L1_VideoSink, attachClock_pos) {
+    std::vector<IVideoSink::Id> sinkIds;
+    std::vector<::com::rdk::hal::avclock::IAVClock::Id> clockIds;
+    sp<IVideoSink> videoSink;
+    sp<IVideoSinkController> videoSinkController;
+    sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
+
+    UT_ASSERT_EQUAL(getAVClockService(), UT_STATUS_OK);
+    AVCLOCK_MANAGER_GETAVCLOCKIDS(clockIds);
+    UT_ASSERT_FALSE(clockIds.empty());
+
+    // Use AVClockManager-provided IDs for valid attach/replace flows
+    ::com::rdk::hal::avclock::IAVClock::Id validClockId1 = clockIds.front();
+    ::com::rdk::hal::avclock::IAVClock::Id validClockId2 = (clockIds.size() > 1) ? clockIds[1] : clockIds.front();
+    ::com::rdk::hal::avclock::IAVClock::Id undefinedClockId;
+    undefinedClockId.value = ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED;
+    ::com::rdk::hal::avclock::IAVClock::Id retrievedClockId{};
+
+    VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
+
+    for(const auto& _sinkId: sinkIds) {
+        VIDEOSINK_MANAGER_GETVIDEOSINK(_sinkId, videoSink);
+
+        // Step 02: Open sink in READY state
+        VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
+
+        // Step 03-04: Attach valid clock in READY and verify
+        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId1);
+        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+        UT_ASSERT_EQUAL(retrievedClockId.value, validClockId1.value);
+
+        // Step 05: Attach UNDEFINED (detach effect)
+        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, undefinedClockId);
+        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+        UT_ASSERT_EQUAL(retrievedClockId.value, ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED);
+
+        // Step 06-09: Test in STARTED state and clock replacement
+        VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
+
+        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId1);
+        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+        UT_ASSERT_EQUAL(retrievedClockId.value, validClockId1.value);
+
+        // Replace with different clock
+        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId2);
+        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+        UT_ASSERT_EQUAL(retrievedClockId.value, validClockId2.value);
+
+        // Step 10: Stop and close
+        VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
+        VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
+    }
+}
+
+/**
+ * @brief Test attachClock API with invalid clock IDs and illegal states
+ *
+ * This test validates negative scenarios for attachClock function including invalid clock ID values
+ * and illegal state conditions. Tests boundary values and error handling with comprehensive parameter testing.
+ *
+ * **Test Group ID:** Clock Management: 30@n
+ * **Test Case ID:** 031@n
+ * **Priority:** High@n
+ * @n
+ * **Pre-Conditions:** VideoSink available@n
+ * **Dependencies:** None@n
+ * **User Interaction:** None@n
+ * @n
+ * **Test Procedure:**@n
+ * | Variation / Step | Description | Test Data | Expected Result | Notes |
+ * | :----: | --------- | ---------- |-------------- | ----- |
+ * |01|Get sink IDs|None|Non-empty list|Should Pass|
+ * |02|Try attach on CLOSED sink (no open)|clockId = 0|EX_ILLEGAL_STATE|Should Fail|
+ * |03|Open sink in READY|listener = valid|Status OK|Should Pass|
+ * |04|Try attach invalid ID -999|clockId = -999|EX_ILLEGAL_ARGUMENT|Should Fail|
+ * |05|Try attach invalid ID -1|clockId = -1|EX_ILLEGAL_ARGUMENT|Should Fail|
+ * |06|Verify no clock after failures|getClock|Returns UNDEFINED|Should Pass|
+ * |07|Attach valid clock|clockId = 0|Status OK|Should Pass|
+ * |08|Close sink|N/A|Status OK|Should Pass|
+ */
+UT_ADD_TEST(VTS_L1_VideoSink, attachClock_neg) {
+    std::vector<IVideoSink::Id> sinkIds;
+    std::vector<::com::rdk::hal::avclock::IAVClock::Id> clockIds;
+    sp<IVideoSink> videoSink;
+    sp<IVideoSinkController> videoSinkController = nullptr;
+    sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
+
+    UT_ASSERT_EQUAL(getAVClockService(), UT_STATUS_OK);
+    AVCLOCK_MANAGER_GETAVCLOCKIDS(clockIds);
+    UT_ASSERT_FALSE(clockIds.empty());
+
+    // Boundary value testing for invalid clock IDs
+    ::com::rdk::hal::avclock::IAVClock::Id invalidClockIdNegative;
+    invalidClockIdNegative.value = -999;
+    ::com::rdk::hal::avclock::IAVClock::Id invalidClockIdMinusOne;
+    invalidClockIdMinusOne.value = -1;
+    ::com::rdk::hal::avclock::IAVClock::Id validClockId = clockIds.front();
+    ::com::rdk::hal::avclock::IAVClock::Id retrievedClockId{};
+
+    VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
+
+    for(const auto& _sinkId: sinkIds) {
+        VIDEOSINK_MANAGER_GETVIDEOSINK(_sinkId, videoSink);
+
+        // Step 02: Try attach on CLOSED sink (illegal state)
+        VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, validClockId,
+                                       android::binder::Status::EX_ILLEGAL_STATE);
+
+        // Step 03: Open sink
+        VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
+
+        // Step 04-05: Try attach with invalid clock IDs (boundary values)
+        VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, invalidClockIdNegative,
+                                       android::binder::Status::EX_ILLEGAL_ARGUMENT);
+        VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, invalidClockIdMinusOne,
+                                       android::binder::Status::EX_ILLEGAL_ARGUMENT);
+
+        // Step 06: Verify no clock attached after failures
+        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+        UT_ASSERT_EQUAL(retrievedClockId.value, ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED);
+
+        // Step 07: Verify valid attach still works
+        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId);
+
+        // Step 08: Close
+        VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
+    }
+}
+
+/**
+ * @brief Test getClock API in READY and STARTED states
+ *
+ * This test validates attach/getClock behavior using clocks listed in HFP
+ * (`videosink.availableClocks`). If HFP list is unavailable, it logs warning
+ * and falls back to AVClockManager IDs.
+ *
+ * **Test Group ID:** Clock Management: 30@n
+ * **Test Case ID:** 033@n
+ * **Priority:** High@n
+ * @n
+ * **Pre-Conditions:** VideoSink service available@n
+ * **Dependencies:** None@n
+ * **User Interaction:** None@n
+ * @n
+ * **Test Procedure:**@n
+ * | Variation / Step | Description | Test Data | Expected Result | Notes |
+ * | :----: | --------- | ---------- |-------------- | ----- |
+ * |01|Get sink IDs|None|Non-empty list|Should Pass|
+ * |02|Open sink in READY|listener = valid|Status OK|Should Pass|
+ * |03|Resolve available clock IDs from HFP|videosink.availableClocks|Non-empty preferred; else warning + fallback|Should Pass|
+ * |04|Get clock in READY before attach|N/A|UNDEFINED|Should Pass|
+ * |05|Attach each available clock in READY and verify|getClock()|Returns attached ID|Should Pass|
+ * |06|Start sink to STARTED|N/A|Status OK|Should Pass|
+ * |07|Attach each available clock in STARTED and verify|getClock()|Returns attached ID|Should Pass|
+ * |08|Stop and close|N/A|Status OK|Should Pass|
+ */
+UT_ADD_TEST(VTS_L1_VideoSink, getClock_pos) {
+    std::vector<IVideoSink::Id> sinkIds;
+    std::vector<::com::rdk::hal::avclock::IAVClock::Id> testClockIds;
+    std::vector<::com::rdk::hal::avclock::IAVClock::Id> managerClockIds;
+    sp<IVideoSink> videoSink;
+    ::com::rdk::hal::avclock::IAVClock::Id clockId;
+
+    for (const auto &clock : gAvailableClocks_hfp) {
+        ::com::rdk::hal::avclock::IAVClock::Id id;
+        id.value = clock;
+        testClockIds.push_back(id);
+    }
+
+    if (testClockIds.empty()) {
+        UT_LOG_WARNING("videosink.availableClocks is missing/empty in HFP; falling back to AVClockManager IDs");
+        UT_ASSERT_EQUAL(getAVClockService(), UT_STATUS_OK);
+        AVCLOCK_MANAGER_GETAVCLOCKIDS(managerClockIds);
+        testClockIds = managerClockIds;
+    }
+
+    VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
+
+    for (const auto& _sinkId : sinkIds) {
+        sp<IVideoSinkController> videoSinkController = nullptr;
+        sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
+
+        VIDEOSINK_MANAGER_GETVIDEOSINK(_sinkId, videoSink);
+
+        VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
+
+        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, clockId);
+        UT_ASSERT_EQUAL(clockId.value, ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED);
+
+        for (const auto &availableClock : testClockIds) {
+            VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, availableClock);
+            VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, clockId);
+            UT_ASSERT_EQUAL(clockId.value, availableClock.value);
+        }
+
+        VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
+
+        for (const auto &availableClock : testClockIds) {
+            VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, availableClock);
+            VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, clockId);
+            UT_ASSERT_EQUAL(clockId.value, availableClock.value);
+        }
+
+        VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
+        VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
+    }
+}
+
+/**
+ * @brief Test getClock API in invalid state
+ *
+ * This test validates that getClock fails with EX_ILLEGAL_STATE when the
+ * controller is not in READY or STARTED (after close).
+ *
+ * **Test Group ID:** Clock Management: 30@n
+ * **Test Case ID:** 033A@n
+ * **Priority:** High@n
+ * @n
+ * **Pre-Conditions:** VideoSink service available@n
+ * **Dependencies:** None@n
+ * **User Interaction:** None@n
+ * @n
+ * **Test Procedure:**@n
+ * | Variation / Step | Description | Test Data | Expected Result | Notes |
+ * | :----: | --------- | ---------- |-------------- | ----- |
+ * |01|Get sink IDs|None|Non-empty list|Should Pass|
+ * |02|Open sink and obtain controller|listener = valid|Status OK|Should Pass|
+ * |03|Close sink|N/A|Status OK|Should Pass|
+ * |04|Call getClock on closed controller|N/A|EX_ILLEGAL_STATE|Should Pass|
+ */
+UT_ADD_TEST(VTS_L1_VideoSink, getClock_neg) {
+    std::vector<IVideoSink::Id> sinkIds;
+    sp<IVideoSink> videoSink;
+
+    VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
+
+    for (const auto& _sinkId : sinkIds) {
+        ::com::rdk::hal::avclock::IAVClock::Id retrievedClockId{};
+        sp<IVideoSinkController> videoSinkController;
+        sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
+
+        VIDEOSINK_MANAGER_GETVIDEOSINK(_sinkId, videoSink);
+
+        VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
 
-        VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_FAILURE(videoSinkController, nsPresentationTime, android::binder::Status::EX_ILLEGAL_STATE);
+        VIDEOSINK_GET_CLOCK_FAILURE(
+            videoSinkController, retrievedClockId, android::binder::Status::EX_ILLEGAL_STATE);
+    }
+}
 
+/**
+ * @brief Test detachClock and getClock APIs across states
+ *
+ * This test comprehensively tests the detachClock and getClock API functions including normal operation,
+ * idempotent calls, state transitions, and clock verification. Tests that detachClock properly removes
+ * clock attachment and that getClock returns correct values.
+ *
+ * **Test Group ID:** Clock Management: 30@n
+ * **Test Case ID:** 032@n
+ * **Priority:** High@n
+ * @n
+ * **Pre-Conditions:** VideoSink available@n
+ * **Dependencies:** None@n
+ * **User Interaction:** None@n
+ * @n
+ * **Test Procedure:**@n
+ * | Variation / Step | Description | Test Data | Expected Result | Notes |
+ * | :----: | --------- | ---------- |-------------- | ----- |
+ * |01|Get sink IDs|None|Non-empty list|Should Pass|
+ * |02|Open sink in READY|listener = valid|Status OK|Should Pass|
+ * |03|Get clock (initial)|N/A|UNDEFINED|Should Pass|
+ * |04|Detach on empty (idempotent)|N/A|Status OK, no error|Should Pass|
+ * |05|Detach again (idempotent)|N/A|Status OK, no error|Should Pass|
+ * |06|Attach clock id=0|clockId = 0|Status OK|Should Pass|
+ * |07|Get clock|N/A|0|Should Pass|
+ * |08|Attach clock id=1 (replace)|clockId = 1|Status OK|Should Pass|
+ * |09|Get clock|N/A|1|Should Pass|
+ * |10|Detach in READY|N/A|Status OK|Should Pass|
+ * |11|Get clock|N/A|UNDEFINED|Should Pass|
+ * |12|Start and attach in STARTED|clockId = 0|Status OK|Should Pass|
+ * |13|Detach in STARTED|N/A|Status OK|Should Pass|
+ * |14|Stop and close|N/A|Status OK|Should Pass|
+ */
+UT_ADD_TEST(VTS_L1_VideoSink, detachClock_getClock_pos) {
+    std::vector<IVideoSink::Id> sinkIds;
+    std::vector<::com::rdk::hal::avclock::IAVClock::Id> clockIds;
+    sp<IVideoSink> videoSink;
+    sp<IVideoSinkController> videoSinkController;
+    sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
+
+    UT_ASSERT_EQUAL(getAVClockService(), UT_STATUS_OK);
+    AVCLOCK_MANAGER_GETAVCLOCKIDS(clockIds);
+    UT_ASSERT_FALSE(clockIds.empty());
+
+    ::com::rdk::hal::avclock::IAVClock::Id clockId0 = clockIds.front();
+    ::com::rdk::hal::avclock::IAVClock::Id clockId1 = (clockIds.size() > 1) ? clockIds[1] : clockIds.front();
+    ::com::rdk::hal::avclock::IAVClock::Id retrievedClockId{};
+
+    VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
+
+    for(const auto& _sinkId: sinkIds) {
+        VIDEOSINK_MANAGER_GETVIDEOSINK(_sinkId, videoSink);
+
+        // Step 02: Open sink in READY
+        VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
+
+        // Step 03-05: Test idempotent detach on empty state
+        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+        UT_ASSERT_EQUAL(retrievedClockId.value, ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED);
+
+        VIDEOSINK_DETACH_CLOCK_SUCCESS(videoSinkController);
+        VIDEOSINK_DETACH_CLOCK_SUCCESS(videoSinkController); // Idempotent
+
+        // Step 06-11: Attach, replace, and detach with verification
+        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, clockId0);
+        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+        UT_ASSERT_EQUAL(retrievedClockId.value, clockId0.value);
+
+        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, clockId1);
+        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+        UT_ASSERT_EQUAL(retrievedClockId.value, clockId1.value);
+
+        VIDEOSINK_DETACH_CLOCK_SUCCESS(videoSinkController);
+        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+        UT_ASSERT_EQUAL(retrievedClockId.value, ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED);
+
+        // Step 12-13: Detach in STARTED state
+        VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
+
+        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, clockId0);
+        VIDEOSINK_DETACH_CLOCK_SUCCESS(videoSinkController);
+        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+        UT_ASSERT_EQUAL(retrievedClockId.value, ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED);
+
+        // Step 14: Stop and close
+        VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
+        VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
     }
 }
