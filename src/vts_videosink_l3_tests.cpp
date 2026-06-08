@@ -430,9 +430,9 @@ SinkTest :: SinkTest(
         sp<VideoSinkControllerListener> VideoSinkControllerListener,
         sp<VideoSinkEventListener> VideoSinkEventListner,
         sp<VideoDecoderControllerListener> decoderControllerListener,
-    IVideoDecoder::Id decoderId,
+        IVideoDecoder::Id decoderId,
         videoDecoderTestConfiguration_t& config,
-        videoTestConfiguration_t& sinkConfig)
+        videoTestConfiguration_t& sinkConfig, bool isClockInUse)
 {
     mSinkId = sinkId;
     mSinkHandle = sinkHandle;
@@ -442,6 +442,7 @@ SinkTest :: SinkTest(
     mDecoderId = decoderId;
     mTestConfiguration = config;
     mSinkTestConfiguration = sinkConfig;
+    mIsClockInUse = isClockInUse;
 }
 
 void SinkTest::run ( bool isTunnel )
@@ -539,7 +540,10 @@ void SinkTest::videoSinkNonTunnelMode()
 
         if (clockSessionAcquired)
         {
-            releaseStartedAVClock();
+            if(!mIsClockInUse)
+            {
+                releaseStartedAVClock();
+            }
             clockSessionAcquired = false;
         }
     };
@@ -578,8 +582,11 @@ void SinkTest::videoSinkNonTunnelMode()
 
         if (!verifyFrameBufferAvailableNoClockAttach)
         {
-            UT_LOG_INFO("[SinkID: %d] acquireStartedAVClock; attaching and starting AVClock now", mSinkId.value);
-            clockId = acquireStartedAVClock();
+            if(!mIsClockInUse)
+            {
+                UT_LOG_INFO("[SinkID: %d] acquireStartedAVClock; attaching and starting AVClock now", mSinkId.value);
+                clockId = acquireStartedAVClock();
+            }
             clockSessionAcquired = true;
             VIDEOSINK_ATTACH_CLOCK_SUCCESS(controller, clockId);
             clockAttached = true;
@@ -1287,6 +1294,7 @@ public:
                 sp<VideoDecoderEventListener> decoderEventListener;
                 bool foundDecoder = false;
                 bool isSinkAttached = (sinkHandle != nullptr);
+                bool isClockInUse = false;
 
                 for (const auto& [_decoderId, _decoderHandle, _controlListener, _eventListener, _capabilities] : mVideoDecoderList)
                 {
@@ -1334,7 +1342,7 @@ public:
                 std::thread decodeThread(&videoDecoderTest::run, &decodeTest, true);
 
                 SinkTest *sinkTest = new SinkTest(_sinkId, sinkHandle, controlListener, eventListener,
-                                                decoderControlListener, decoderId, testConfig, sinkConfig);
+                                                decoderControlListener, decoderId, testConfig, sinkConfig, isClockInUse);
 
                 if (!sinkTest)
                 {
@@ -1386,6 +1394,7 @@ public:
             HeapMetrics beforeHeapMetrics, afterHeapMetrics;
             vector<std::tuple<IVideoDecoder::Id, sp<IVideoDecoder>, sp<VideoDecoderControllerListener>, sp<VideoDecoderEventListener>>> availableDecoderList;
             bool isSinkAttached = true;
+            bool isClockInUse = false;
 
             /* Get heap metrics */
             AVBUFFER_GETMETRICS(mAVBufferManager, secure, beforeHeapMetrics);
@@ -1454,7 +1463,7 @@ public:
 
                 auto sinkTest = std::make_unique<SinkTest>(_sinkId, videoSink,
                                     videoSinkControlListener, videoSinkEventListener,
-                                    decoderControlListener, _decoderId, decoderConfig, sinkConfig);
+                                    decoderControlListener, _decoderId, decoderConfig, sinkConfig, isClockInUse);
 
                 sinkThreads.emplace_back(&SinkTest::run, sinkTest.get(), tunnel);
                 executedAtLeastOne = true;
