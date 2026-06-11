@@ -925,8 +925,8 @@ public:
         sp<VideoSinkEventListener> VideoSinkEventListner,
         sp<VideoDecoderControllerListener> decoderControllerListener,
         IVideoDecoder::Id decoderId,
-        videoDecoderTestConfiguration_t& config,
-        videoTestConfiguration_t& sinkConfig);
+        const videoDecoderTestConfiguration_t& config,
+        const videoTestConfiguration_t& sinkConfig);
 
     void verifyNoUnexpectedUnderflow();
     void verifyUnderflow();
