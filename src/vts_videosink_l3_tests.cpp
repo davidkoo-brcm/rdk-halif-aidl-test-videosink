@@ -473,11 +473,11 @@ bool SinkTest::getSinkPropertyInt(videosink::Property property, int32_t& outValu
         !propertyValue->value.has_value())
     {
         UT_LOG_ERROR("Failed to get property %d", static_cast<int>(property));
-        UT_LOG_ERROR("Result getProperty(IN:property value[%d], property value has Value[%d]), status:[isOK:%s, exception:%s]", videosink::toString(property).c_str(), \
-            propertyValue.has_value(), \
-            propertyValue->value.has_value(), \
-            UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_LOG_ERROR("Result getProperty(IN:property[%s], propertyValue.has_value[%s]), status:[isOK:%s, exception:%s]",
+            videosink::toString(property).c_str(),
+            UT_Control_GetMapString(bool_mapTable, propertyValue.has_value()),
+            UT_Control_GetMapString(bool_mapTable, status.isOk()),
+            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
 
         return false;
     }
@@ -849,7 +849,7 @@ void SinkTest::videoSinkTunnelMode()
 class VTS_L3_VideoSink : public UTCore
 {
 public:
-    VTS_L3_VideoSink() : UTCore() {}
+    VTS_L3_VideoSink() : UTCore(), mAVbufferHelper(nullptr) {}
 
     ~VTS_L3_VideoSink() override = default;
 
@@ -1212,7 +1212,8 @@ public:
             {
                 sp<IVideoDecoder> videoDecoder;
 
-                videodecoder::Capabilities* videoDecoderCapabilities = new videodecoder::Capabilities();
+                std::unique_ptr<videodecoder::Capabilities> capabilitiesOwner(new videodecoder::Capabilities());
+                videodecoder::Capabilities* videoDecoderCapabilities = capabilitiesOwner.get();
 
                 sp<VideoDecoderEventListener> videoDecoderEventListener = new VideoDecoderEventListener();
 
@@ -1227,7 +1228,7 @@ public:
                 /*Get Capabilities of Video Decoder */
                 VIDEODECODER_GETCAPABILITIES(videoDecoder, videoDecoderCapabilities);
 
-                mVideoDecoderList.push_back({_videoDecoderId, videoDecoder, videoDecoderControlListener, videoDecoderEventListener, videoDecoderCapabilities});
+                mVideoDecoderList.push_back({_videoDecoderId, std::move(videoDecoder), std::move(videoDecoderControlListener), std::move(videoDecoderEventListener), capabilitiesOwner.release()});
             }
         }
 
@@ -1251,7 +1252,7 @@ public:
 
             //TODO: VideoSink Get capabilities are yet to implement in the video sink
 
-            mVideoSinkList.push_back({_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener});
+            mVideoSinkList.push_back({_sinkId, std::move(videoSink), std::move(videoSinkControlListener), std::move(videoSinkEventListener)});
         }
 
     }
@@ -1268,7 +1269,7 @@ public:
                             decoderId.value) != gAvailableVideodecoders_hfp.end();
     }
 
-    bool runSequentialSink(videoDecoderTestConfiguration_t testConfig, videoTestConfiguration_t sinkConfig, bool secureDecode, bool isTunnel)
+    bool runSequentialSink(const videoDecoderTestConfiguration_t& testConfig, const videoTestConfiguration_t& sinkConfig, bool secureDecode, bool isTunnel)
     {
         bool executedAtLeastOne = false;
         try {
@@ -1336,13 +1337,6 @@ public:
                 SinkTest *sinkTest = new SinkTest(_sinkId, sinkHandle, controlListener, eventListener,
                                                 decoderControlListener, decoderId, testConfig, sinkConfig);
 
-                if (!sinkTest)
-                {
-                    UT_LOG_ERROR("Failed to allocate SinkTest for Sink ID %d", _sinkId.value);
-                    if (decodeThread.joinable()) decodeThread.join();
-                    continue; // skip this sink
-                }
-
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
                 sinkTest->run(isTunnel);
@@ -1373,7 +1367,7 @@ public:
         return executedAtLeastOne;
     }
 
-    bool runConcurrentSink(videoDecoderTestConfiguration_t decoderConfig, videoTestConfiguration_t sinkConfig, bool secure, bool tunnel)
+    bool runConcurrentSink(const videoDecoderTestConfiguration_t& decoderConfig, const videoTestConfiguration_t& sinkConfig, bool secure, bool tunnel)
     {
 
         bool executedAtLeastOne = false;

@@ -93,7 +93,7 @@ public:
             /* Register events */
             VIDEOSINK_REGISTER_EVENT_SUCCESS(videoSink, eventListener);
 
-            mVideoSinkList.push_back({videoSink, controlListener, eventListener});
+            mVideoSinkList.push_back({std::move(videoSink), std::move(controlListener), std::move(eventListener)});
         }
     }
     void checkCompleteStateTransition(sp<IVideoSink> sink, sp<VideoSinkEventListener> eventListener, ::com::rdk::hal::State oldState, ::com::rdk::hal::State intermediateState, ::com::rdk::hal::State newState)
