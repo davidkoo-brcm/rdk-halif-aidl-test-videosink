@@ -953,7 +953,7 @@ private:
     videoDecoderTestConfiguration_t mTestConfiguration;
     videoTestConfiguration_t mSinkTestConfiguration;
     std::set<int64_t> receivedPtsSet;
-    bool mIsClockInUse;
+    bool mIsClockInUse = false;
     int actualFramesReceived = 0;
 
     float getBytesPerPixelMultiplier(const std::string& basePixelFormat, int colorDepth) const;
