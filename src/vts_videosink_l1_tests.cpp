@@ -2081,27 +2081,31 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_neg) {
     for(const auto& _sinkId: sinkIds) {
         VIDEOSINK_MANAGER_GETVIDEOSINK(_sinkId, videoSink);
 
-        // Step 02: Try attach on CLOSED sink (illegal state)
+        // Step 02: Open sink temporarily to obtain controller, then close to reach CLOSED state
+        VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
+        VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
+
+        // Step 03: Try attach on CLOSED sink (illegal state)
         VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, validClockId,
                                        android::binder::Status::EX_ILLEGAL_STATE);
 
-        // Step 03: Open sink
+        // Step 04: Re-open sink for further testing
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
 
-        // Step 04-05: Try attach with invalid clock IDs (boundary values)
+        // Step 05-06: Try attach with invalid clock IDs (boundary values)
         VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, invalidClockIdNegative,
                                        android::binder::Status::EX_ILLEGAL_ARGUMENT);
         VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, invalidClockIdMinusOne,
                                        android::binder::Status::EX_ILLEGAL_ARGUMENT);
 
-        // Step 06: Verify no clock attached after failures
+        // Step 07: Verify no clock attached after failures
         VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
         UT_ASSERT_EQUAL(retrievedClockId.value, ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED);
 
-        // Step 07: Verify valid attach still works
+        // Step 08: Verify valid attach still works
         VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId);
 
-        // Step 08: Close
+        // Step 09: Close
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
     }
 }
