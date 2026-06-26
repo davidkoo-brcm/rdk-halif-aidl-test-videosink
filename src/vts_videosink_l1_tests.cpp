@@ -2049,13 +2049,14 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_pos) {
  * | Variation / Step | Description | Test Data | Expected Result | Notes |
  * | :----: | --------- | ---------- |-------------- | ----- |
  * |01|Get sink IDs|None|Non-empty list|Should Pass|
- * |02|Try attach on CLOSED sink (no open)|clockId = 0|EX_ILLEGAL_STATE|Should Fail|
- * |03|Open sink in READY|listener = valid|Status OK|Should Pass|
- * |04|Try attach invalid ID -999|clockId = -999|EX_ILLEGAL_ARGUMENT|Should Fail|
- * |05|Try attach invalid ID -1|clockId = -1|EX_ILLEGAL_ARGUMENT|Should Fail|
- * |06|Verify no clock after failures|getClock|Returns UNDEFINED|Should Pass|
- * |07|Attach valid clock|clockId = 0|Status OK|Should Pass|
- * |08|Close sink|N/A|Status OK|Should Pass|
+ * |02|Open sink and close to obtain CLOSED-state controller|listener = valid|open/close Status OK|Should Pass|
+ * |03|Try attach on CLOSED sink|clockId = valid|EX_ILLEGAL_STATE|Should Fail|
+ * |04|Re-open sink in READY|listener = valid|Status OK|Should Pass|
+ * |05|Try attach invalid ID -999|clockId = -999|EX_ILLEGAL_ARGUMENT|Should Fail|
+ * |06|Try attach invalid ID -1|clockId = -1|EX_ILLEGAL_ARGUMENT|Should Fail|
+ * |07|Verify no clock after failures|getClock|Returns UNDEFINED|Should Pass|
+ * |08|Attach valid clock|clockId = valid|Status OK|Should Pass|
+ * |09|Close sink|N/A|Status OK|Should Pass|
  */
 UT_ADD_TEST(VTS_L1_VideoSink, attachClock_neg) {
     std::vector<IVideoSink::Id> sinkIds;
@@ -2092,9 +2093,11 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_neg) {
         // Step 04: Re-open sink for further testing
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
 
-        // Step 05-06: Try attach with invalid clock IDs (boundary values)
+        // Step 05: Try attach with invalid clock ID -999 (boundary value)
         VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, invalidClockIdNegative,
                                        android::binder::Status::EX_ILLEGAL_ARGUMENT);
+
+        // Step 06: Try attach with invalid clock ID -1 (boundary value)
         VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, invalidClockIdMinusOne,
                                        android::binder::Status::EX_ILLEGAL_ARGUMENT);
 
