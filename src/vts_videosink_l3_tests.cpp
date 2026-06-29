@@ -1350,6 +1350,9 @@ public:
                 sinkTest->run(isTunnel);
                 executedAtLeastOne = true;
 
+                delete sinkTest;
+                sinkTest = nullptr;
+
                 if (decodeThread.joinable())
                 {
                     decodeThread.join();
@@ -1559,6 +1562,13 @@ public:
             VIDEOSINK_UNREGISTER_EVENT_SUCCESS(sink, videoSinkEventListener);
         }
         mVideoSinkList.clear();
+
+        for (auto& [_decoderId, _decoder, _controlListener, _eventListener, capabilities] : mVideoDecoderList)
+        {
+            delete capabilities;
+            capabilities = nullptr;
+        }
+        mVideoDecoderList.clear();
 
         //TODO: check right place to call joinThreadPool
         //android::IPCThreadState::self()->joinThreadPool();

@@ -222,7 +222,7 @@ extern void *gVideoSinkTestConfiguration;
     do { \
         ::android::binder::Status status; \
         UT_LOG_INFO("Calling getCapabilities(OUT:capabilities)"); \
-            videoSink->getCapabilities(capabilities); \
+            status = videoSink->getCapabilities(capabilities); \
         UT_LOG_INFO("Result getCapabilities(OUT:capabilities), status:[isOK:%s, exception:%s]", \
                                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
