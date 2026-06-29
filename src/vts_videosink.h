@@ -926,7 +926,7 @@ public:
         sp<VideoDecoderControllerListener> decoderControllerListener,
         IVideoDecoder::Id decoderId,
         const videoDecoderTestConfiguration_t& config,
-        const videoTestConfiguration_t& sinkConfig);
+        const videoTestConfiguration_t& sinkConfig, bool isClockInUse);
 
     void verifyNoUnexpectedUnderflow();
     void verifyUnderflow();
@@ -953,6 +953,7 @@ private:
     videoDecoderTestConfiguration_t mTestConfiguration;
     videoTestConfiguration_t mSinkTestConfiguration;
     std::set<int64_t> receivedPtsSet;
+    bool mIsClockInUse = false;
     int actualFramesReceived = 0;
 
     float getBytesPerPixelMultiplier(const std::string& basePixelFormat, int colorDepth) const;
