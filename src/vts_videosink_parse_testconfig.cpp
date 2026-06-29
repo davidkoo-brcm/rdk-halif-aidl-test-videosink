@@ -116,13 +116,21 @@ UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *modu
         testConfigurations.push_back(testDetails);
 
         // Optional: log for debug
-        UT_LOG_INFO("Parsed Sink Config: testName=%s, eos=%ld, underflow=%ld, resume=%ld, flush=%ld, interDelay=%d",
+        UT_LOG_INFO("Parsed Sink Config: testName=%s, signalDiscontinuityPts=%llu, "
+                    "discardUntilPts=%lld, underflowPts=%lld, resumeTriggerPts=%lld, "
+                    "repeatPerFrame=%d, flushPts=%lld, flushResetPts=%lld, "
+                    "eosPts=%lld, interFrameDelayMs=%lld, discontinuityPTS=%lld",
                     testDetails.testName.c_str(),
-                    testDetails.vSink_eos_pts,
-                    testDetails.vSink_underflowPts,
-                    testDetails.vSink_resumeTriggerPts,
-                    testDetails.vSink_flush_pts,
-                    testDetails.vSink_interFrameDelayMs);
+                    (unsigned long long)testDetails.signalDiscontinuityPts,
+                    (long long)testDetails.vSink_discardFramesUntilPts,
+                    (long long)testDetails.vSink_underflowPts,
+                    (long long)testDetails.vSink_resumeTriggerPts,
+                    testDetails.vSink_repeatPerFrame,
+                    (long long)testDetails.vSink_flush_pts,
+                    (long long)testDetails.vSink_flush_reset_pts,
+                    (long long)testDetails.vSink_eos_pts,
+                    (long long)testDetails.vSink_interFrameDelayMs,
+                    (long long)testDetails.vSink_discontinuityPTS);
     }
     return UT_STATUS_OK;
 }

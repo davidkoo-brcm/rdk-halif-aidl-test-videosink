@@ -210,7 +210,7 @@ extern void *gVideoSinkTestConfiguration;
     do { \
         ::android::binder::Status status; \
         UT_LOG_INFO("Calling getCapabilities(OUT:capabilities)"); \
-            videoSink->getCapabilities(capabilities); \
+            status = videoSink->getCapabilities(capabilities); \
         UT_LOG_INFO("Result getCapabilities(OUT:capabilities), status:[isOK:%s, exception:%s]", \
                                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -808,7 +808,7 @@ private:
     std::condition_variable mCV;
 
     // Current state and history
-    ::com::rdk::hal::State mCurrentState;
+    ::com::rdk::hal::State mCurrentState = ::com::rdk::hal::State::CLOSED;
     std::vector<std::pair<::com::rdk::hal::State, ::com::rdk::hal::State>> mStateChanges;
 
     // First frame rendered info
@@ -832,7 +832,7 @@ private:
     int mResumeCount = 0;
 
     // Sink ID
-    int32_t mSinkID;
+    int32_t mSinkID = 0;
 };
 
 
@@ -890,8 +890,8 @@ private:
     std::condition_variable mCV;
 
     // Frame info
-    bool mFirstFrameRendered;
-    int64_t mFirstPTS;
+    bool mFirstFrameRendered = false;
+    int64_t mFirstPTS = -1;
 
     // State info
     ::com::rdk::hal::State mCurrentState;
@@ -901,8 +901,8 @@ private:
     std::vector<int32_t> mErrors;
 
     // EOS info
-    bool mEosReceived;
-    int64_t mEosPTS;
+    bool mEosReceived = false;
+    int64_t mEosPTS = -1;
 
     // Event counters
     int mUnderflowCount = 0;
@@ -913,7 +913,7 @@ private:
     int mFlushCompleteCount = 0;
 
     // Sink ID
-    int32_t mSinkID;
+    int32_t mSinkID = 0;
 };
 //sink test implementation.
 class SinkTest
@@ -925,8 +925,8 @@ public:
         sp<VideoSinkEventListener> VideoSinkEventListner,
         sp<VideoDecoderControllerListener> decoderControllerListener,
         IVideoDecoder::Id decoderId,
-        videoDecoderTestConfiguration_t& config,
-        videoTestConfiguration_t& sinkConfig, bool isClockInUse);
+        const videoDecoderTestConfiguration_t& config,
+        const videoTestConfiguration_t& sinkConfig, bool isClockInUse);
 
     void verifyNoUnexpectedUnderflow();
     void verifyUnderflow();
