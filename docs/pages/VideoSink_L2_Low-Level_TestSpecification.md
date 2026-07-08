@@ -186,3 +186,36 @@ If user chose to run the test in interactive mode, then the test case has to be 
 | 21 | Wait for state transition from CLOSING to CLOSED  | listener->waitForState(State::CLOSING, State::CLOSED)     | waitForState() = true   | Should be successful |
 | 22 | Get current state using `getState`      | currentState = State::CLOSED    | getStateStatus.isOk() = true, currentState = State::CLOSED  | Should be successful |
 | 23 | Clean up by closing each controller and clearing the environment | None       | None     | Should be successful |
+
+### Test 5
+
+| Title |Details |
+| ----- |------- |
+| Test  Name | `TestAttachDetachClock` |
+| Description | Read supported video sinks using IVideoSinkManager class calling getVideoSinkIds. Loop through supported video sinks, register event listeners using registerEventListener. Verify attach and detach of clock id works in READY state. Verify attach and detach of clock id works in STARTED state |
+| Test Group  | Module : L2 |
+| Test Case ID  | 005 |
+| Priority  | High|
+
+**Pre-Conditions :**
+None
+
+**Dependencies :**
+None
+
+**User Interaction :**
+If user chose to run the test in interactive mode, then the test case has to be selected via console.
+
+#### Test Procedure :
+
+| Variation / Steps | Description | Test Data | Expected Result | Notes |
+| ----------------- | ----------- | --------- | --------------- | ------|
+| 01 | Get video sink IDs using `getVideoSinkIds`| ids = empty vector | status.isOk() = true | Should be successful |
+| 02 | Register event listener using `registerEventListener`| listener = new VideoSinkEventListenerImpl(), registered = false  | regStatus.isOk() = true, registered = true | Should be successful |
+| 03 | Open video sink using `open`| controllerListener = new VideoSinkControllerListenerImpl(), controller = nullptr | openStatus.isOk() = true, controller != nullptr | Should be successful |
+| 04 | attach the clock id using `attachClock` and verify using `getClock` | clock id | `getClock` should return attached clock id| Should be successful |
+| 05 | Start all video sink using `start` by looping though available sinksIds | startStatus = controller->start()      | startStatus.isOk() = true   | Should be successful |
+| 06 | attach the clock id using `attachClock` and verify using `getClock` | clock id | `getClock` should return attached clock id| Should be successful |
+| 07 | detach the clock id using `detachClock` and verify using `getClock` | clock id | `getClock` should return UNDEFINED clock id| Should be successful |
+| 08 | Stop video sink using `stop`   | startStatus = controller->stop()       | startStatus.isOk() = true   | Should be successful |
+| 09 | Close video sink using `close`      | closed = false        | closeStatus.isOk() = true, closed = true   | Should be successful |

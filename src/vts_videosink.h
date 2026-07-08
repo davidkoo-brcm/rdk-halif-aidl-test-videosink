@@ -888,77 +888,93 @@ class VideoSinkEventListener : public BnVideoSinkEventListener
 {
 public:
     VideoSinkEventListener();
-    virtual ~VideoSinkEventListener() = default;
-    static int32_t mUsedDecoderID;
+    virtual ~VideoSinkEventListener();
 
     // Override methods from BnVideoSinkEventListener
     ::android::binder::Status onFirstFrameRendered(int64_t nsPresentationTime) override;
+    ::android::binder::Status onFlushComplete() override;
     ::android::binder::Status onEndOfStream(int64_t nsPresentationTime) override;
     ::android::binder::Status onVideoUnderflow() override;
     ::android::binder::Status onVideoResumed() override;
-    ::android::binder::Status onFlushComplete() override;
     ::android::binder::Status onStateChanged(videosink::State oldState, videosink::State newState) override;
+    android::binder::Status onFrameBufferAvailable();
 
-    // Flush helpers
+    // Utility functions: First frame rendered
+    void resetFirstFrameRendered();
+    bool waitForFFR(int timeoutSeconds);
+    int64_t getFirstPTS();
+
+    // Utility functions: Flush complete
     void resetFlushComplete();
     int getFlushCompleteCount();
 
-    // End of stream (EOS) helpers
+    // Utility functions: End of stream (EOS)
     void resetEos();
     int64_t getEosPTS();
     bool waitForEosEvent(int timeoutSeconds);
 
-    // Underflow helpers
+    // Utility functions: Frame buffer available
+    void resetFrameBufferAvailable();
+    int getFrameBufferAvailableCount();
+    bool waitForFrameBufferAvailableEvent(int timeoutSeconds);
+
+    // Utility functions: Underflow
     void resetUnderflow();
     int getUnderflowCount();
 
-    // Resume helpers
-    void resetResumed();
-    int getResumedCount();
-
     // State transition helpers
     std::vector<std::pair<videosink::State, videosink::State>> getStateChanges() const;
+    bool waitForState(videosink::State desiredState, std::chrono::milliseconds timeout);
     void resetStateChanges();
     bool checkStateTransistion(videosink::State expOldState, videosink::State expNewState);
 
-    // Wait functions (blocking with timeout)
-    bool waitForState(videosink::State desiredState, std::chrono::milliseconds timeout);
-
-    // Error helpers
-    std::vector<int32_t> getErrors() const;
+    // Utility functions: Resume
+    void resetResumed();
+    int getResumedCount();
 
     void setSinkID(int32_t id);
 
-    static int32_t getUsedDecoder()
-    {
-        return VideoSinkEventListener::mUsedDecoderID;
-    }
 private:
-    mutable std::mutex mMutex;
-    std::condition_variable mCV;
+    mutable std::mutex mMutex_ffr;
+    mutable std::mutex mMutex_flush;
+    mutable std::mutex mMutex_fba;
+    mutable std::mutex mMutex_underflow;
+    mutable std::mutex mMutex_resumed;
+    mutable std::mutex mMutex_stateChanges;
+    mutable std::mutex mMutex_eos;
+    mutable std::mutex mMutex_errors;
 
-    // Frame info
-    bool mFirstFrameRendered = false;
-    int64_t mFirstPTS = -1;
+    std::condition_variable mCV_ffr;
+    std::condition_variable mCV_flush;
+    std::condition_variable mCV_fba;
+    std::condition_variable mCV_underflow;
+    std::condition_variable mCV_resumed;
+    std::condition_variable mCV_stateChanges;
+    std::condition_variable mCV_eos;
 
-    // State info
+    // Current state and history
     videosink::State mCurrentState = videosink::State::CLOSED;
     std::vector<std::pair<videosink::State, videosink::State>> mStateChanges;
 
-    // Errors
-    std::vector<int32_t> mErrors;
+    // First frame rendered info
+    bool mFirstFrameRendered;
+    int64_t mFirstPTS;
+
+    // Flush complete flag
+    bool mFlushComplete;
+    int mFlushCompleteCount = 0;
 
     // EOS info
-    bool mEosReceived = false;
-    int64_t mEosPTS = -1;
+    bool mEosReceived;
+    int64_t mEosPTS;
 
-    // Event counters
+    // Frame buffer available info
+    bool mFrameBufferAvailable;
+    int mFrameBufferAvailableCount = 0;
+
+    // Counters for events
     int mUnderflowCount = 0;
     int mResumeCount = 0;
-
-    // Flush flag
-    bool mFlushComplete = false;
-    int mFlushCompleteCount = 0;
 
     // Sink ID
     int32_t mSinkID = 0;

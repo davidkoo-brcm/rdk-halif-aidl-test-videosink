@@ -68,7 +68,6 @@
 
 videoSinkHFP_t gVideosinks_hfp;
 
-
 UT_status_t vts_videosink_parseVideoSinkHFP()
 {
     const std::string videosinkPath = VIDEOSINKMGR_IVIDEOSINK;
