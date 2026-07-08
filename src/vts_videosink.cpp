@@ -97,21 +97,35 @@
 using namespace std::chrono;
 using namespace std;
 
+/*************************************
+* Controller Listener Implementation
+*************************************/
 VideoSinkControllerListener::VideoSinkControllerListener()
-    : mFirstFrameRendered(false),
-      mFirstPTS(-1),
-      mFlushComplete(false),
-      mEosReceived(false),
-      mEosPTS(-1),
-    mFrameBufferAvailable(false),
-    mFrameBufferAvailableCount(0),
-      mUnderflowCount(0),
-      mResumeCount(0)
+    :mFirstFrameRendered(false),
+     mFirstPTS(-1),
+     mFlushComplete(false),
+     mEosReceived(false),
+     mEosPTS(-1),
+     mFrameBufferAvailable(false),
+     mFrameBufferAvailableCount(0),
+     mUnderflowCount(0),
+     mResumeCount(0)
 {
 }
 
 VideoSinkControllerListener::~VideoSinkControllerListener() = default;
 
+/**
+ * @brief Sets the Sink ID for this listener instance.
+ *
+ * @param id The sink identifier to set.
+ */
+void VideoSinkControllerListener::setSinkID(int32_t id)
+{
+    mSinkID = id;
+}
+
+// onFirstFrameRendered callback implementation
 /**
  * @brief Callback invoked when the first video frame has been rendered.
  *
@@ -125,27 +139,179 @@ android::binder::Status VideoSinkControllerListener::onFirstFrameRendered(int64_
 {
     UT_LOG_INFO("[Video SinkID: %d] [PTS %lld]  VideoSinkControllerListener : onFirstFrameRendered Callback Received", mSinkID, nsPresentationTime);
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::lock_guard<std::mutex> lock(mMutex_ffr);
         if (!mFirstFrameRendered)
         {
             mFirstPTS = nsPresentationTime;
             mFirstFrameRendered = true;
         }
     }
-    mCV.notify_all();
+    mCV_ffr.notify_all();
+    return android::binder::Status::ok();
+}
+
+void VideoSinkControllerListener::resetFirstFrameRendered()
+{
+    std::lock_guard<std::mutex> lock(mMutex_ffr);
+    mFirstFrameRendered = false;
+    mFirstPTS = -1;
+}
+
+bool VideoSinkControllerListener::waitForFFR(int timeoutSeconds)
+{
+    std::unique_lock<std::mutex> lock(mMutex_ffr);
+    return mCV_ffr.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] { return mFirstFrameRendered; });
+}
+
+int64_t VideoSinkControllerListener::getFirstPTS()
+{
+    std::lock_guard<std::mutex> lock(mMutex_ffr);
+    return mFirstPTS;
+}
+
+// onEndOfStream callback implementation
+/**
+ * @brief Callback invoked when End of Stream (EOS) is received.
+ *
+ * Records the EOS flag and presentation timestamp (PTS), then notifies waiting threads.
+ *
+ * @param nsPresentationTime Presentation timestamp of the EOS event in nanoseconds.
+ * @return android::binder::Status::ok() on success.
+ */
+android::binder::Status VideoSinkControllerListener::onEndOfStream(int64_t nsPresentationTime)
+{
+    UT_LOG_INFO("[Sink ID : %d] VideoSinkControllerListener: onEndOfStream Received PTS[%ld]",mSinkID,nsPresentationTime);
+    {
+        std::lock_guard<std::mutex> lock(mMutex_eos);
+        mEosReceived = true;
+        mEosPTS = nsPresentationTime;
+    }
+    mCV_eos.notify_all();
     return android::binder::Status::ok();
 }
 
 /**
- * @brief Resets the flush complete flag to false.
+ * @brief Resets the End of Stream (EOS) received status and associated PTS.
+ *
+ * After calling this, EOS is considered not received and PTS is reset.
  */
-void VideoSinkControllerListener::resetFlushComplete()
+void VideoSinkControllerListener::resetEos()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
-    mFlushComplete = false;
-    mFlushCompleteCount = 0;
+    std::lock_guard<std::mutex> lock(mMutex_eos);
+    mEosReceived = false;
+    mEosPTS = -1;
 }
 
+/**
+ * @brief Waits for the End-Of-Stream (EOS) event to be received within the specified timeout.
+ *
+ * Blocks the calling thread until the EOS event is received or the timeout expires.
+ *
+ * @param timeoutSeconds Number of seconds to wait for the EOS event.
+ * @return true if EOS event received within timeout, false otherwise.
+ */
+bool VideoSinkControllerListener::waitForEosEvent(int timeoutSeconds)
+{
+    std::unique_lock<std::mutex> lock(mMutex_eos);
+    return mCV_eos.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] { return mEosReceived; });
+}
+
+/**
+ * @brief Retrieves the presentation timestamp (PTS) associated with the received End of Stream (EOS).
+ *
+ * @return The EOS PTS value.
+ */
+int64_t VideoSinkControllerListener::getEosPTS()
+{
+    std::lock_guard<std::mutex> lock(mMutex_eos);
+    return mEosPTS;
+}
+
+// onVideoUnderflow callback implementation
+/**
+ * @brief Callback invoked when a video underflow event occurs.
+ *
+ * Increments the underflow count and notifies any waiting threads.
+ *
+ * @return android::binder::Status indicating success.
+ */
+android::binder::Status VideoSinkControllerListener::onVideoUnderflow()
+{
+    UT_LOG_INFO("[Sink ID : %d] VideoSinkControllerListener: onVideoUnderflow Callback Received",mSinkID);
+    {
+        std::lock_guard<std::mutex> lock(mMutex_underflow);
+        mUnderflowCount++;
+    }
+    mCV_underflow.notify_all();
+    return android::binder::Status::ok();
+}
+
+/**
+ * @brief Resets the video underflow count to zero.
+ *
+ * This method clears the recorded underflow events.
+ */
+void VideoSinkControllerListener::resetUnderflow()
+{
+    std::lock_guard<std::mutex> lock(mMutex_underflow);
+    mUnderflowCount = 0;
+}
+
+/**
+ * @brief Retrieves the current count of video underflow events.
+ *
+ * @return int The number of underflow events recorded.
+ */
+int VideoSinkControllerListener::getUnderflowCount()
+{
+    std::lock_guard<std::mutex> lock(mMutex_underflow);
+    return mUnderflowCount;
+}
+
+// onVideoResumed callback implementation
+/**
+ * @brief Callback invoked when video resumes after underflow.
+ *
+ * Increments the resume event count and notifies waiting threads.
+ *
+ * @return android::binder::Status Status indicating success.
+ */
+android::binder::Status VideoSinkControllerListener::onVideoResumed()
+{
+    UT_LOG_INFO("[Sink ID : %d] VideoSinkControllerListener: onVideoResumed Callback Received",mSinkID);
+    {
+        std::lock_guard<std::mutex> lock(mMutex_resumed);
+        mResumeCount++;
+    }
+    mCV_resumed.notify_all();
+    return android::binder::Status::ok();
+}
+
+/**
+ * @brief Resets the count of video resumed events to zero.
+ *
+ * Thread-safe reset of the internal resume event counter.
+ */
+void VideoSinkControllerListener::resetResumed()
+{
+    std::lock_guard<std::mutex> lock(mMutex_resumed);
+    mResumeCount = 0;
+}
+
+/**
+ * @brief Returns the count of video resumed events received.
+ *
+ * Thread-safe retrieval of the resume event counter.
+ *
+ * @return Number of video resumed events received.
+ */
+int VideoSinkControllerListener::getResumedCount()
+{
+    std::lock_guard<std::mutex> lock(mMutex_resumed);
+    return mResumeCount;
+}
+
+// onStateChanged callback implementation
 /**
  * @brief Callback invoked when a flush operation is complete.
  *
@@ -157,11 +323,11 @@ android::binder::Status VideoSinkControllerListener::onFlushComplete()
 {
     UT_LOG_INFO("[Sink ID : %d] VideoSinkEventListener: onFlushComplete callback received ", mSinkID);
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::lock_guard<std::mutex> lock(mMutex_flush);
         mFlushCompleteCount++;   // increment the count
         mFlushComplete = true;   // optionally keep this flag if needed
     }
-    mCV.notify_all();
+    mCV_flush.notify_all();
     return ::android::binder::Status::ok();
 }
 
@@ -176,154 +342,21 @@ android::binder::Status VideoSinkControllerListener::onFlushComplete()
  */
 int VideoSinkControllerListener::getFlushCompleteCount()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    std::lock_guard<std::mutex> lock(mMutex_flush);
     return mFlushCompleteCount;
 }
 
 /**
- * @brief Callback invoked when End of Stream (EOS) is received.
- *
- * Records the EOS flag and presentation timestamp (PTS), then notifies waiting threads.
- *
- * @param nsPresentationTime Presentation timestamp of the EOS event in nanoseconds.
- * @return android::binder::Status::ok() on success.
+ * @brief Resets the flush complete flag to false.
  */
-android::binder::Status VideoSinkControllerListener::onEndOfStream(int64_t nsPresentationTime)
+void VideoSinkControllerListener::resetFlushComplete()
 {
-    UT_LOG_INFO("[Sink ID : %d] VideoSinkControllerListener: onEndOfStream Received PTS[%ld]",mSinkID,nsPresentationTime);
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mEosReceived = true;
-        mEosPTS = nsPresentationTime;
-    }
-    mCV.notify_all();
-    return android::binder::Status::ok();
+    std::lock_guard<std::mutex> lock(mMutex_flush);
+    mFlushComplete = false;
+    mFlushCompleteCount = 0;
 }
 
-/**
- * @brief Callback invoked when the sink queue has space after back-pressure.
- *
- * Increments frame-buffer-available count and notifies waiting threads.
- *
- * @return android::binder::Status indicating success.
- */
-android::binder::Status VideoSinkControllerListener::onFrameBufferAvailable()
-{
-    UT_LOG_INFO("[Sink ID : %d] VideoSinkControllerListener: onFrameBufferAvailable Callback Received", mSinkID);
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mFrameBufferAvailable = true;
-        mFrameBufferAvailableCount++;
-    }
-    mCV.notify_all();
-    return android::binder::Status::ok();
-}
-
-/**
- * @brief Retrieves the presentation timestamp (PTS) associated with the received End of Stream (EOS).
- *
- * @return The EOS PTS value.
- */
-int64_t VideoSinkControllerListener::getEosPTS()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    return mEosPTS;
-}
-
-/**
- * @brief Resets the End of Stream (EOS) received status and associated PTS.
- *
- * After calling this, EOS is considered not received and PTS is reset.
- */
-void VideoSinkControllerListener::resetEos()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    mEosReceived = false;
-    mEosPTS = -1;
-}
-
-/**
- * @brief Callback invoked when a video underflow event occurs.
- *
- * Increments the underflow count and notifies any waiting threads.
- *
- * @return android::binder::Status indicating success.
- */
-android::binder::Status VideoSinkControllerListener::onVideoUnderflow()
-{
-    UT_LOG_INFO("[Sink ID : %d] VideoSinkControllerListener: onVideoUnderflow Callback Received",mSinkID);
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mUnderflowCount++;
-    }
-    mCV.notify_all();
-    return android::binder::Status::ok();
-}
-
-/**
- * @brief Resets the video underflow count to zero.
- *
- * This method clears the recorded underflow events.
- */
-void VideoSinkControllerListener::resetUnderflow()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    mUnderflowCount = 0;
-}
-
-/**
- * @brief Retrieves the current count of video underflow events.
- *
- * @return int The number of underflow events recorded.
- */
-int VideoSinkControllerListener::getUnderflowCount()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    return mUnderflowCount;
-}
-
-/**
- * @brief Callback invoked when video resumes after underflow.
- *
- * Increments the resume event count and notifies waiting threads.
- *
- * @return android::binder::Status Status indicating success.
- */
-android::binder::Status VideoSinkControllerListener::onVideoResumed()
-{
-    UT_LOG_INFO("[Sink ID : %d] VideoSinkControllerListener: onVideoResumed Callback Received",mSinkID);
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mResumeCount++;
-    }
-    mCV.notify_all();
-    return android::binder::Status::ok();
-}
-
-/**
- * @brief Resets the count of video resumed events to zero.
- *
- * Thread-safe reset of the internal resume event counter.
- */
-void VideoSinkControllerListener::resetResumed()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    mResumeCount = 0;
-}
-
-/**
- * @brief Returns the count of video resumed events received.
- *
- * Thread-safe retrieval of the resume event counter.
- *
- * @return Number of video resumed events received.
- */
-int VideoSinkControllerListener::getResumedCount()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    return mResumeCount;
-}
-
+// onStateChanged callback implementation
 /**
  * @brief Callback for state changes in the video sink controller.
  *
@@ -337,26 +370,90 @@ android::binder::Status VideoSinkControllerListener::onStateChanged(videosink::S
 {
     UT_LOG_INFO("[SinkId %d] VideoSinkControllerListener: State Change received: %d, %d ", mSinkID, oldState, newState);
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::lock_guard<std::mutex> lock(mMutex_stateChanges);
         mStateChanges.emplace_back(oldState, newState);
         mCurrentState = newState;
     }
-    mCV.notify_all();
+    mCV_stateChanges.notify_all();
     return ::android::binder::Status::ok();
 }
 
 /**
- * @brief Waits for the End-Of-Stream (EOS) event to be received within the specified timeout.
+ * @brief Waits for the listener to reach the specified state within the given timeout.
+ *        Blocks using condition variable until the desired state is reached or timeout expires.
  *
- * Blocks the calling thread until the EOS event is received or the timeout expires.
- *
- * @param timeoutSeconds Number of seconds to wait for the EOS event.
- * @return true if EOS event received within timeout, false otherwise.
+ * @param desiredState The state to wait for.
+ * @param timeout Duration to wait for the desired state.
+ * @return true if the desired state was reached before timeout, false otherwise.
  */
-bool VideoSinkControllerListener::waitForEosEvent(int timeoutSeconds)
+bool VideoSinkControllerListener::waitForState(videosink::State desiredState, std::chrono::milliseconds timeout)
 {
-    std::unique_lock<std::mutex> lock(mMutex);
-    return mCV.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] { return mEosReceived; });
+    std::unique_lock<std::mutex> lock(mMutex_stateChanges);
+    return mCV_stateChanges.wait_for(lock, timeout, [this, desiredState] { return mCurrentState == desiredState; });
+}
+
+/**
+ * @brief Retrieves a copy of all recorded state changes.
+ *
+ * @return A vector of pairs representing (oldState, newState) transitions.
+ */
+std::vector<std::pair<videosink::State, videosink::State>> VideoSinkControllerListener::getStateChanges() const
+{
+    std::lock_guard<std::mutex> lock(mMutex_stateChanges);
+    return mStateChanges;
+}
+
+/**
+ * @brief Clears all recorded state change entries.
+ */
+void VideoSinkControllerListener::resetStateChanges()
+{
+    std::lock_guard<std::mutex> lock(mMutex_stateChanges);
+    mStateChanges.clear();
+}
+
+/**
+ * @brief Checks if a specific state transition occurred.
+ *
+ * @param expOldState Expected old state.
+ * @param expNewState Expected new state.
+ * @return true if the transition from expOldState to expNewState was recorded, false otherwise.
+ */
+bool VideoSinkControllerListener::checkStateTransistion(videosink::State expOldState, videosink::State expNewState)
+{
+    std::vector<std::pair<videosink::State, videosink::State>> stateChange;
+    {
+        std::lock_guard<std::mutex> lock(mMutex_stateChanges);
+        stateChange = mStateChanges;
+    }
+    for (const auto& [oldState, newState] : stateChange)
+    {
+        if (oldState == expOldState && newState == expNewState)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// onFrameBufferAvailable callback implementation
+/**
+ * @brief Callback invoked when the sink queue has space after back-pressure.
+ *
+ * Increments frame-buffer-available count and notifies waiting threads.
+ *
+ * @return android::binder::Status indicating success.
+ */
+android::binder::Status VideoSinkControllerListener::onFrameBufferAvailable()
+{
+    UT_LOG_INFO("[Sink ID : %d] VideoSinkControllerListener: onFrameBufferAvailable Callback Received", mSinkID);
+    {
+        std::lock_guard<std::mutex> lock(mMutex_fba);
+        mFrameBufferAvailable = true;
+        mFrameBufferAvailableCount++;
+    }
+    mCV_fba.notify_all();
+    return android::binder::Status::ok();
 }
 
 /**
@@ -364,7 +461,7 @@ bool VideoSinkControllerListener::waitForEosEvent(int timeoutSeconds)
  */
 void VideoSinkControllerListener::resetFrameBufferAvailable()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    std::lock_guard<std::mutex> lock(mMutex_fba);
     mFrameBufferAvailable = false;
     mFrameBufferAvailableCount = 0;
 }
@@ -376,7 +473,7 @@ void VideoSinkControllerListener::resetFrameBufferAvailable()
  */
 int VideoSinkControllerListener::getFrameBufferAvailableCount()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    std::lock_guard<std::mutex> lock(mMutex_fba);
     return mFrameBufferAvailableCount;
 }
 
@@ -388,8 +485,8 @@ int VideoSinkControllerListener::getFrameBufferAvailableCount()
  */
 bool VideoSinkControllerListener::waitForFrameBufferAvailableEvent(int timeoutSeconds)
 {
-    std::unique_lock<std::mutex> lock(mMutex);
-    const bool callbackReceived = mCV.wait_for(
+    std::unique_lock<std::mutex> lock(mMutex_fba);
+    const bool callbackReceived = mCV_fba.wait_for(
         lock, std::chrono::seconds(timeoutSeconds), [this] { return mFrameBufferAvailable; });
     if (callbackReceived)
     {
@@ -398,16 +495,10 @@ bool VideoSinkControllerListener::waitForFrameBufferAvailableEvent(int timeoutSe
     return callbackReceived;
 }
 
-/**
- * @brief Sets the Sink ID for this listener instance.
- *
- * @param id The sink identifier to set.
- */
-void VideoSinkControllerListener::setSinkID(int32_t id)
-{
-    mSinkID = id;
-}
 
+/*************************************
+* Event Listener Implementation
+*************************************/
 VideoSinkEventListener::VideoSinkEventListener()
     : mCurrentState(videosink::State::CLOSED),
       mFlushComplete(false)
@@ -627,7 +718,7 @@ void VideoSinkEventListener::resetFlushComplete()
 bool VideoSinkEventListener::waitForState(videosink::State desiredState, std::chrono::milliseconds timeout)
 {
     std::unique_lock<std::mutex> lock(mMutex);
-    return mCV.wait_for(lock, timeout, [this] { return mFlushComplete; });
+    return mCV.wait_for(lock, timeout, [this, desiredState] { return mCurrentState == desiredState; });
 }
 
 /**

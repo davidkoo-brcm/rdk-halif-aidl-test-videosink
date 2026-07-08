@@ -69,7 +69,8 @@ public:
     {
         UTCore::SetUp();
 
-        if (gVideoSinkManager == nullptr) {
+        if (gVideoSinkManager == nullptr)
+        {
                 UT_FAIL_FATAL("VideoSink Service not available");
         }
 
@@ -96,9 +97,10 @@ public:
             mVideoSinkList.push_back({std::move(videoSink), std::move(controlListener), std::move(eventListener)});
         }
     }
-    void checkCompleteStateTransition(sp<IVideoSink> sink, sp<VideoSinkEventListener> eventListener, ::com::rdk::hal::State oldState, ::com::rdk::hal::State intermediateState, ::com::rdk::hal::State newState)
+    void checkCompleteStateTransition(sp<IVideoSink> sink, sp<VideoSinkEventListener> eventListener,
+                                      videosink::State oldState, videosink::State intermediateState, videosink::State newState)
     {
-        ::com::rdk::hal::State currentState;
+        videosink::State currentState;
         eventListener->waitForState(intermediateState, std::chrono::milliseconds(VIDEO_MAX_TRANSITORY_STATE_WAIT_MS));
 
         UT_ASSERT_TRUE(eventListener->checkStateTransistion(oldState, intermediateState));
@@ -125,7 +127,8 @@ public:
     }
 };
 
-struct PropertyTestCase {
+struct PropertyTestCase
+{
     ::com::rdk::hal::videosink::Property property;
     int32_t testValue;
     const char* propertyName;
@@ -152,7 +155,9 @@ std::vector<PropertyTestCase> testCases = {
 /**
  * @brief Test the setting and getting of properties in VideoSink
  *
- * This test verifies that properties can be set and retrieved correctly in the VideoSink module. It ensures that the set and get operations are successful and that the retrieved property values match the set values.
+ * This test verifies that properties can be set and retrieved correctly
+ * in the VideoSink module. It ensures that the set and get operations are
+ * successful and that the retrieved property values match the set values.
  *
  * **Test Group ID:** 02@n
  * **Test Case ID:** 001@n
@@ -160,17 +165,18 @@ std::vector<PropertyTestCase> testCases = {
  * **Test Procedure:**
  * Refer to UT specification documentation [VideoSink_L2_Low-Level_TestSpecification.md](../docs/pages/VideoSink_L2_Low-Level_TestSpecification.md)
  */
-UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty) {
+UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty)
+{
 
     for(const auto& [videoSink, controlListener, eventListener] : mVideoSinkList)
     {
-
         sp<IVideoSinkController> videoSinkController;
 
         /* Open the sink */
         VIDEOSINK_OPEN_SUCCESS(videoSink, controlListener, videoSinkController, true);
 
-        for (const auto& testCase : testCases) {
+        for (const auto& testCase : testCases)
+        {
             PropertyValue setValue;
             setValue.value = PropertyValue::Value::make<PropertyValue::Value::Tag::intValue>(testCase.testValue);
 
@@ -196,7 +202,8 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty) {
  * **Test Procedure:**
  * Refer to UT specification documentation [VideoSink_L2_Low-Level_TestSpecification.md](../docs/pages/VideoSink_L2_Low-Level_TestSpecification.md)
  */
-UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty_multipleInstance) {
+UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty_multipleInstance)
+{
     std::vector<sp<IVideoSinkController>> videoSinkControllersList;
     for(const auto& [videoSink, controlListener, eventListener] : mVideoSinkList)
     {
@@ -212,7 +219,8 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty_multipleInstance) {
         const auto& [videoSink, controlListener, eventListener] = mVideoSinkList[i];
         const auto& videoSinkController = videoSinkControllersList[i];
 
-        for (const auto& testCase : testCases) {
+        for (const auto& testCase : testCases)
+        {
             PropertyValue setValue;
             setValue.value = PropertyValue::Value::make<PropertyValue::Value::Tag::intValue>(testCase.testValue);
 
@@ -223,14 +231,24 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty_multipleInstance) {
             UT_ASSERT_EQUAL(getPropertyValue->value->get<com::rdk::hal::PropertyValue::Value::Tag::intValue>(), testCase.testValue);
         }
 
+    }
+
+    for(size_t i = 0; i< mVideoSinkList.size();++i)
+    {
+        const auto& [videoSink, controlListener, eventListener] = mVideoSinkList[i];
+        const auto& videoSinkController = videoSinkControllersList[i];
+
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
     }
+
 }
 
 /**
 * @brief Test the state transitions of the VideoSink component
 *
-* This test verifies the correct state transitions of the VideoSink component, ensuring that it moves through the expected states: READY, STARTED, FLUSHING, and CLOSED. It checks the integrity and correctness of each transition and the final state.
+* This test verifies the correct state transitions of the VideoSink component,
+* ensuring that it moves through the expected states: READY, STARTED, FLUSHING, and CLOSED.
+* It checks the integrity and correctness of each transition and the final state.
 *
 * **Test Group ID:** 02@n
 * **Test Case ID:** 002@n
@@ -238,7 +256,8 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestSetAndGetProperty_multipleInstance) {
 * **Test Procedure:**
 * Refer to UT specification documentation [VideoSink_L2_Low-Level_TestSpecification.md](../docs/pages/VideoSink_L2_Low-Level_TestSpecification.md)
 */
-UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions) {
+UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions)
+{
 
     for(const auto& [videoSink, controlListener, eventListener] : mVideoSinkList)
     {
@@ -248,38 +267,41 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions) {
 
         /* Open the sink */
         VIDEOSINK_OPEN_SUCCESS(videoSink, controlListener, videoSinkController, false);
-        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::CLOSED,::com::rdk::hal::State::OPENING,::com::rdk::hal::State::READY);
+        checkCompleteStateTransition(videoSink,eventListener, videosink::State::CLOSED, videosink::State::OPENING, videosink::State::READY);
 
         // Transition to STARTED state
         VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::READY,::com::rdk::hal::State::STARTING,::com::rdk::hal::State::STARTED);
+        checkCompleteStateTransition(videoSink,eventListener, videosink::State::READY, videosink::State::STARTING, videosink::State::STARTED);
 
 		// Transition to FLUSHING state
-        VIDEOSINK_FLUSH_SUCCESS(videoSink, videoSinkController, false);
-        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::STARTED,::com::rdk::hal::State::FLUSHING,::com::rdk::hal::State::STARTED);
+        VIDEOSINK_FLUSH_SUCCESS(videoSinkController, false);
+        checkCompleteStateTransition(videoSink,eventListener, videosink::State::STARTED, videosink::State::FLUSHING, videosink::State::STARTED);
 
 		// Transition to READY state
         VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::STARTED,::com::rdk::hal::State::STOPPING,::com::rdk::hal::State::READY);
+        checkCompleteStateTransition(videoSink,eventListener, videosink::State::STARTED, videosink::State::STOPPING, videosink::State::READY);
 
 		// Transition to CLOSED state
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::READY,::com::rdk::hal::State::CLOSING,::com::rdk::hal::State::CLOSED);
+        checkCompleteStateTransition(videoSink,eventListener, videosink::State::READY, videosink::State::CLOSING, videosink::State::CLOSED);
     }
 }
 
 /**
 * @brief Test the state transitions of the VideoSink component
 *
-* This test verifies the correct state transitions of the VideoSink component, ensuring that it moves through the expected states: READY, STARTED, FLUSHING, and CLOSED. It checks the integrity and correctness of each transition and the final state.
+* This test verifies the correct state transitions of the VideoSink component,
+* ensuring that it moves through the expected states: READY, STARTED, FLUSHING, and CLOSED.
+* It checks the integrity and correctness of each transition and the final state.
 *
 * **Test Group ID:** 02@n
-* **Test Case ID:** 002@n
+* **Test Case ID:** 003@n
 *
 * **Test Procedure:**
 * Refer to UT specification documentation [VideoSink_L2_Low-Level_TestSpecification.md](../docs/pages/VideoSink_L2_Low-Level_TestSpecification.md)
 */
-UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions_multipleInstance) {
+UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions_multipleInstance)
+{
     std::vector<sp<IVideoSinkController>> videoSinkControllersList;
     for(const auto& [videoSink, controlListener, eventListener] : mVideoSinkList)
     {
@@ -288,7 +310,7 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions_multipleInstance) {
 
         /* Open the sink */
         VIDEOSINK_OPEN_SUCCESS(videoSink, controlListener, videoSinkController, false);
-        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::CLOSED,::com::rdk::hal::State::OPENING,::com::rdk::hal::State::READY);
+        checkCompleteStateTransition(videoSink,eventListener, videosink::State::CLOSED, videosink::State::OPENING, videosink::State::READY);
         videoSinkControllersList.push_back(videoSinkController);
     }
 
@@ -300,19 +322,24 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions_multipleInstance) {
 
         // Transition to STARTED state
         VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::READY,::com::rdk::hal::State::STARTING,::com::rdk::hal::State::STARTED);
+        checkCompleteStateTransition(videoSink,eventListener, videosink::State::READY, videosink::State::STARTING, videosink::State::STARTED);
 
 		// Transition to FLUSHING state
-        VIDEOSINK_FLUSH_SUCCESS(videoSink, videoSinkController, false);
-        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::STARTED,::com::rdk::hal::State::FLUSHING,::com::rdk::hal::State::STARTED);
+        VIDEOSINK_FLUSH_SUCCESS(videoSinkController, false);
+        checkCompleteStateTransition(videoSink,eventListener, videosink::State::STARTED, videosink::State::FLUSHING, videosink::State::STARTED);
 
 		// Transition to READY state
         VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::STARTED,::com::rdk::hal::State::STOPPING,::com::rdk::hal::State::READY);
+        checkCompleteStateTransition(videoSink,eventListener, videosink::State::STARTED, videosink::State::STOPPING, videosink::State::READY);
+    }
 
+    for(size_t i = 0; i< mVideoSinkList.size();++i)
+    {
+        const auto& [videoSink, controlListener, eventListener] = mVideoSinkList[i];
+        const auto& videoSinkController = videoSinkControllersList[i];
 		// Transition to CLOSED state
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
-        checkCompleteStateTransition(videoSink,eventListener,::com::rdk::hal::State::READY,::com::rdk::hal::State::CLOSING,::com::rdk::hal::State::CLOSED);
+        checkCompleteStateTransition(videoSink,eventListener, videosink::State::READY, videosink::State::CLOSING, videosink::State::CLOSED);
     }
 }
 

@@ -783,7 +783,7 @@ void SinkTest::videoSinkNonTunnelMode()
 
             if (mSinkTestConfiguration.vSink_flush_pts >= 0 && pts == static_cast<int64_t>(mSinkTestConfiguration.vSink_flush_pts))
             {
-                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, controller, false);
+                VIDEOSINK_FLUSH_SUCCESS(controller, false);
             }
 
         }

@@ -501,7 +501,7 @@ extern void *gVideoSinkTestConfiguration;
         UT_ASSERT_FALSE(status.isOk()); \
     } while (0)
 
-#define VIDEOSINK_FLUSH_SUCCESS(videoSink, videoSinkController, holdLastFrame) \
+#define VIDEOSINK_FLUSH_SUCCESS(videoSinkController, holdLastFrame) \
     do { \
         ::android::binder::Status status; \
         UT_LOG_INFO("Calling flush(IN: holdLastFrame[%s])", UT_Control_GetMapString(bool_mapTable, holdLastFrame)); \
@@ -519,6 +519,30 @@ extern void *gVideoSinkTestConfiguration;
         UT_LOG_INFO("Calling flush(IN: holdLastFrame[%s])", UT_Control_GetMapString(bool_mapTable, holdLastFrame)); \
         status = videoSinkController->flush(holdLastFrame); \
         UT_LOG_INFO("Result flush(IN: holdLastFrame[%s]), status:[isOK:%s, exception:%s]", UT_Control_GetMapString(bool_mapTable, holdLastFrame), \
+            UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        UT_ASSERT_FALSE(status.isOk()); \
+    } while (0)
+
+#define VIDEOSINK_SIGNAL_EOS_SUCCESS(videoSinkController) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_INFO("Calling signalEndOfStream()"); \
+        status = videoSinkController->signalEndOfStream(); \
+        UT_LOG_INFO("Result signalEndOfStream(), status:[isOK:%s, exception:%s]", \
+            UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+            UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
+#define VIDEOSINK_SIGNAL_EOS_FAILURE(videoSinkController, exception) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_INFO("Calling signalEndOfStream()"); \
+        status = videoSinkController->signalEndOfStream(); \
+        UT_LOG_INFO("Result signalEndOfStream(), status:[isOK:%s, exception:%s]", \
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
@@ -779,6 +803,11 @@ public:
     android::binder::Status onVideoResumed() override;
     android::binder::Status onStateChanged(videosink::State oldState, videosink::State newState) override;
 
+    // Utility functions: First frame rendered
+    void resetFirstFrameRendered();
+    bool waitForFFR(int timeoutSeconds);
+    int64_t getFirstPTS();
+
     // Utility functions: Flush complete
     void resetFlushComplete();
     int getFlushCompleteCount();
@@ -797,6 +826,12 @@ public:
     void resetUnderflow();
     int getUnderflowCount();
 
+    // State transition helpers
+    std::vector<std::pair<videosink::State, videosink::State>> getStateChanges() const;
+    bool waitForState(videosink::State desiredState, std::chrono::milliseconds timeout);
+    void resetStateChanges();
+    bool checkStateTransistion(videosink::State expOldState, videosink::State expNewState);
+
     // Utility functions: Resume
     void resetResumed();
     int getResumedCount();
@@ -804,8 +839,21 @@ public:
     void setSinkID(int32_t id);
 
 private:
-    mutable std::mutex mMutex;
-    std::condition_variable mCV;
+    mutable std::mutex mMutex_ffr;
+    mutable std::mutex mMutex_flush;
+    mutable std::mutex mMutex_fba;
+    mutable std::mutex mMutex_underflow;
+    mutable std::mutex mMutex_resumed;
+    mutable std::mutex mMutex_stateChanges;
+    mutable std::mutex mMutex_eos;
+
+    std::condition_variable mCV_ffr;
+    std::condition_variable mCV_flush;
+    std::condition_variable mCV_fba;
+    std::condition_variable mCV_underflow;
+    std::condition_variable mCV_resumed;
+    std::condition_variable mCV_stateChanges;
+    std::condition_variable mCV_eos;
 
     // Current state and history
     videosink::State mCurrentState = videosink::State::CLOSED;
