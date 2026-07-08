@@ -75,7 +75,7 @@
 #include "vts_videosink_init.h"
 #include "vts_avbuffer.h"
 #include "vts_videodecoder.h"
-#include "vts_avclock.h"
+//#include "vts_avclock.h"
 
 #include "com/rdk/hal/videosink/IVideoSinkManager.h"
 #include "com/rdk/hal/videosink/BnVideoSinkControllerListener.h"
@@ -272,7 +272,7 @@ extern void *gVideoSinkTestConfiguration;
         ::android::binder::Status status; \
         UT_LOG_INFO("Calling getState(OUT:state[]"); \
         status = (videoSink)->getState(&state); \
-        UT_LOG_INFO("Result getState(OUT:state[%s]), status:[isOK:%s, exception:%s]", com::rdk::hal::toString(state).c_str(), \
+        UT_LOG_INFO("Result getState(OUT:state[%s]), status:[isOK:%s, exception:%s]", videosink::toString(state).c_str(), \
                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -283,8 +283,8 @@ extern void *gVideoSinkTestConfiguration;
     do { \
         ::android::binder::Status status; \
         UT_LOG_INFO("Calling getState(OUT:state[]"); \
-        status = (videoSink)->getState(state); \
-        UT_LOG_INFO("Result getState(OUT:state[]), status:[isOK:%s, exception:%s]", \
+        status = (videoSink)->getState(&state); \
+        UT_LOG_INFO("Result getState(OUT:state[%s]), status:[isOK:%s, exception:%s]", videosink::toString(state).c_str(), \
                 UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
@@ -318,9 +318,9 @@ extern void *gVideoSinkTestConfiguration;
         \
         if (stateCheck) \
         { \
-            ::com::rdk::hal::State lastState; \
-            VIDEOSINK_WAIT_FOR_STATE(videoSink, ::com::rdk::hal::State::READY, lastState); \
-            UT_ASSERT_EQUAL(lastState, ::com::rdk::hal::State::READY); \
+            ::com::rdk::hal::videosink::State lastState; \
+            VIDEOSINK_WAIT_FOR_STATE(videoSink, videosink::State::READY, lastState); \
+            UT_ASSERT_EQUAL(lastState, videosink::State::READY); \
         } \
     } while (0)
 
@@ -351,9 +351,9 @@ extern void *gVideoSinkTestConfiguration;
         UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE); \
         if (stateCheck) \
         { \
-            ::com::rdk::hal::State lastState; \
-            VIDEOSINK_WAIT_FOR_STATE(videoSink, ::com::rdk::hal::State::CLOSED, lastState); \
-            UT_ASSERT_EQUAL(lastState, ::com::rdk::hal::State::CLOSED); \
+            videosink::State lastState; \
+            VIDEOSINK_WAIT_FOR_STATE(videoSink, videosink::State::CLOSED, lastState); \
+            UT_ASSERT_EQUAL(lastState, videosink::State::CLOSED); \
         } \
     } while (0)
 
@@ -453,9 +453,9 @@ extern void *gVideoSinkTestConfiguration;
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
         if (stateCheck) \
         { \
-            ::com::rdk::hal::State lastState; \
-            VIDEOSINK_WAIT_FOR_STATE(videoSink, ::com::rdk::hal::State::STARTED, lastState); \
-            UT_ASSERT_EQUAL(lastState, ::com::rdk::hal::State::STARTED); \
+            ::com::rdk::hal::videosink::State lastState; \
+            VIDEOSINK_WAIT_FOR_STATE(videoSink, ::com::rdk::hal::videosink::State::STARTED, lastState); \
+            UT_ASSERT_EQUAL(lastState, ::com::rdk::hal::videosink::State::STARTED); \
         } \
     } while (0)
 
@@ -483,9 +483,9 @@ extern void *gVideoSinkTestConfiguration;
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
         if (stateCheck) \
         { \
-            ::com::rdk::hal::State lastState; \
-            VIDEOSINK_WAIT_FOR_STATE(videoSink, ::com::rdk::hal::State::READY, lastState); \
-            UT_ASSERT_EQUAL(lastState, ::com::rdk::hal::State::READY); \
+            ::com::rdk::hal::videosink::State lastState; \
+            VIDEOSINK_WAIT_FOR_STATE(videoSink, ::com::rdk::hal::videosink::State::READY, lastState); \
+            UT_ASSERT_EQUAL(lastState, ::com::rdk::hal::videosink::State::READY); \
         } \
     } while (0)
 
@@ -777,7 +777,7 @@ public:
     android::binder::Status onFrameBufferAvailable() override;
     android::binder::Status onVideoUnderflow() override;
     android::binder::Status onVideoResumed() override;
-    android::binder::Status onStateChanged(::com::rdk::hal::State oldState, ::com::rdk::hal::State newState) override;
+    android::binder::Status onStateChanged(videosink::State oldState, videosink::State newState) override;
 
     // Utility functions: Flush complete
     void resetFlushComplete();
@@ -808,8 +808,8 @@ private:
     std::condition_variable mCV;
 
     // Current state and history
-    ::com::rdk::hal::State mCurrentState = ::com::rdk::hal::State::CLOSED;
-    std::vector<std::pair<::com::rdk::hal::State, ::com::rdk::hal::State>> mStateChanges;
+    videosink::State mCurrentState = videosink::State::CLOSED;
+    std::vector<std::pair<videosink::State, videosink::State>> mStateChanges;
 
     // First frame rendered info
     bool mFirstFrameRendered;
@@ -849,7 +849,7 @@ public:
     ::android::binder::Status onVideoUnderflow() override;
     ::android::binder::Status onVideoResumed() override;
     ::android::binder::Status onFlushComplete() override;
-    ::android::binder::Status onStateChanged(::com::rdk::hal::State oldState, ::com::rdk::hal::State newState) override;
+    ::android::binder::Status onStateChanged(videosink::State oldState, videosink::State newState) override;
 
     // Flush helpers
     void resetFlushComplete();
@@ -869,12 +869,12 @@ public:
     int getResumedCount();
 
     // State transition helpers
-    std::vector<std::pair<::com::rdk::hal::State, ::com::rdk::hal::State>> getStateChanges() const;
+    std::vector<std::pair<videosink::State, videosink::State>> getStateChanges() const;
     void resetStateChanges();
-    bool checkStateTransistion(::com::rdk::hal::State expOldState, ::com::rdk::hal::State expNewState);
+    bool checkStateTransistion(videosink::State expOldState, videosink::State expNewState);
 
     // Wait functions (blocking with timeout)
-    bool waitForState(::com::rdk::hal::State desiredState, std::chrono::milliseconds timeout);
+    bool waitForState(videosink::State desiredState, std::chrono::milliseconds timeout);
 
     // Error helpers
     std::vector<int32_t> getErrors() const;
@@ -894,8 +894,8 @@ private:
     int64_t mFirstPTS = -1;
 
     // State info
-    ::com::rdk::hal::State mCurrentState;
-    std::vector<std::pair<::com::rdk::hal::State, ::com::rdk::hal::State>> mStateChanges;
+    videosink::State mCurrentState = videosink::State::CLOSED;
+    std::vector<std::pair<videosink::State, videosink::State>> mStateChanges;
 
     // Errors
     std::vector<int32_t> mErrors;
@@ -909,7 +909,7 @@ private:
     int mResumeCount = 0;
 
     // Flush flag
-    bool mFlushComplete;
+    bool mFlushComplete = false;
     int mFlushCompleteCount = 0;
 
     // Sink ID

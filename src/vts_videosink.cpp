@@ -333,7 +333,7 @@ int VideoSinkControllerListener::getResumedCount()
  * @param newState New state (unused)
  * @return android::binder::Status Always returns Status::ok()
  */
-android::binder::Status VideoSinkControllerListener::onStateChanged(::com::rdk::hal::State oldState, ::com::rdk::hal::State newState)
+android::binder::Status VideoSinkControllerListener::onStateChanged(videosink::State oldState, videosink::State newState)
 {
     UT_LOG_INFO("[SinkId %d] VideoSinkControllerListener: State Change received: %d, %d ", mSinkID, oldState, newState);
     {
@@ -409,7 +409,7 @@ void VideoSinkControllerListener::setSinkID(int32_t id)
 }
 
 VideoSinkEventListener::VideoSinkEventListener()
-    : mCurrentState(::com::rdk::hal::State::CLOSED),
+    : mCurrentState(videosink::State::CLOSED),
       mFlushComplete(false)
 {
 }
@@ -592,7 +592,7 @@ int VideoSinkEventListener::getFlushCompleteCount()
  * @param newState New state of the sink.
  * @return ::android::binder::Status indicating success.
  */
-::android::binder::Status VideoSinkEventListener::onStateChanged(::com::rdk::hal::State oldState, ::com::rdk::hal::State newState)
+::android::binder::Status VideoSinkEventListener::onStateChanged(videosink::State oldState, videosink::State newState)
 {
     UT_LOG_INFO("[SinkId %d] VideoSinkEventListener: State Change received: %d, %d ", mSinkID, oldState, newState);
     {
@@ -624,7 +624,7 @@ void VideoSinkEventListener::resetFlushComplete()
  * @param timeout Duration to wait for the desired state.
  * @return true if the desired state was reached before timeout, false otherwise.
  */
-bool VideoSinkEventListener::waitForState(::com::rdk::hal::State desiredState, std::chrono::milliseconds timeout)
+bool VideoSinkEventListener::waitForState(videosink::State desiredState, std::chrono::milliseconds timeout)
 {
     std::unique_lock<std::mutex> lock(mMutex);
     return mCV.wait_for(lock, timeout, [this] { return mFlushComplete; });
@@ -635,7 +635,7 @@ bool VideoSinkEventListener::waitForState(::com::rdk::hal::State desiredState, s
  *
  * @return A vector of pairs representing (oldState, newState) transitions.
  */
-std::vector<std::pair<::com::rdk::hal::State, ::com::rdk::hal::State>> VideoSinkEventListener::getStateChanges() const
+std::vector<std::pair<videosink::State, videosink::State>> VideoSinkEventListener::getStateChanges() const
 {
     std::lock_guard<std::mutex> lock(mMutex);
     return mStateChanges;
@@ -657,11 +657,11 @@ void VideoSinkEventListener::resetStateChanges()
  * @param expNewState Expected new state.
  * @return true if the transition from expOldState to expNewState was recorded, false otherwise.
  */
-bool VideoSinkEventListener::checkStateTransistion(::com::rdk::hal::State expOldState, ::com::rdk::hal::State expNewState)
+bool VideoSinkEventListener::checkStateTransistion(videosink::State expOldState, videosink::State expNewState)
 {
-    vector<pair<::com::rdk::hal::State, ::com::rdk::hal::State>> stateChange;
+    std::vector<std::pair<videosink::State, videosink::State>> stateChange;
     {
-        std::lock_guard<mutex> lock(mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         stateChange = mStateChanges;
     }
     for (const auto& [oldState, newState] : stateChange) {

@@ -126,7 +126,6 @@ bool vts_videosink_helper_validatePropertyValue(int sink_id, const std::optional
         static_cast<int32_t>(com::rdk::hal::AVSource::COMPOSITE_5)
     };
 
-
     if (!propertyValue.has_value() || !propertyValue->value.has_value())
     {
         return false;
