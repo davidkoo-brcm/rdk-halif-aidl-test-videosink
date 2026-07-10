@@ -82,6 +82,7 @@
 #include "com/rdk/hal/videosink/IVideoSinkManager.h"
 #include "com/rdk/hal/videosink/BnVideoSinkControllerListener.h"
 #include "com/rdk/hal/videosink/BnVideoSinkEventListener.h"
+#include "com/rdk/hal/videodecoder/PixelFormat.h"
 
 using android::sp;
 using android::String16;
@@ -90,12 +91,17 @@ using android::binder::Status;
 
 using namespace com::rdk::hal;
 using namespace com::rdk::hal::videosink;
+using namespace com::rdk::hal::videodecoder;
 
 UT_status_t vts_videosink_getVideoSinkService();
 bool vts_videosink_helper_validatePropertyValue(int decoder_id, const std::optional<PropertyValue>& propertyValue, const com::rdk::hal::videosink::Property property);
 bool vts_videosink_helper_areElementsUnique(const std::vector<int>& values);
 void vts_videosink_helper_validateCapabilities(int decoder_id, const com::rdk::hal::videosink::Capabilities& capabilities);
 com::rdk::hal::videodecoder::Codec vts_videodecoder_helper_StringTocodec(const std::string& format);
+
+float getBytesPerPixelMultiplier(const std::string& basePixelFormat, int colorDepth);
+PixelFormat getPixelFormatEnum(const std::string& basePixelFormat);
+
 #endif //__VTS_VIDEOSINK_HELPER_H__
 
 /** @} */ // End of VIDEO_SINK_HALTEST_HELPER_HEADER

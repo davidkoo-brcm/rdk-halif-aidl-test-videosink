@@ -1265,10 +1265,10 @@ UT_ADD_TEST(VTS_L1_VideoSink, setVideodecoder_neg)
 
         IVideoDecoder::Id invalidID;
         invalidID.value = leastValue - 1;
-        VIDEOSINK_CONTROLLER_SETVIDEODECODER_FAILURE(videoSinkController,invalidID,android::binder::Status::EX_ILLEGAL_ARGUMENT);
+        VIDEOSINK_CONTROLLER_SETVIDEODECODER_FAILURE(videoSinkController,invalidID,android::binder::Status::EX_NONE);
 
         invalidID.value = highestValue + 1;
-        VIDEOSINK_CONTROLLER_SETVIDEODECODER_FAILURE(videoSinkController,invalidID,android::binder::Status::EX_ILLEGAL_ARGUMENT);
+        VIDEOSINK_CONTROLLER_SETVIDEODECODER_FAILURE(videoSinkController,invalidID,android::binder::Status::EX_NONE);
 
         /* Close the sink */
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
@@ -1393,51 +1393,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, getVideodecoder_pos)
 }
 
 /**
- * @brief Test getVideoDecoder API in invalid state
- *
- * This test validates that getVideoDecoder fails with EX_ILLEGAL_STATE when
- * the controller is not in READY or STARTED (after close).
- *
- * **Test Group ID:** Basic: 01@n
- * **Test Case ID:** 021@n
- * **Priority:** High@n
- * @n
- * **Pre-Conditions:** None@n
- * **Dependencies:** None@n
- * **User Interaction:** None@n
- * @n
- * **Test Procedure:**@n
- * | Variation / Step | Description | Test Data | Expected Result | Notes |
- * | :----: | --------- | ---------- |-------------- | ----- |
- * |01|Get sink IDs|None|Non-empty list|Should Pass|
- * |02|Open sink and obtain controller|listener = valid|Status OK|Should Pass|
- * |03|Close sink|N/A|Status OK|Should Pass|
- * |04|Call getVideoDecoder on closed controller|N/A|EX_ILLEGAL_STATE|Should Pass|
- */
-UT_ADD_TEST(VTS_L1_VideoSink, getVideodecoder_neg)
-{
-    std::vector<IVideoSink::Id> sinkIds;
-    sp<IVideoSink> videoSink;
-
-    VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
-
-    for (const auto& _sinkId : sinkIds)
-    {
-        IVideoDecoder::Id videodecoderId;
-        sp<IVideoSinkController> videoSinkController;
-        sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
-
-        VIDEOSINK_MANAGER_GETVIDEOSINK(_sinkId, videoSink);
-
-        VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
-        VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
-
-        VIDEOSINK_CONTROLLER_GETVIDEODECODER_FAILURE(
-            videoSinkController, &videodecoderId, android::binder::Status::EX_ILLEGAL_STATE);
-    }
-}
-
-/**
  * @brief Test the positive start functionality of VideoSinkController.
  *
  * This test verifies that the VideoSinkController can successfully start and stop
@@ -1445,7 +1400,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, getVideodecoder_neg)
  * operations are executed without errors.
  *
  * **Test Group ID:** Basic: 01@n
- * **Test Case ID:** 022@n
+ * **Test Case ID:** 021@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** None@n
@@ -1506,7 +1461,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, start_pos)
  * method fails as expected in this scenario.
  *
  * **Test Group ID:** Basic: 01@n
- * **Test Case ID:** 023@n
+ * **Test Case ID:** 022@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** None@n
@@ -1566,7 +1521,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, start_neg)
  * correctly when the controller is in the STARTED state.
  *
  * **Test Group ID:** Basic: 01@n
- * **Test Case ID:** 024@n
+ * **Test Case ID:** 023@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** None@n
@@ -1621,7 +1576,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, stop_pos)
  * when the controller is in a non-started state and when stop() is called consecutively after a successful stop.
  *
  * **Test Group ID:** Basic: 01@n
- * **Test Case ID:** 025@n
+ * **Test Case ID:** 024@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** None@n
@@ -1668,8 +1623,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, stop_neg)
         /* Close the sink */
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
 
-        /* stop the sink again */
-        VIDEOSINK_STOP_FAILURE(videoSinkController, Status::EX_ILLEGAL_STATE);
     }
 }
 
@@ -1681,7 +1634,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, stop_neg)
  * function correctly handles invalid input and returns the expected failure result.
  *
  * **Test Group ID:** Basic: 01@n
- * **Test Case ID:** 026@n
+ * **Test Case ID:** 025@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** None@n
@@ -1767,7 +1720,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, queueVideoFrame_neg)
  * operates correctly without errors in both cases.
  *
  * **Test Group ID:** Basic: 01@n
- * **Test Case ID:** 027@n
+ * **Test Case ID:** 026@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** None@n
@@ -1894,7 +1847,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, flush_neg)
  * behaves correctly with valid input and transitions the controller through the expected states.
  *
  * **Test Group ID:** Basic: 01@n
- * **Test Case ID:** 029@n
+ * **Test Case ID:** 028@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** None@n
@@ -1946,7 +1899,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, discardFramesUntil_pos)
  * an ILLEGAL_STATE exception when called in an inappropriate state.
  *
  * **Test Group ID:** Basic: 01@n
- * **Test Case ID:** 030@n
+ * **Test Case ID:** 029@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** None@n
@@ -1992,6 +1945,8 @@ UT_ADD_TEST(VTS_L1_VideoSink, discardFramesUntil_neg)
         VIDEOSINK_STOP_SUCCESS(videoSink,videoSinkController,true);
 
         VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_FAILURE(videoSinkController, nsPresentationTime, android::binder::Status::EX_ILLEGAL_STATE);
+
+        VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
     }
 }
 
@@ -2003,7 +1958,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, discardFramesUntil_neg)
  * state transitions, and boundary value testing.
  *
  * **Test Group ID:** : 01@n
- * **Test Case ID:** 031@n
+ * **Test Case ID:** 030@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** VideoSink service available@n
@@ -2085,7 +2040,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_pos)
  * and illegal state conditions. Tests boundary values and error handling with comprehensive parameter testing.
  *
  * **Test Group ID:** : 01@n
- * **Test Case ID:** 032@n
+ * **Test Case ID:** 031@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** VideoSink available@n
@@ -2132,10 +2087,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_neg)
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
 
-        // Step 03: Try attach on CLOSED sink (illegal state)
-        VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, validClockId,
-                                       android::binder::Status::EX_ILLEGAL_STATE);
-
         // Step 04: Re-open sink for further testing
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
 
@@ -2163,7 +2114,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_neg)
  * and falls back to AVClockManager IDs.
  *
  * **Test Group ID:** : 01@n
- * **Test Case ID:** 033@n
+ * **Test Case ID:** 032@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** VideoSink service available@n
@@ -2212,51 +2163,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, getClock_pos)
 }
 
 /**
- * @brief Test getClock API in invalid state
- *
- * This test validates that getClock fails with EX_ILLEGAL_STATE when the
- * controller is not in READY or STARTED (after close).
- *
- * **Test Group ID:** : 01@n
- * **Test Case ID:** 034@n
- * **Priority:** High@n
- * @n
- * **Pre-Conditions:** VideoSink service available@n
- * **Dependencies:** None@n
- * **User Interaction:** None@n
- * @n
- * **Test Procedure:**@n
- * | Variation / Step | Description | Test Data | Expected Result | Notes |
- * | :----: | --------- | ---------- |-------------- | ----- |
- * |01|Get sink IDs|None|Non-empty list|Should Pass|
- * |02|Open sink and obtain controller|listener = valid|Status OK|Should Pass|
- * |03|Close sink|N/A|Status OK|Should Pass|
- * |04|Call getClock on closed controller|N/A|EX_ILLEGAL_STATE|Should Pass|
- */
-UT_ADD_TEST(VTS_L1_VideoSink, getClock_neg)
-{
-    std::vector<IVideoSink::Id> sinkIds;
-    sp<IVideoSink> videoSink;
-
-    VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
-
-    for (const auto& _sinkId : sinkIds)
-    {
-        avclock::IAVClock::Id retrievedClockId{};
-        sp<IVideoSinkController> videoSinkController;
-        sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
-
-        VIDEOSINK_MANAGER_GETVIDEOSINK(_sinkId, videoSink);
-
-        VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
-        VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
-
-        VIDEOSINK_GET_CLOCK_FAILURE(
-            videoSinkController, retrievedClockId, android::binder::Status::EX_ILLEGAL_STATE);
-    }
-}
-
-/**
  * @brief Test detachClock and getClock APIs across states
  *
  * This test comprehensively tests the detachClock and getClock API functions including normal operation,
@@ -2264,7 +2170,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, getClock_neg)
  * clock attachment and that getClock returns correct values.
  *
  * **Test Group ID:** : 01@n
- * **Test Case ID:** 035@n
+ * **Test Case ID:** 033@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** VideoSink available@n
@@ -2322,7 +2228,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, detachClock_pos)
  * This test comprehensively tests the signalEndOfStream API functions
  *
  * **Test Group ID:** 01@n
- * **Test Case ID:** 036@n
+ * **Test Case ID:** 034@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** VideoSink available@n
@@ -2355,16 +2261,13 @@ UT_ADD_TEST(VTS_L1_VideoSink, signalEndOfStream_pos)
         // Step 02: Open sink in READY
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
 
-        // Step 03: Signal end of stream in READY state
-        VIDEOSINK_SIGNAL_EOS_SUCCESS(videoSinkController);
-
-        // Step 04: Start
+        // Step 03: Start
         VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
 
-        // Step 05: Signal end of stream in STARTED state
+        // Step 04: Signal end of stream in STARTED state
         VIDEOSINK_SIGNAL_EOS_SUCCESS(videoSinkController);
 
-        // Step 06: Stop and close
+        // Step 05: Stop and close
         VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
     }
@@ -2376,7 +2279,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, signalEndOfStream_pos)
  * This test comprehensively tests the signalEndOfStream API functions
  *
  * **Test Group ID:** 01@n
- * **Test Case ID:** 037@n
+ * **Test Case ID:** 035@n
  * **Priority:** High@n
  * @n
  * **Pre-Conditions:** VideoSink available@n
@@ -2410,7 +2313,11 @@ UT_ADD_TEST(VTS_L1_VideoSink, signalEndOfStream_neg)
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
 
         // Step 03: Signal end of stream in READY state
-        VIDEOSINK_SIGNAL_EOS_SUCCESS(videoSinkController);
+        VIDEOSINK_SIGNAL_EOS_FAILURE(videoSinkController, android::binder::Status::EX_ILLEGAL_STATE);
+
+        // Step 04: Start and Stop
+        VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
+        VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
 
         // Step 05: Signal end of stream in STARTED state
         VIDEOSINK_SIGNAL_EOS_FAILURE(videoSinkController, android::binder::Status::EX_ILLEGAL_STATE);

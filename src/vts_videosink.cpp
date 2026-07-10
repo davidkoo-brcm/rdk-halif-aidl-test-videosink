@@ -368,7 +368,7 @@ void VideoSinkControllerListener::resetFlushComplete()
  */
 android::binder::Status VideoSinkControllerListener::onStateChanged(videosink::State oldState, videosink::State newState)
 {
-    UT_LOG_INFO("[SinkId %d] VideoSinkControllerListener: State Change received: %d, %d ", mSinkID, oldState, newState);
+    UT_LOG_INFO("[SinkId %d] VideoSinkControllerListener: State Change received: %s -> %s ", mSinkID, videosink::toString(oldState).c_str(), videosink::toString(newState).c_str());
     {
         std::lock_guard<std::mutex> lock(mMutex_stateChanges);
         mStateChanges.emplace_back(oldState, newState);
@@ -734,7 +734,7 @@ void VideoSinkEventListener::resetFlushComplete()
  */
 ::android::binder::Status VideoSinkEventListener::onStateChanged(videosink::State oldState, videosink::State newState)
 {
-    UT_LOG_INFO("[SinkId %d] VideoSinkEventListener: State Change received: %d, %d ", mSinkID, oldState, newState);
+    UT_LOG_INFO("[SinkId %d] VideoSinkEventListener: State Change received: %s -> %s ", mSinkID, videosink::toString(oldState).c_str(), videosink::toString(newState).c_str());
     {
         std::lock_guard<std::mutex> lock(mMutex_stateChanges);
         mStateChanges.emplace_back(oldState, newState);

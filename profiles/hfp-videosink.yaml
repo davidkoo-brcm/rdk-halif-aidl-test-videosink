@@ -26,22 +26,14 @@ videosink:
   interfaceVersion: current
   IVideoSink:
     - id: 0
-      supportsAVSync: true
-      vsyncDisplayLatencyNs: 2000000
-      supportsHoldLastFrame: true
-      supportsSecure: true
-    - id: 1
-      supportsAVSync: true
-      vsyncDisplayLatencyNs: 2000000
-      supportsHoldLastFrame: true
-      supportsSecure: true
+      supportsAVSync: false
+      vsyncDisplayLatencyNs: 0
+      supportsHoldLastFrame: false
+      supportsSecure: false
   availableVideoDecoders:   # Resource list
     - 0
-    - 1
   availableVideoSinks:           # Add this list for available sinks
     - 0
-    - 1
   availableClocks:           # Add this list for available clocks
     - 0
-    - 1
 

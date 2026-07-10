@@ -282,7 +282,7 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestStateTransitions)
         /* Open the sink */
         VIDEOSINK_OPEN_SUCCESS(videoSink, controlListener, videoSinkController, false);
         checkCompleteStateTransition(videoSink,eventListener, videosink::State::CLOSED, videosink::State::OPENING, videosink::State::READY);
-        checkControllerCompleteStateTransition(controlListener, videosink::State::READY, videosink::State::OPENING, videosink::State::READY);
+        checkControllerCompleteStateTransition(controlListener, videosink::State::CLOSED, videosink::State::OPENING, videosink::State::READY);
 
         // Transition to STARTED state
         VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);

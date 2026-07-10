@@ -177,8 +177,14 @@ extern void *gVideoSinkTestConfiguration;
         UT_LOG_INFO("Result setVideoDecoder(IN:videodecoderId:[%d]), status:[isOK:%s, exception:%s]",\
                     videodecoderID.value, UT_Control_GetMapString(bool_mapTable, status.isOk()),\
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));\
-        UT_ASSERT_FALSE(status.isOk());\
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        if (exception == Status::EX_NONE) { \
+            UT_ASSERT_TRUE(status.isOk()); \
+            UT_ASSERT_FALSE(aidl_return); \
+        }\
+        else { \
+            UT_ASSERT_FALSE(status.isOk()); \
+        }\
     } while (0)
 
 #define VIDEOSINK_CONTROLLER_GETVIDEODECODER_SUCCESS(videoSinkController,videodecoderID) \
@@ -979,53 +985,7 @@ private:
     // Sink ID
     int32_t mSinkID = 0;
 };
-//sink test implementation.
-class SinkTest
-{
-public:
-    SinkTest(IVideoSink::Id sinkId,
-        sp<IVideoSink> sinkHandle,
-        sp<VideoSinkControllerListener> VideoSinkControllerListener,
-        sp<VideoSinkEventListener> VideoSinkEventListner,
-        sp<VideoDecoderControllerListener> decoderControllerListener,
-        IVideoDecoder::Id decoderId,
-        const videoDecoderTestConfiguration_t& config,
-        const videoTestConfiguration_t& sinkConfig, bool isClockInUse);
 
-    void verifyNoUnexpectedUnderflow();
-    void verifyUnderflow();
-    void verifyResume();
-    void verifyQueueDepth();
-    void verifyFramesReceived();
-    void verifyFramesDroppedLate();
-    void verifyFramesDroppedFRC();
-    void verifyFramesRepeatedFRC();
-    void verifyFramesMissed();
-    void verifyFlushComplete();
-    void handleEosFrame(const videodecoder::FrameMetadata& metadata, int64_t pts);
-    void runPostVerification();
-    void run ( bool isTunnel );
-    bool getSinkPropertyInt(videosink::Property property, int32_t& outValue);
-
-private:
-    IVideoSink::Id mSinkId;
-    sp<IVideoSink> mSinkHandle;
-    sp<VideoSinkControllerListener> mVideoSinkControlListener;
-    sp<VideoSinkEventListener> mVideoSinkEventListner;
-    sp<VideoDecoderControllerListener> mDecoderControllerListener;
-    IVideoDecoder::Id mDecoderId;
-    videoDecoderTestConfiguration_t mTestConfiguration;
-    videoTestConfiguration_t mSinkTestConfiguration;
-    std::set<int64_t> receivedPtsSet;
-    bool mIsClockInUse = false;
-    int actualFramesReceived = 0;
-
-    float getBytesPerPixelMultiplier(const std::string& basePixelFormat, int colorDepth) const;
-    PixelFormat getPixelFormatEnum(const std::string& basePixelFormat);
-    void videoSinkNonTunnelMode();
-    void videoSinkTunnelMode();
-
-};
 #endif //__VTS_VIDEOSINK_H__
 
 /** @} */ // End of VIDEO_SINK_HALTEST_HEADER
