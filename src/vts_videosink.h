@@ -589,13 +589,18 @@ extern void *gVideoSinkTestConfiguration;
                     nsPresentationTime, frameBufferHandle,\
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        UT_ASSERT_FALSE(status.isOk()); \
+        if (exception == Status::EX_NONE) { \
+            UT_ASSERT_TRUE(status.isOk()); \
+            UT_ASSERT_FALSE(_aidl_return); \
+        } \
+        else { \
+            UT_ASSERT_FALSE(status.isOk()); \
+        } \
     } while (0)
 
-#define VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(videoSinkController, nsPresentationTime, frameBufferHandle, metadata) \
+#define VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(videoSinkController, nsPresentationTime, frameBufferHandle, metadata, result) \
     do { \
         ::android::binder::Status status; \
-        bool _aidl_return = false; \
         auto now = std::chrono::system_clock::now(); \
         auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now); \
         auto epoch = now_ms.time_since_epoch(); \
@@ -604,7 +609,7 @@ extern void *gVideoSinkTestConfiguration;
         UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...])", \
                     nsPresentationTime, ms, frameBufferHandle); \
         \
-        status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
+        status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &result); \
         \
         UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
                     nsPresentationTime, ms, frameBufferHandle, \
@@ -612,7 +617,7 @@ extern void *gVideoSinkTestConfiguration;
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-        UT_ASSERT_TRUE(_aidl_return); \
+        UT_ASSERT_TRUE(result); \
         UT_ASSERT_TRUE(status.isOk()); \
     } while (0)
 

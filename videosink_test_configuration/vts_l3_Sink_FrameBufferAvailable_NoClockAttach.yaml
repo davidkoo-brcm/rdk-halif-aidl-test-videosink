@@ -28,6 +28,7 @@ videodecoder:
       Controls:
         delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
         discontinuityPTS: -1
+        backpressure: true # Enable backpressure to the sink
       Inputs:
         Streams:
           - Codec: H264_AVC
@@ -36,10 +37,5 @@ videodecoder:
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: -1
-            sink_resumeTriggerPts: -1
-            sink_repeatPerFrame: 1
             sink_flush_pts: -1
-            sink_flush_reset_pts: -1
             sink_eos_pts: -1
-            sink_interFrameDelayMs: -1
-            sink_discontinuityPTS: -1

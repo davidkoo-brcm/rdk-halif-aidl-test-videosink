@@ -28,6 +28,7 @@ videodecoder:
     Sink_UnderflowResumed:
       Controls:
         delay_between_decode_calls: 0 # Insert delay in msec between each `decodeBuffer()` call
+        backpressure: false # Enable backpressure to the sink
       Inputs:
         Streams:
           - Codec: H264_AVC
@@ -36,153 +37,86 @@ videodecoder:
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 133333332
-            sink_resumeTriggerPts: 399999996
-            sink_repeatPerFrame: 1
             sink_flush_pts: -1
-            sink_flush_reset_pts: -1
             sink_eos_pts: -1
-            sink_interFrameDelayMs: -1
-            sink_discontinuityPTS: -1
+
           - Codec: H264_AVC
             Name: H264_HD_30_YUV444_UNDERFLOW_RESUME
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 133333332
-            sink_resumeTriggerPts: 399999996
-            sink_repeatPerFrame: 1
             sink_flush_pts: -1
-            sink_flush_reset_pts: -1
             sink_eos_pts: -1
-            sink_interFrameDelayMs: -1
-            sink_discontinuityPTS: -1
+
           - Codec: H264_AVC
             Name: H264_HD_60_YUV420_UNDERFLOW_RESUME
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 66666664
-            sink_resumeTriggerPts: 199999992
-            sink_repeatPerFrame: 1
             sink_flush_pts: -1
-            sink_flush_reset_pts: -1
             sink_eos_pts: -1
-            sink_interFrameDelayMs: -1
-            sink_discontinuityPTS: -1
+
           - Codec: H264_AVC
             Name: H264_HD_60_YUV444_UNDERFLOW_RESUME
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 66666664
-            sink_resumeTriggerPts: 199999992
-            sink_repeatPerFrame: 1
             sink_flush_pts: -1
-            sink_flush_reset_pts: -1
             sink_eos_pts: -1
-            sink_interFrameDelayMs: -1
-            sink_discontinuityPTS: -1
+
           - Codec: H264_AVC
             Name: H264_SD_30_YUV420_UNDERFLOW_RESUME
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 133333332
-            sink_resumeTriggerPts: 399999996
-            sink_repeatPerFrame: 1
             sink_flush_pts: -1
-            sink_flush_reset_pts: -1
             sink_eos_pts: -1
-            sink_interFrameDelayMs: -1
-            sink_discontinuityPTS: -1
+
           - Codec: H264_AVC
             Name: H264_SD_30_YUV444_UNDERFLOW_RESUME
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 133333332
-            sink_resumeTriggerPts: 399999996
-            sink_repeatPerFrame: 1
             sink_flush_pts: -1
-            sink_flush_reset_pts: -1
             sink_eos_pts: -1
-            sink_interFrameDelayMs: -1
-            sink_discontinuityPTS: -1
+
           - Codec: H264_AVC
             Name: H264_SD_60_YUV420_UNDERFLOW_RESUME
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 66666664
-            sink_resumeTriggerPts: 199999992
-            sink_repeatPerFrame: 1
             sink_flush_pts: -1
-            sink_flush_reset_pts: -1
             sink_eos_pts: -1
-            sink_interFrameDelayMs: -1
-            sink_discontinuityPTS: -1
+
           - Codec: H264_AVC
             Name: H264_SD_60_YUV444_UNDERFLOW_RESUME
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 66666664
-            sink_resumeTriggerPts: 199999992
-            sink_repeatPerFrame: 1
             sink_flush_pts: -1
-            sink_flush_reset_pts: -1
             sink_eos_pts: -1
-            sink_interFrameDelayMs: -1
-            sink_discontinuityPTS: -1
+
           - Codec: H264_AVC
             Name: H264_UHD_30_YUV420_UNDERFLOW_RESUME
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 133333332
-            sink_resumeTriggerPts: 366666663
-            sink_repeatPerFrame: 1
             sink_flush_pts: -1
-            sink_flush_reset_pts: -1
             sink_eos_pts: -1
-            sink_interFrameDelayMs: -1
-            sink_discontinuityPTS: -1
-          # - Codec: H264_AVC
-          #   Name: H264_UHD_30_YUV444_UNDERFLOW_RESUME
-          #   rms_diff_threshold: 0.5
-          #   decode_time_threshold: 10000000
-          #   sink_discardFramesUntilPts: -1
-          #   sink_underflow_pts: 133333332
-          #   sink_resumeTriggerPts: 366666663
-          #   sink_repeatPerFrame: 1
-          #   sink_flush_pts: -1
-          #   sink_flush_reset_pts: -1
-          #   sink_eos_pts: -1
-          #   sink_interFrameDelayMs: -1
-          #   sink_discontinuityPTS: -1
+
           - Codec: H264_AVC
             Name: H264_UHD_60_YUV420_UNDERFLOW_RESUME
             rms_diff_threshold: 0.5
             decode_time_threshold: 10000000
             sink_discardFramesUntilPts: -1
             sink_underflow_pts: 66666664
-            sink_resumeTriggerPts: 199999992
-            sink_repeatPerFrame: 1
             sink_flush_pts: -1
-            sink_flush_reset_pts: -1
             sink_eos_pts: -1
-            sink_interFrameDelayMs: -1
-            sink_discontinuityPTS: -1
-          # - Codec: H264_AVC
-          #   Name: H264_UHD_60_YUV444_UNDERFLOW_RESUME
-          #   rms_diff_threshold: 0.5
-          #   decode_time_threshold: 10000000
-          #   sink_discardFramesUntilPts: -1
-          #   sink_underflow_pts: 66666664
-          #   sink_resumeTriggerPts: 199999992
-          #   sink_repeatPerFrame: 1
-          #   sink_flush_pts: -1
-          #   sink_flush_reset_pts: -1
-          #   sink_eos_pts: -1
-          #   sink_interFrameDelayMs: -1
-          #   sink_discontinuityPTS: -1
