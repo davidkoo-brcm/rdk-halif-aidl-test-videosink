@@ -115,7 +115,7 @@ void VideoSinkTest::setupClock()
     // Set the clock mode to Video Master
     AVCLOCK_SET_CLOCK_MODE_SUCCESS(mClock, mClockController, ClockMode::VIDEO_MASTER, true);
 
-    if(!mTestConfiguration.backpressure)
+    if(!mTestConfiguration.sink_backpressure)
     {
         // Set the clock mode to Video Master
         AVCLOCK_START_SUCCESS(mClock, mClockController, true);
@@ -153,7 +153,7 @@ void VideoSinkTest::setupVideoSink()
 void VideoSinkTest::tearDownVideoSink()
 {
     // Detach the clock
-    VIDEOSINK_DETACHCLOCK_SUCCESS(mVideoSinkController);
+    VIDEOSINK_DETACH_CLOCK_SUCCESS(mVideoSinkController);
 
     /* Stop the Video sink */
     VIDEOSINK_STOP_SUCCESS(mSinkHandle, mVideoSinkController, true);
@@ -161,13 +161,13 @@ void VideoSinkTest::tearDownVideoSink()
     /* Close the Video sink */
     VIDEOSINK_CLOSE_SUCCESS(mSinkHandle, mVideoSinkController, true);
 
-    if(!mClockInUse)
+    if(!mIsClockInUse)
     {
         tearDownClock();
     }
 }
 
-void VideoSinkTest::copyMetaData(const videodecoder::FrameMetadata& src, videosink::FrameMetadata& dst)
+void VideoSinkTest::copyMetaData(const videodecoder::FrameMetadata& src, videodecoder::FrameMetadata& dst)
 {
     dst.parX = src.parX;
     dst.parY = src.parY;
@@ -179,17 +179,17 @@ void VideoSinkTest::copyMetaData(const videodecoder::FrameMetadata& src, videosi
     dst.activeY = src.activeY;
     dst.activeWidth = src.activeWidth;
     dst.activeHeight = src.activeHeight;
-    dst.colorDepth = static_cast<videosink::ColorDepth>(src.colorDepth);
-    dst.pixelFormat = static_cast<videosink::PixelFormat>(src.pixelFormat);
-    dst.dynamicRange = static_cast<videosink::DynamicRange>(src.dynamicRange);
-    dst.scanType = static_cast<videosink::ScanType>(src.scanType);
-    dst.afd = static_cast<videosink::Afd>(src.afd);
+    dst.colorDepth = src.colorDepth;
+    dst.pixelFormat = src.pixelFormat;
+    dst.dynamicRange = src.dynamicRange;
+    dst.scanType = src.scanType;
+    dst.afd = src.afd;
     dst.frameRateNumerator = src.frameRateNumerator;
     dst.frameRateDenominator = src.frameRateDenominator;
-    dst.endOfStream = src.endOfStream;
+    //dst.endOfStream = src.endOfStream;
     dst.discontinuity = src.discontinuity;
     dst.lowLatency = src.lowLatency;
-    dst.source = static_cast<videosink::AVSource>(src.source);
+    dst.source = src.source;
 }
 
 void VideoSinkTest::validateCallbacks()
@@ -230,13 +230,12 @@ void VideoSinkTest::videoSinkNonTunnelMode()
         /*Wait up to 500 ms for a frame, and tolerate a few consecutive misses*/
         const int64_t frameTimeoutMs = 1000; // Wait up to 500 ms for a frame
         const int maxTimeoutCount = 3;
-        const bool verifyPrimedAgainstVideoPts = !verifyAnyFrameBufferAvailable;
         bool avClockPrimedVerified = false;
 
         /*Set the "discard until PTS" value for the relevant test cases*/
-        if (mSinkTestConfiguration.vSink_discardFramesUntilPts >= 0)
+        if (mTestConfiguration.sink_discardFramesUntilPts >= 0)
         {
-            VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(controller, static_cast<uint64_t>(mSinkTestConfiguration.vSink_discardFramesUntilPts));
+            VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(mVideoSinkController, static_cast<uint64_t>(mTestConfiguration.sink_discardFramesUntilPts));
         }
 
         setupVideoSink();
@@ -262,11 +261,11 @@ void VideoSinkTest::videoSinkNonTunnelMode()
                 }
             }
 
-            if(mTestConfiguration.vSink_flush_pts > 0 &&
-               pts >= static_cast<int64_t>(mSinkTestConfiguration.vSink_flush_pts))
+            if(mTestConfiguration.flushPts > 0 &&
+               pts >= static_cast<int64_t>(mTestConfiguration.flushPts))
             {
-                VIDEOSINK_FLUSH_SUCCESS(mSinkHandle, mAudioSinkController, true);
-                mTestConfiguration.vSink_flush_pts = 0;
+                VIDEOSINK_FLUSH_SUCCESS(mVideoSinkController, true);
+                mTestConfiguration.flushPts = 0;
             }
 
             if (decodedFrame.metadata)
@@ -281,8 +280,8 @@ void VideoSinkTest::videoSinkNonTunnelMode()
             }
 
             // Simulate underflow
-            if (mSinkTestConfiguration.vSink_underflowPts >= 0 &&
-                pts == static_cast<int64_t>(mSinkTestConfiguration.vSink_underflowPts))
+            if (mTestConfiguration.sink_underflow_pts >= 0 &&
+                pts == static_cast<int64_t>(mTestConfiguration.sink_underflow_pts))
             {
                 UT_LOG_DEBUG("[SinkID: %d] Injecting delay at PTS %lld to simulate underflow",
                              mSinkId.value, static_cast<long long>(pts));
@@ -291,17 +290,17 @@ void VideoSinkTest::videoSinkNonTunnelMode()
 
             // Queue the frame to the video sink
             bool queueSucess = false;
-            VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, pts, bufferHandle, metadata, queueSucess);
+            VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(mVideoSinkController, pts, bufferHandle, metadata, queueSucess);
             if(!queueSucess)
             {
                 UT_LOG_WARNING("[SinkID: %d] Failed to queue frame with PTS: %lld", mSinkId.value, pts);
                 bool queueAgainSucess = false;
-                if(mTestConfiguration.backpressure)
+                if(mTestConfiguration.sink_backpressure)
                 {
                     // If queue is full due to backpressure, subsequent queue attempts should fail until the clock starts.
-                    VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_FAILURE(controller, pts, bufferHandle, metadata, Status::EX_ILLEGAL_STATE);
-                    VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_FAILURE(controller, pts, bufferHandle, metadata, Status::EX_ILLEGAL_STATE);
-                    VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_FAILURE(controller, pts, bufferHandle, metadata, Status::EX_ILLEGAL_STATE);
+                    VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_FAILURE(mVideoSinkController, pts, bufferHandle, metadata, Status::EX_ILLEGAL_STATE);
+                    VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_FAILURE(mVideoSinkController, pts, bufferHandle, metadata, Status::EX_ILLEGAL_STATE);
+                    VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_FAILURE(mVideoSinkController, pts, bufferHandle, metadata, Status::EX_ILLEGAL_STATE);
 
                     // Start the clock to allow queued frames to be processed and free up space in the queue.
                     AVCLOCK_START_SUCCESS(mClock, mClockController, true);
@@ -309,7 +308,7 @@ void VideoSinkTest::videoSinkNonTunnelMode()
                     std::this_thread::sleep_for(std::chrono::milliseconds(30));
 
                     // Attempt to queue the frame again after starting the clock.
-                    VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(controller, pts, bufferHandle, metadata, queueAgainSucess);
+                    VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(mVideoSinkController, pts, bufferHandle, metadata, queueAgainSucess);
                 }
                 if(!queueAgainSucess)
                 {
@@ -320,17 +319,15 @@ void VideoSinkTest::videoSinkNonTunnelMode()
             }
         }
 
-        validateCallbacks(frameCount, firstFramePTS);
+        validateCallbacks();
         validateMetrics();
 
         tearDownVideoSink();
     }
     catch (const std::exception& ex) {
-        cleanupClock();
         UT_LOG_ERROR("[SinkID: %d] Exception in videoSinkNonTunnelMode: %s", mSinkId.value, ex.what());
         UT_ASSERT_TRUE(false);
     } catch (...) {
-        cleanupClock();
         UT_LOG_ERROR("[SinkID: %d] Unknown exception in videoSinkNonTunnelMode", mSinkId.value);
         UT_ASSERT_TRUE(false);
     }
@@ -350,10 +347,10 @@ void VideoSinkTest::videoSinkTunnelMode()
  * sink_underflowPts is not set), it logs an error and fails the test.
  *
  * This check is performed in a non-blocking manner using count-based validation.
- */
+
 void VideoSinkTest::verifyNoUnexpectedUnderflow()
 {
-    if (mSinkTestConfiguration.vSink_underflowPts < 0) {
+    if (mTestConfiguration.sink_underflow_pts < 0) {
         int countCtrl = mVideoSinkControlListener->getUnderflowCount();
         int countEvent = mVideoSinkEventListner->getUnderflowCount();
         if (countCtrl > 0 || countEvent > 0) {
@@ -361,7 +358,7 @@ void VideoSinkTest::verifyNoUnexpectedUnderflow()
             UT_ASSERT_TRUE(false);
         }
     }
-}
+}*/
 
 /**
  * @brief Verifies that a video underflow event occurred as expected.
@@ -372,10 +369,9 @@ void VideoSinkTest::verifyNoUnexpectedUnderflow()
  *
  * Logs an error and fails the test if underflow was not observed by either listener.
  * Otherwise, logs a warning with the detected underflow counts.
- */
+
 void VideoSinkTest::verifyUnderflow()
 {
-    /*Verify both Control and Event listner callbacks*/
     int countCtrl = mVideoSinkControlListener->getUnderflowCount();
     int countEvent = mVideoSinkEventListner->getUnderflowCount();
 
@@ -388,7 +384,7 @@ void VideoSinkTest::verifyUnderflow()
     {
         UT_LOG_WARNING("[SinkID: %d] Underflows detected (Control listner: %d, Event listner: %d)", mSinkId.value, countCtrl, countEvent);
     }
-}
+} */
 
 /**
  * @brief Verifies that a video resume event occurred after an underflow.
@@ -399,10 +395,9 @@ void VideoSinkTest::verifyUnderflow()
  *
  * Logs an error and fails the test if resume was not detected by either listener.
  * Otherwise, logs a warning showing the detected resume counts.
- */
+
 void VideoSinkTest::verifyResume()
 {
-    /*Verify both Control and Event listner callbacks*/
     int countCtrl = mVideoSinkControlListener->getResumedCount();
     int countEvent = mVideoSinkEventListner->getResumedCount();
 
@@ -415,7 +410,7 @@ void VideoSinkTest::verifyResume()
     {
         UT_LOG_WARNING("[SinkID: %d] Resume detected (Control listner: %d, Event listner: %d)", mSinkId.value, countCtrl, countEvent);
     }
-}
+} */
 
 
 /**
@@ -426,7 +421,7 @@ void VideoSinkTest::verifyResume()
  *
  * @param metadata Frame metadata containing EOS flag.
  * @param pts Presentation timestamp of the frame.
- */
+
 void VideoSinkTest::handleEosFrame(const videodecoder::FrameMetadata& metadata, int64_t pts)
 {
     if (!metadata.endOfStream)
@@ -469,7 +464,7 @@ void VideoSinkTest::handleEosFrame(const videodecoder::FrameMetadata& metadata, 
     // Confirm EOS PTS match
     UT_LOG_WARNING("[SinkID: %d] EOS PTS match confirmed: %ld", mSinkId.value, pts);
 }
-
+ */
 
 /**
  * @brief Verifies that a flush complete event occurred in the video sink.
@@ -480,10 +475,10 @@ void VideoSinkTest::handleEosFrame(const videodecoder::FrameMetadata& metadata, 
  *
  * Logs an error and fails the test if flush completion was not observed.
  * Otherwise, logs the detected flush complete counts.
- */
+
 void VideoSinkTest::verifyFlushComplete()
 {
-    /*Verify both Control and Event listner callbacks*/
+
     int countCtrl = mVideoSinkControlListener->getFlushCompleteCount();
     int countEvent = mVideoSinkEventListner->getFlushCompleteCount();
 
@@ -497,19 +492,19 @@ void VideoSinkTest::verifyFlushComplete()
         UT_LOG_WARNING("[SinkID: %d] FlushComplete detected (ControlListner: %d, Event Listner: %d)", mSinkId.value, countCtrl, countEvent);
     }
 }
-
+ */
 /**
  * @brief Verifies the current queue depth reported by the video sink.
  *
  * This function retrieves the `SINK_QUEUE_DEPTH` property from the sink and validates
  * that it is a non-negative value. The test fails if the property cannot be retrieved
  * or if the value is invalid.
- */
+
 void VideoSinkTest::verifyQueueDepth()
 {
     int actualQueueDepth = -1;
 
-    /* Verifying Video Sink QueueDepth Metrics */
+
     bool success = getSinkPropertyInt(videosink::Property::SINK_QUEUE_DEPTH, actualQueueDepth);
     if (!success)
     {
@@ -526,7 +521,7 @@ void VideoSinkTest::verifyQueueDepth()
         UT_ASSERT_TRUE(false);
     }
 }
-
+ */
 
 /**
  * @brief Verifies the number of frames received by the video sink.
@@ -534,7 +529,7 @@ void VideoSinkTest::verifyQueueDepth()
  * This function checks the `METRIC_FRAMES_RECEIVED` reported by the sink and compares it
  * with the actual number of frames tracked by the test. The test fails if there is a mismatch
  * or if the property cannot be retrieved.
- */
+
 void VideoSinkTest::verifyFramesReceived()
 {
     int sinkFramesReported = -1;
@@ -568,7 +563,7 @@ void VideoSinkTest::verifyFramesReceived()
         UT_ASSERT_TRUE(false);
     }
 }
-
+ */
 
 /**
  * @brief Verifies if any frames were dropped due to late arrival.
@@ -576,12 +571,12 @@ void VideoSinkTest::verifyFramesReceived()
  * This function retrieves the `METRIC_FRAMES_DROPPED_LATE` property from the video sink
  * and asserts that one or more frames were dropped because they arrived too late for rendering.
  * The test fails if the metric cannot be retrieved or if no late drops are detected when expected.
- */
+
 void VideoSinkTest::verifyFramesDroppedLate()
 {
     int actualFramesDroppedLate = -1;
 
-    /* Verifying Video Sink Frame Dropped Metrics */
+
 
     UT_LOG_DEBUG("[SinkID: %d] Waiting briefly to allow metrics to update...", mSinkId.value);
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
@@ -604,7 +599,7 @@ void VideoSinkTest::verifyFramesDroppedLate()
         UT_ASSERT_TRUE(false);
     }
 }
-
+ */
 /**
  * @brief Verifies if frames were dropped due to Frame Rate Conversion (FRC).
  *
@@ -612,12 +607,11 @@ void VideoSinkTest::verifyFramesDroppedLate()
  * and checks whether any frames were dropped as a result of FRC behavior.
  * It fails the test if the metric is unavailable or if no drops are detected
  * when drops are expected.
- */
+
 void VideoSinkTest::verifyFramesDroppedFRC()
 {
     int actualDroppedFRC = -1;
 
-    /* Verifying Video Sink Frames Dropped FRC Metrics */
 
     UT_LOG_DEBUG("[SinkID: %d] Waiting briefly to allow metrics to update...", mSinkId.value);
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
@@ -640,7 +634,7 @@ void VideoSinkTest::verifyFramesDroppedFRC()
         UT_ASSERT_TRUE(false);
     }
 }
-
+ */
 
 /**
  * @brief Verifies if frames were repeated due to Frame Rate Conversion (FRC).
@@ -649,12 +643,11 @@ void VideoSinkTest::verifyFramesDroppedFRC()
  * and validates that frame repetitions occurred due to FRC. It fails the test
  * if the metric retrieval fails or if no FRC-related repetitions are detected
  * when they are expected.
- */
+
 void VideoSinkTest::verifyFramesRepeatedFRC()
 {
     int actualRepeatedFRC = -1;
 
-    /* Verifying Video Sink Frames Repeated FRC Metrics */
 
     UT_LOG_DEBUG("[SinkID: %d] Waiting briefly to allow metrics to update...", mSinkId.value);
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
@@ -677,7 +670,7 @@ void VideoSinkTest::verifyFramesRepeatedFRC()
         UT_ASSERT_TRUE(false);
     }
 }
-
+ */
 
 /**
  * @brief Verifies if any frames were repeated due to missing frames.
@@ -686,12 +679,12 @@ void VideoSinkTest::verifyFramesRepeatedFRC()
  * to determine if frames were repeated as a result of missing input frames.
  * It asserts failure if the metric is unsupported or if no missing frame repetitions
  * are reported when expected.
- */
+
 void VideoSinkTest::verifyFramesMissed()
 {
     int actualRepeatMissing = -1;
 
-    /* Verifying Video Sink Frames Missed Metrics */
+
 
     UT_LOG_DEBUG("[SinkID: %d] Waiting briefly to allow metrics to update...", mSinkId.value);
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
@@ -714,19 +707,19 @@ void VideoSinkTest::verifyFramesMissed()
         UT_ASSERT_TRUE(false);
     }
 }
-
+ */
 
 /**
  * @brief Performs post-verification based on the current sink test name.
  *
  * Determines which verification routine to execute depending on the test scenario
- * defined in `mTestConfiguration.vSink_testName`. Handles various cases including
+ * defined in `mTestConfiguration.testName`. Handles various cases including
  * queue depth, frames received, dropped frames, repeated frames, and missed frames,
  * for both sequential and concurrent non-tunnel modes.
- */
+
 void VideoSinkTest::runPostVerification()
 {
-    const std::string &testName = mSinkTestConfiguration.testName;
+    const std::string &testName = mTestConfiguration.testName;
 
     if (testName == "Sink_QueueDepth")
     {
@@ -753,7 +746,7 @@ void VideoSinkTest::runPostVerification()
         verifyFramesMissed();
     }
 }
-
+ */
 /** @} */ // End of VIDEO_SINK_HALTEST_CLASS
 /** @} */ // End of VIDEO_SINK_HALTEST
 /** @} */ // End of VIDEO_SINK

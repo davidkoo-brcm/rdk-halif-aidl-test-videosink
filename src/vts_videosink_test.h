@@ -73,6 +73,7 @@
 #include "vts_videosink_parse_hfp.h"
 #include "vts_videosink_parse_testconfig.h"
 #include "vts_videosink_init.h"
+#include "vts_avclock.h"
 
 #include "com/rdk/hal/videosink/IVideoSinkManager.h"
 #include "com/rdk/hal/videosink/BnVideoSinkControllerListener.h"
@@ -95,10 +96,10 @@ public:
         sp<VideoSinkControllerListener> VideoSinkControllerListener,
         sp<VideoSinkEventListener> VideoSinkEventListner,
         sp<VideoDecoderControllerListener> decoderControllerListener,
+        sp<IAVBuffer> AVBufferManager,
         IVideoDecoder::Id decoderId,
         IAVClock::Id clockId,
-        const videoDecoderTestConfiguration_t& config,
-        const videoTestConfiguration_t& sinkConfig, bool isClockInUse)
+        const videoDecoderTestConfiguration_t& config, bool isClockInUse)
     {
         mSinkId = sinkId;
         mSinkHandle = sinkHandle;
@@ -107,23 +108,12 @@ public:
         mDecoderControllerListener = decoderControllerListener;
         mDecoderId = decoderId;
         mTestConfiguration = config;
-        mSinkTestConfiguration = sinkConfig;
         mIsClockInUse = isClockInUse;
         mClockId = clockId;
+        mClockCtrlListener = new AVClockControllerListener();
+        mAVBufferManager = AVBufferManager;
     }
 
-    void verifyNoUnexpectedUnderflow();
-    void verifyUnderflow();
-    void verifyResume();
-    void verifyQueueDepth();
-    void verifyFramesReceived();
-    void verifyFramesDroppedLate();
-    void verifyFramesDroppedFRC();
-    void verifyFramesRepeatedFRC();
-    void verifyFramesMissed();
-    void verifyFlushComplete();
-    void handleEosFrame(const videodecoder::FrameMetadata& metadata, int64_t pts);
-    void runPostVerification();
     void run ( bool isTunnel );
     bool getSinkPropertyInt(videosink::Property property, int32_t& outValue);
 
@@ -137,16 +127,25 @@ private:
     IAVClock::Id mClockId;
     sp<IAVClock> mClock;
     videoDecoderTestConfiguration_t mTestConfiguration;
-    videoTestConfiguration_t mSinkTestConfiguration;
     sp<IVideoSinkController> mVideoSinkController;
     std::set<int64_t> mReceivedPtsSet;
     bool mIsClockInUse = false;
     int mActualFramesReceived = 0;
+    sp<AVClockControllerListener> mClockCtrlListener;
+    sp<IAVClockController> mClockController;
+    sp<IAVBuffer> mAVBufferManager;
 
     float getBytesPerPixelMultiplier(const std::string& basePixelFormat, int colorDepth) const;
     PixelFormat getPixelFormatEnum(const std::string& basePixelFormat);
     void videoSinkNonTunnelMode();
     void videoSinkTunnelMode();
+    void setupClock();
+    void tearDownClock();
+    void validateCallbacks();
+    void validateMetrics();
+    void setupVideoSink();
+    void tearDownVideoSink();
+    void copyMetaData(const videodecoder::FrameMetadata& src, videodecoder::FrameMetadata& dst);
 
 };
 

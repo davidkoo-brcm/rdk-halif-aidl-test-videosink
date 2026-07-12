@@ -71,6 +71,7 @@
 #include "vts_videosink_parse_hfp.h"
 
 #define VIDEO_SINK_TEST_CONFIG_PATH "./videosink_test_configuration/vts_l3_VideoSink_test_config.yaml"
+#define VIDEO_DECODER_TEST_CONFIG_PATH "./videodecoder_test_configuration/vts_l3_VideoDecoder_test_config.yaml"
 #define VIDEO_SINK_STREAM_CONFIG_PATH "./videosink_test_configuration/vts_stream_list.yaml"
 #define VIDEO_SINK_STREAM_DOWNLOAD_PATH "videosink.stream_download_path"
 #define VIDEO_SINK_STREAM_INPUT_PATH "videosink.input_streams_path"
@@ -96,25 +97,19 @@ struct videoFrame_t {
 
 };
 
-struct videoTestConfiguration_t {
-    std::string input;
-    com::rdk::hal::videodecoder::Codec codec;
-    frameMetadata_t frameMetadata;
-    std::vector<videoFrame_t> frames;
-
+struct videoSinkTestConfiguration_t
+{
     uint64_t signalDiscontinuityPts = 0;
     bool backpressure = false;
-    // Sink control fields
-    int64_t vSink_discardFramesUntilPts;
-    int64_t vSink_underflowPts;
-    int64_t vSink_flush_pts;
-    int64_t vSink_eos_pts;
-    std::string vSink_testName;
+    int64_t discardFramesUntilPts;
+    int64_t underflowPts;
+    int64_t flush_pts;
+    int64_t eos_pts;
     std::string testName;
 };
 
 void* vts_kvp_create_instance(char *fileName);
-UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *module, const char *testGroup, const char *testName, std::vector<videoTestConfiguration_t>& streamDetails);
+UT_status_t vts_videosink_parse_testconfig(void* pTestInstance, const char *module, const char *testGroup, const char *testName, std::vector<videoSinkTestConfiguration_t>& streamDetails);
 void vts_kvp_destroy_instance(void *instance);
 
 #endif //__VTS_VIDEOSINK_PARSE_TESTCONFIG_H__

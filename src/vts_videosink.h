@@ -100,6 +100,7 @@ using namespace com::rdk::hal::avclock;
 extern sp<IVideoSinkManager> gVideoSinkManager;
 extern void *gVideoSinkTestConfiguration;
 
+#define VIDEOSINKMGR "videosink"
 
 #define VIDEO_SINK_MAX_TRANSITORY_STATE_WAIT_MS  5
 #define VIDEO_SINK_MAX_FINAL_STATE_WAIT_MS  500

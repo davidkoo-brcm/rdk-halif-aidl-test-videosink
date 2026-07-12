@@ -20,7 +20,8 @@
 # *
 #** ******************************************************************************
 
-include_0: videosink_stream_configuration/vts_l3_H264_HD_30_YUV420.yaml
+include_0: videodecoder_test_configuration/vts_video_h264_streams.yaml
+include_0: videodecoder_test_configuration/vts_l3_VideoDecoder_test_config.yaml
 include_1: videosink_stream_configuration/vts_l3_H264_HD_30_YUV444.yaml
 include_2: videosink_stream_configuration/vts_l3_H264_HD_60_YUV420.yaml
 include_3: videosink_stream_configuration/vts_l3_H264_HD_60_YUV444.yaml
