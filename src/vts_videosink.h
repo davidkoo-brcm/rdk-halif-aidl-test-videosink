@@ -71,7 +71,6 @@
 #include <inttypes.h>
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
-#include "vts_videosink_parse_testconfig.h"
 #include "vts_videosink_init.h"
 #include "vts_avbuffer.h"
 #include "vts_videodecoder.h"
@@ -817,8 +816,8 @@ public:
 
     // Utility functions: First frame rendered
     void resetFirstFrameRendered();
-    bool waitForFFR(int timeoutSeconds);
-    int64_t getFirstPTS();
+    bool waitForFFR(std::chrono::milliseconds timeout);
+    std::vector<int64_t> getFirstPTS();
 
     // Utility functions: Flush complete
     void resetFlushComplete();
@@ -826,13 +825,13 @@ public:
 
     // Utility functions: End of stream (EOS)
     void resetEos();
-    int64_t getEosPTS();
-    bool waitForEosEvent(int timeoutSeconds);
+    std::vector<int64_t> getEosPTS();
+    bool waitForEosEvent(std::chrono::milliseconds timeout);
 
     // Utility functions: Frame buffer available
     void resetFrameBufferAvailable();
     int getFrameBufferAvailableCount();
-    bool waitForFrameBufferAvailableEvent(int timeoutSeconds);
+    bool waitForFrameBufferAvailableEvent(std::chrono::milliseconds timeout);
 
     // Utility functions: Underflow
     void resetUnderflow();
@@ -873,7 +872,7 @@ private:
 
     // First frame rendered info
     bool mFirstFrameRendered;
-    int64_t mFirstPTS;
+    std::vector<int64_t> mFirstPTS;
 
     // Flush complete flag
     bool mFlushComplete;
@@ -881,7 +880,7 @@ private:
 
     // EOS info
     bool mEosReceived;
-    int64_t mEosPTS;
+    std::vector<int64_t> mEosPTS;
 
     // Frame buffer available info
     bool mFrameBufferAvailable;
@@ -903,18 +902,18 @@ public:
     virtual ~VideoSinkEventListener();
 
     // Override methods from BnVideoSinkEventListener
-    ::android::binder::Status onFirstFrameRendered(int64_t nsPresentationTime) override;
-    ::android::binder::Status onFlushComplete() override;
-    ::android::binder::Status onEndOfStream(int64_t nsPresentationTime) override;
-    ::android::binder::Status onVideoUnderflow() override;
-    ::android::binder::Status onVideoResumed() override;
-    ::android::binder::Status onStateChanged(videosink::State oldState, videosink::State newState) override;
+    android::binder::Status onFirstFrameRendered(int64_t nsPresentationTime) override;
+    android::binder::Status onFlushComplete() override;
+    android::binder::Status onEndOfStream(int64_t nsPresentationTime) override;
+    android::binder::Status onVideoUnderflow() override;
+    android::binder::Status onVideoResumed() override;
+    android::binder::Status onStateChanged(videosink::State oldState, videosink::State newState) override;
     android::binder::Status onFrameBufferAvailable();
 
     // Utility functions: First frame rendered
     void resetFirstFrameRendered();
-    bool waitForFFR(int timeoutSeconds);
-    int64_t getFirstPTS();
+    bool waitForFFR(std::chrono::milliseconds timeout);
+    std::vector<int64_t> getFirstPTS();
 
     // Utility functions: Flush complete
     void resetFlushComplete();
@@ -922,13 +921,13 @@ public:
 
     // Utility functions: End of stream (EOS)
     void resetEos();
-    int64_t getEosPTS();
-    bool waitForEosEvent(int timeoutSeconds);
+    std::vector<int64_t> getEosPTS();
+    bool waitForEosEvent(std::chrono::milliseconds timeout);
 
     // Utility functions: Frame buffer available
     void resetFrameBufferAvailable();
     int getFrameBufferAvailableCount();
-    bool waitForFrameBufferAvailableEvent(int timeoutSeconds);
+    bool waitForFrameBufferAvailableEvent(std::chrono::milliseconds timeout);
 
     // Utility functions: Underflow
     void resetUnderflow();
@@ -970,7 +969,7 @@ private:
 
     // First frame rendered info
     bool mFirstFrameRendered;
-    int64_t mFirstPTS;
+    std::vector<int64_t> mFirstPTS;
 
     // Flush complete flag
     bool mFlushComplete;
@@ -978,7 +977,7 @@ private:
 
     // EOS info
     bool mEosReceived;
-    int64_t mEosPTS;
+    std::vector<int64_t> mEosPTS;
 
     // Frame buffer available info
     bool mFrameBufferAvailable;

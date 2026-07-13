@@ -88,7 +88,6 @@
 
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
-#include "vts_videosink_parse_testconfig.h"
 #include "vts_videosink.h"
 
 
@@ -102,15 +101,15 @@ using namespace std;
 *************************************/
 VideoSinkControllerListener::VideoSinkControllerListener()
     :mFirstFrameRendered(false),
-     mFirstPTS(-1),
      mFlushComplete(false),
      mEosReceived(false),
-     mEosPTS(-1),
      mFrameBufferAvailable(false),
      mFrameBufferAvailableCount(0),
      mUnderflowCount(0),
      mResumeCount(0)
 {
+    mFirstPTS.clear();
+    mEosPTS.clear();
 }
 
 VideoSinkControllerListener::~VideoSinkControllerListener() = default;
@@ -142,7 +141,7 @@ android::binder::Status VideoSinkControllerListener::onFirstFrameRendered(int64_
         std::lock_guard<std::mutex> lock(mMutex_ffr);
         if (!mFirstFrameRendered)
         {
-            mFirstPTS = nsPresentationTime;
+            mFirstPTS.push_back(nsPresentationTime);
             mFirstFrameRendered = true;
         }
     }
@@ -154,16 +153,16 @@ void VideoSinkControllerListener::resetFirstFrameRendered()
 {
     std::lock_guard<std::mutex> lock(mMutex_ffr);
     mFirstFrameRendered = false;
-    mFirstPTS = -1;
+    mFirstPTS.clear();
 }
 
-bool VideoSinkControllerListener::waitForFFR(int timeoutSeconds)
+bool VideoSinkControllerListener::waitForFFR(std::chrono::milliseconds timeout)
 {
     std::unique_lock<std::mutex> lock(mMutex_ffr);
-    return mCV_ffr.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] { return mFirstFrameRendered; });
+    return mCV_ffr.wait_for(lock, timeout, [this] { return mFirstFrameRendered; });
 }
 
-int64_t VideoSinkControllerListener::getFirstPTS()
+std::vector<int64_t> VideoSinkControllerListener::getFirstPTS()
 {
     std::lock_guard<std::mutex> lock(mMutex_ffr);
     return mFirstPTS;
@@ -184,7 +183,7 @@ android::binder::Status VideoSinkControllerListener::onEndOfStream(int64_t nsPre
     {
         std::lock_guard<std::mutex> lock(mMutex_eos);
         mEosReceived = true;
-        mEosPTS = nsPresentationTime;
+        mEosPTS.push_back(nsPresentationTime);
     }
     mCV_eos.notify_all();
     return android::binder::Status::ok();
@@ -199,7 +198,7 @@ void VideoSinkControllerListener::resetEos()
 {
     std::lock_guard<std::mutex> lock(mMutex_eos);
     mEosReceived = false;
-    mEosPTS = -1;
+    mEosPTS.clear();
 }
 
 /**
@@ -207,13 +206,13 @@ void VideoSinkControllerListener::resetEos()
  *
  * Blocks the calling thread until the EOS event is received or the timeout expires.
  *
- * @param timeoutSeconds Number of seconds to wait for the EOS event.
+ * @param timeout Duration to wait for the EOS event.
  * @return true if EOS event received within timeout, false otherwise.
  */
-bool VideoSinkControllerListener::waitForEosEvent(int timeoutSeconds)
+bool VideoSinkControllerListener::waitForEosEvent(std::chrono::milliseconds timeout)
 {
     std::unique_lock<std::mutex> lock(mMutex_eos);
-    return mCV_eos.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] { return mEosReceived; });
+    return mCV_eos.wait_for(lock, timeout, [this] { return mEosReceived; });
 }
 
 /**
@@ -221,7 +220,7 @@ bool VideoSinkControllerListener::waitForEosEvent(int timeoutSeconds)
  *
  * @return The EOS PTS value.
  */
-int64_t VideoSinkControllerListener::getEosPTS()
+std::vector<int64_t> VideoSinkControllerListener::getEosPTS()
 {
     std::lock_guard<std::mutex> lock(mMutex_eos);
     return mEosPTS;
@@ -483,11 +482,11 @@ int VideoSinkControllerListener::getFrameBufferAvailableCount()
  * @param timeoutSeconds Maximum wait in seconds.
  * @return true if callback was observed, false otherwise.
  */
-bool VideoSinkControllerListener::waitForFrameBufferAvailableEvent(int timeoutSeconds)
+bool VideoSinkControllerListener::waitForFrameBufferAvailableEvent(std::chrono::milliseconds timeout)
 {
     std::unique_lock<std::mutex> lock(mMutex_fba);
     const bool callbackReceived = mCV_fba.wait_for(
-        lock, std::chrono::seconds(timeoutSeconds), [this] { return mFrameBufferAvailable; });
+        lock, timeout, [this] { return mFrameBufferAvailable; });
     if (callbackReceived)
     {
         mFrameBufferAvailable = false;
@@ -501,15 +500,15 @@ bool VideoSinkControllerListener::waitForFrameBufferAvailableEvent(int timeoutSe
 *************************************/
 VideoSinkEventListener::VideoSinkEventListener()
         :mFirstFrameRendered(false),
-         mFirstPTS(-1),
          mFlushComplete(false),
          mEosReceived(false),
-         mEosPTS(-1),
          mFrameBufferAvailable(false),
          mFrameBufferAvailableCount(0),
          mUnderflowCount(0),
          mResumeCount(0)
 {
+    mEosPTS.clear();
+    mFirstPTS.clear();
 }
 
 /**
@@ -537,7 +536,7 @@ VideoSinkEventListener::~VideoSinkEventListener() = default;
         std::lock_guard<std::mutex> lock(mMutex_ffr);
         if (!mFirstFrameRendered)
         {
-            mFirstPTS = nsPresentationTime;
+            mFirstPTS.push_back(nsPresentationTime);
             mFirstFrameRendered = true;
         }
     }
@@ -549,16 +548,16 @@ void VideoSinkEventListener::resetFirstFrameRendered()
 {
     std::lock_guard<std::mutex> lock(mMutex_ffr);
     mFirstFrameRendered = false;
-    mFirstPTS = -1;
+    mFirstPTS.clear();
 }
 
-bool VideoSinkEventListener::waitForFFR(int timeoutSeconds)
+bool VideoSinkEventListener::waitForFFR(std::chrono::milliseconds timeout)
 {
     std::unique_lock<std::mutex> lock(mMutex_ffr);
-    return mCV_ffr.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] { return mFirstFrameRendered; });
+    return mCV_ffr.wait_for(lock, timeout, [this] { return mFirstFrameRendered; });
 }
 
-int64_t VideoSinkEventListener::getFirstPTS()
+std::vector<int64_t> VideoSinkEventListener::getFirstPTS()
 {
     std::lock_guard<std::mutex> lock(mMutex_ffr);
     return mFirstPTS;
@@ -576,7 +575,7 @@ int64_t VideoSinkEventListener::getFirstPTS()
     {
         std::lock_guard<std::mutex> lock(mMutex_eos);
         mEosReceived = true;
-        mEosPTS = nsPresentationTime;
+        mEosPTS.push_back(nsPresentationTime);
     }
     mCV_eos.notify_all();
     return android::binder::Status::ok();
@@ -585,9 +584,9 @@ int64_t VideoSinkEventListener::getFirstPTS()
 /**
  * @brief Retrieves the Presentation Timestamp (PTS) of the End-Of-Stream (EOS) event.
  *
- * @return int64_t The EOS PTS value.
+ * @return std::vector<int64_t> The EOS PTS values.
  */
-int64_t VideoSinkEventListener::getEosPTS()
+std::vector<int64_t> VideoSinkEventListener::getEosPTS()
 {
     std::lock_guard<std::mutex> lock(mMutex_eos);
     return mEosPTS;
@@ -600,13 +599,13 @@ void VideoSinkEventListener::resetEos()
 {
     std::lock_guard<std::mutex> lock(mMutex_eos);
     mEosReceived = false;
-    mEosPTS = -1;
+    mEosPTS.clear();
 }
 
-bool VideoSinkEventListener::waitForEosEvent(int timeoutSeconds)
+bool VideoSinkEventListener::waitForEosEvent(std::chrono::milliseconds timeout)
 {
     std::unique_lock<std::mutex> lock(mMutex_eos);
-    return mCV_eos.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this] { return mEosReceived; });
+    return mCV_eos.wait_for(lock, timeout, [this] { return mEosReceived; });
 }
 
 /**
@@ -827,11 +826,11 @@ int VideoSinkEventListener::getFrameBufferAvailableCount()
     return mFrameBufferAvailableCount;
 }
 
-bool VideoSinkEventListener::waitForFrameBufferAvailableEvent(int timeoutSeconds)
+bool VideoSinkEventListener::waitForFrameBufferAvailableEvent(std::chrono::milliseconds timeout)
 {
     std::unique_lock<std::mutex> lock(mMutex_fba);
     const bool callbackReceived = mCV_fba.wait_for(
-        lock, std::chrono::seconds(timeoutSeconds), [this] { return mFrameBufferAvailable; });
+        lock, timeout, [this] { return mFrameBufferAvailable; });
     if (callbackReceived)
     {
         mFrameBufferAvailable = false;

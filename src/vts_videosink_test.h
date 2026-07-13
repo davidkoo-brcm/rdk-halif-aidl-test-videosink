@@ -71,7 +71,6 @@
 #include <inttypes.h>
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
-#include "vts_videosink_parse_testconfig.h"
 #include "vts_videosink_init.h"
 #include "vts_avclock.h"
 
@@ -112,6 +111,9 @@ public:
         mClockId = clockId;
         mClockCtrlListener = new AVClockControllerListener();
         mAVBufferManager = AVBufferManager;
+        mFirstFramePTS = -1;
+        mSignalEOSPTS = -1;
+        mFrameCount = 0;
     }
 
     void run ( bool isTunnel );
@@ -134,6 +136,9 @@ private:
     sp<AVClockControllerListener> mClockCtrlListener;
     sp<IAVClockController> mClockController;
     sp<IAVBuffer> mAVBufferManager;
+    int64_t mFirstFramePTS;
+    int64_t mSignalEOSPTS;
+    int32_t mFrameCount;
 
     float getBytesPerPixelMultiplier(const std::string& basePixelFormat, int colorDepth) const;
     PixelFormat getPixelFormatEnum(const std::string& basePixelFormat);

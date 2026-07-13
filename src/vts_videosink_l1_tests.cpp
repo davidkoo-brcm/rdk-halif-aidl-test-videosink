@@ -359,18 +359,18 @@ UT_ADD_TEST(VTS_L1_VideoSink, getCapabilities_pos)
  {
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
-    std::vector<com::rdk::hal::videosink::Property> testProperties = {
-        com::rdk::hal::videosink::Property::RESOURCE_ID,
-        com::rdk::hal::videosink::Property::SINK_QUEUE_DEPTH,
-        com::rdk::hal::videosink::Property::AV_SOURCE,
-        com::rdk::hal::videosink::Property::RENDER_FIRST_FRAME,
-        com::rdk::hal::videosink::Property::METRIC_FRAMES_RECEIVED,
-        com::rdk::hal::videosink::Property::METRIC_FRAMES_PRESENTED,
-        com::rdk::hal::videosink::Property::METRIC_FRAMES_DROPPED_LATE,
-        com::rdk::hal::videosink::Property::METRIC_FRAMES_DROPPED_FRC,
-        com::rdk::hal::videosink::Property::METRIC_FRAMES_REPEATED_FRC,
-        com::rdk::hal::videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME,
-        com::rdk::hal::videosink::Property::METRIC_UNDERFLOWED
+    std::vector<videosink::Property> testProperties = {
+        videosink::Property::RESOURCE_ID,
+        videosink::Property::SINK_QUEUE_DEPTH,
+        videosink::Property::AV_SOURCE,
+        videosink::Property::RENDER_FIRST_FRAME,
+        videosink::Property::METRIC_FRAMES_RECEIVED,
+        videosink::Property::METRIC_FRAMES_PRESENTED,
+        videosink::Property::METRIC_FRAMES_DROPPED_LATE,
+        videosink::Property::METRIC_FRAMES_DROPPED_FRC,
+        videosink::Property::METRIC_FRAMES_REPEATED_FRC,
+        videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME,
+        videosink::Property::METRIC_UNDERFLOWED
     };
     ::android::binder::Status status;
 
@@ -421,8 +421,8 @@ UT_ADD_TEST(VTS_L1_VideoSink, getProperty_neg)
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
     std::optional<PropertyValue> propertyValue;
-    int32_t firstValue = static_cast<int32_t>(com::rdk::hal::videosink::Property::RESOURCE_ID);
-    com::rdk::hal::videosink::Property Invalidproperty = static_cast<com::rdk::hal::videosink::Property>(firstValue - 1);
+    int32_t firstValue = static_cast<int32_t>(videosink::Property::RESOURCE_ID);
+    videosink::Property Invalidproperty = static_cast<videosink::Property>(firstValue - 1);
 
     /* Get the Video sink IDs */
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
