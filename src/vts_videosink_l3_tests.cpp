@@ -74,8 +74,6 @@ UT_ADD_TEST_TO_GROUP(VTS_L3_VideoSink, UT_TESTS_L3)
 const char *gTestGroup = "L3";
 IAVBufferHelper* gAVbufferHelper;
 
-extern std::vector<int32_t> gAvailableVideodecoders_hfp;
-
 static sp<IAVBuffer> vts_avbuffer_getService()
 {
     return

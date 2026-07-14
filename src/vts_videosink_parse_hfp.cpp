@@ -75,7 +75,7 @@ UT_status_t vts_videosink_parseVideoSinkHFP()
 
     if (videosinkCount <= 0)
     {
-        UT_LOG_ERROR("No vidosinks found in the HFP");
+        UT_LOG_ERROR("No videosinks found in the HFP");
         return UT_STATUS_FAILURE;
     }
 

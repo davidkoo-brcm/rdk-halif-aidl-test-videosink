@@ -78,6 +78,7 @@
 #include <optional>
 #include <algorithm>
 #include <unordered_set>
+#include <string>
 
 #include "com/rdk/hal/videosink/IVideoSinkManager.h"
 #include "com/rdk/hal/videosink/BnVideoSinkControllerListener.h"

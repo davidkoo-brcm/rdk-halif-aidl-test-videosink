@@ -41,8 +41,6 @@
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
 #include "vts_videosink.h"
-//#include "vts_avclock.h"
-
 
 UT_ADD_TEST_TO_GROUP(VTS_L1_VideoSink, UT_TESTS_L1)
 
@@ -216,7 +214,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, getVideoSink_pos)
 /**
  * @brief Test the negative scenarios for retrieving a video sink using invalid IDs.
  *
- * This test checks the behavior of the VideoSinkManager when attempting to retrieve a video#
+ * This test checks the behavior of the VideoSinkManager when attempting to retrieve a video
  * sink using invalid IDs. It ensures that the system handles these cases gracefully without
  * crashing and returns the expected results.
  *
@@ -1781,7 +1779,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, flush_pos)
  * **Test Group ID:** Basic: 01@n
  * **Test Case ID:** 027@n
  * **Priority:** High@n
- * **Test Case ID:** 028@n
  * @n
  * **Pre-Conditions:** None@n
  * **Dependencies:** None@n
@@ -2063,7 +2060,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_pos)
 UT_ADD_TEST(VTS_L1_VideoSink, attachClock_neg)
 {
     std::vector<IVideoSink::Id> sinkIds;
-    std::vector<::com::rdk::hal::avclock::IAVClock::Id> clockIds;
     sp<IVideoSink> videoSink;
     sp<IVideoSinkController> videoSinkController = nullptr;
     sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
@@ -2249,7 +2245,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, signalEndOfStream_pos)
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
     sp<IVideoSinkController> videoSinkController;
-    avclock::IAVClock::Id retrievedClockId{};
     sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
 
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
@@ -2292,8 +2287,9 @@ UT_ADD_TEST(VTS_L1_VideoSink, signalEndOfStream_pos)
  * |01|Get sink IDs|None|Non-empty list|Should Pass|
  * |02|Open sink in READY|listener = valid|Status OK|Should Pass|
  * |03|Signal end of stream in READY|N/A|Status OK|Should Pass|
- * |04|Signal end of stream in STARTED|N/A|Illegal State|Should Pass|
- * |05|close|N/A|Status OK|Should Pass|
+ * |04|START and STOP the sink|N/A|Status OK|Should Pass|
+ * |05|Signal end of stream in READY|N/A|Illegal State|Should Pass|
+ * |06|close|N/A|Status OK|Should Pass|
  */
 UT_ADD_TEST(VTS_L1_VideoSink, signalEndOfStream_neg)
 {
@@ -2319,7 +2315,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, signalEndOfStream_neg)
         VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
         VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
 
-        // Step 05: Signal end of stream in STARTED state
+        // Step 05: Signal end of stream in READY state
         VIDEOSINK_SIGNAL_EOS_FAILURE(videoSinkController, android::binder::Status::EX_ILLEGAL_STATE);
 
         // Step 06: close

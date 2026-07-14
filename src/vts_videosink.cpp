@@ -361,8 +361,8 @@ void VideoSinkControllerListener::resetFlushComplete()
  *
  * This implementation currently does nothing and always returns success.
  *
- * @param oldState Previous state (unused)
- * @param newState New state (unused)
+ * @param oldState Previous state
+ * @param newState New state
  * @return android::binder::Status Always returns Status::ok()
  */
 android::binder::Status VideoSinkControllerListener::onStateChanged(videosink::State oldState, videosink::State newState)
