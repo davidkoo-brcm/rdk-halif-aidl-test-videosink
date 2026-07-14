@@ -642,6 +642,9 @@ public:
         {
             auto& sinkConfig = sinkConfigs[i];
 
+            UT_LOG_INFO("=====================================================================================");
+            UT_LOG_INFO("Running test configuration %zu/%zu: %s", i + 1, sinkConfigs.size(), sinkConfig.streamName.c_str());
+            UT_LOG_INFO("=====================================================================================");
             if (concurrentMode)
             {
                 executedAnyConfig = runConcurrentSink(sinkConfig, secureMode, isTunnel) || executedAnyConfig;

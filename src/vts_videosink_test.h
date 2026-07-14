@@ -151,6 +151,7 @@ private:
     void setupVideoSink();
     void tearDownVideoSink();
     void copyMetaData(const videodecoder::FrameMetadata& src, videodecoder::FrameMetadata& dst);
+    bool validateSinkBackPressure(int64_t bufferHandle, int64_t pts, videodecoder::FrameMetadata& metadata, int32_t queuedFrames);
 
 };
 

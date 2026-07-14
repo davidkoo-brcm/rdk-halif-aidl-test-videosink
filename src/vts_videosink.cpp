@@ -615,7 +615,12 @@ bool VideoSinkEventListener::waitForEosEvent(std::chrono::milliseconds timeout)
  */
 ::android::binder::Status VideoSinkEventListener::onVideoUnderflow()
 {
-    UT_LOG_INFO("[Sink ID : %d] VideoSinkEventListener: onVideoUnderflow Callback Received",mSinkID);
+    auto now = std::chrono::system_clock::now();
+    auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
+    auto epoch = now_ms.time_since_epoch();
+    long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count();
+
+    UT_LOG_INFO("[Sink ID : %d] VideoSinkEventListener: onVideoUnderflow Callback Received. RealTime:[%lld ms]",mSinkID, ms);
     {
         std::lock_guard<std::mutex> lock(mMutex_underflow);
         mUnderflowCount++;
@@ -650,7 +655,12 @@ int VideoSinkEventListener::getUnderflowCount()
  */
 ::android::binder::Status VideoSinkEventListener::onVideoResumed()
 {
-    UT_LOG_INFO("[Sink ID : %d] VideoSinkEventListener: onVideoResumed Callback Received",mSinkID);
+    auto now = std::chrono::system_clock::now();
+    auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
+    auto epoch = now_ms.time_since_epoch();
+    long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count();
+
+    UT_LOG_INFO("[Sink ID : %d] VideoSinkEventListener: onVideoResumed Callback Received. RealTime:[%lld ms]",mSinkID, ms);
     {
         std::lock_guard<std::mutex> lock(mMutex_resumed);
         mResumeCount++;
