@@ -214,7 +214,7 @@ If user chose to run the test in interactive mode, then the test case has to be 
 | 02 | Register event listener using `registerEventListener`| listener = new VideoSinkEventListenerImpl(), registered = false  | regStatus.isOk() = true, registered = true | Should be successful |
 | 03 | Open video sink using `open`| controllerListener = new VideoSinkControllerListenerImpl(), controller = nullptr | openStatus.isOk() = true, controller != nullptr | Should be successful |
 | 04 | attach the clock id using `attachClock` and verify using `getClock` | clock id | `getClock` should return attached clock id| Should be successful |
-| 05 | Start all video sink using `start` by looping though available sinksIds | startStatus = controller->start()      | startStatus.isOk() = true   | Should be successful |
+| 05 | Start all video sink using `start` by looping through available sinksIds | startStatus = controller->start()      | startStatus.isOk() = true   | Should be successful |
 | 06 | attach the clock id using `attachClock` and verify using `getClock` | clock id | `getClock` should return attached clock id| Should be successful |
 | 07 | detach the clock id using `detachClock` and verify using `getClock` | clock id | `getClock` should return UNDEFINED clock id| Should be successful |
 | 08 | Stop video sink using `stop`   | startStatus = controller->stop()       | startStatus.isOk() = true   | Should be successful |

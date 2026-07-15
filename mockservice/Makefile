@@ -18,126 +18,87 @@
 #*
 #* ******************************************************************************
 
-.PHONY: all
-
-AVBUFFER_AIDL_LIB_NAME := avbufferaidl
-VIDEODECODER_AIDL_LIB_NAME := videodecoderaidl
-AUDIODECODER_AIDL_LIB_NAME := audiodecoderaidl
-AVBUFFER_HELPER_LIB_NAME := avbufferhelper
-VIDEOSINK_AIDL_LIB_NAME := videosinkaidl
-
-AVBUFFER_AIDL_LIB := lib$(AVBUFFER_AIDL_LIB_NAME).so
-VIDEODECODER_AIDL_LIB := lib$(VIDEODECODER_AIDL_LIB_NAME).so
-AUDIODECODER_AIDL_LIB := lib$(AUDIODECODER_AIDL_LIB_NAME).so
-AVBUFFERHELPER_LIB := lib$(AVBUFFER_HELPER_LIB_NAME).so
-VIDEOSINK_AIDL_LIB := lib$(VIDEOSINK_AIDL_LIB_NAME).so
+.PHONY: all clean check-libs
 
 MOCK_SERVICE_BIN := MockVideoSinkService
 
-BUILD_DIR ?= $(CURDIR)/../build
-AV_BUFFER_AIDL_GEN_DIR ?= $(BUILD_DIR)/avbuffer_gen/current
-VIDEO_DECODER_AIDL_GEN_DIR ?= $(BUILD_DIR)/videodecoder_gen/current
-AUDIO_DECODER_AIDL_GEN_DIR ?= $(BUILD_DIR)/audiodecoder_gen/current
-VIDEO_SINK_AIDL_GEN_DIR ?= $(BUILD_DIR)/videosink_gen/current
+# BUILD_DIR is the top-level repo build/ directory. When invoked as
+# `make -C vts_hal_test_components/videosink/mockservice`, CURDIR is that
+# mockservice/ directory, so ../../../build resolves to <repo-root>/build.
+BUILD_DIR ?= $(CURDIR)/../../../build
+
+# Use cross-compiler if available (set by toolchain), otherwise use native
+CXX ?= g++
+CXXFLAGS ?= -Wall -Wextra -std=c++17 -ggdb
+MOCK_SERVICE_CXXFLAGS := $(CXXFLAGS) -Wall -Wextra -std=c++17 -ggdb
 
 MOCK_SERVICE_DIR ?= $(CURDIR)/src
-
-AVBUFFER_AIDL_SRC += ${AV_BUFFER_AIDL_GEN_DIR}/cpp/com/rdk/hal/avbuffer/HeapMetrics.cpp
-AVBUFFER_AIDL_SRC += ${AV_BUFFER_AIDL_GEN_DIR}/cpp/com/rdk/hal/avbuffer/IAVBuffer.cpp
-AVBUFFER_AIDL_SRC += ${AV_BUFFER_AIDL_GEN_DIR}/cpp/com/rdk/hal/avbuffer/IAVBufferSpaceListener.cpp
-AVBUFFER_AIDL_SRC += ${AV_BUFFER_AIDL_GEN_DIR}/cpp/com/rdk/hal/avbuffer/Pool.cpp
-AVBUFFER_AIDL_SRC += ${AV_BUFFER_AIDL_GEN_DIR}/cpp/com/rdk/hal/avbuffer/PoolMetrics.cpp
-
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/AVSource.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/HALError.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/PropertyValue.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/State.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/Capabilities.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/ChannelType.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/Codec.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/CSDAudioFormat.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/ErrorCode.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/FrameMetadata.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/IAudioDecoderController.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/IAudioDecoderControllerListener.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/IAudioDecoder.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/IAudioDecoderEventListener.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/IAudioDecoderManager.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/PCMFormat.cpp
-AUDIODECODER_AIDL_SRC += ${AUDIO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/audiodecoder/Property.cpp
-
-VIDEODECODER_AIDL_SRC += ${VIDEO_DECODER_AIDL_GEN_DIR}/cpp/com/rdk/hal/State.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/Capabilities.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/CodecCapabilities.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/Codec.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/CSDVideoFormat.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/DynamicRange.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/ErrorCode.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/FrameMetadata.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/IVideoDecoderController.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/IVideoDecoderControllerListener.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/IVideoDecoder.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/IVideoDecoderEventListener.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/IVideoDecoderManager.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/OperationalMode.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/PixelFormat.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/Property.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/PropertyKVPair.cpp
-VIDEODECODER_AIDL_SRC += $(VIDEO_DECODER_AIDL_GEN_DIR)/cpp/com/rdk/hal/videodecoder/ScanType.cpp
-
-VIDEOSINK_AIDL_SRC += ${VIDEO_SINK_AIDL_GEN_DIR}/cpp/com/rdk/hal/videosink/Capabilities.cpp
-VIDEOSINK_AIDL_SRC += ${VIDEO_SINK_AIDL_GEN_DIR}/cpp/com/rdk/hal/videosink/IVideoSink.cpp
-VIDEOSINK_AIDL_SRC += ${VIDEO_SINK_AIDL_GEN_DIR}/cpp/com/rdk/hal/videosink/IVideoSinkController.cpp
-VIDEOSINK_AIDL_SRC += ${VIDEO_SINK_AIDL_GEN_DIR}/cpp/com/rdk/hal/videosink/IVideoSinkControllerListener.cpp
-VIDEOSINK_AIDL_SRC += ${VIDEO_SINK_AIDL_GEN_DIR}/cpp/com/rdk/hal/videosink/IVideoSinkEventListener.cpp
-VIDEOSINK_AIDL_SRC += ${VIDEO_SINK_AIDL_GEN_DIR}/cpp/com/rdk/hal/videosink/IVideoSinkManager.cpp
-VIDEOSINK_AIDL_SRC += ${VIDEO_SINK_AIDL_GEN_DIR}/cpp/com/rdk/hal/videosink/Property.cpp
-VIDEOSINK_AIDL_SRC += ${VIDEO_SINK_AIDL_GEN_DIR}/cpp/com/rdk/hal/PropertyValue.cpp
 
 MOCK_SERVICE_BIN_SRC := $(MOCK_SERVICE_DIR)/VideoSinkService.cpp
 MOCK_SERVICE_BIN_SRC += $(MOCK_SERVICE_DIR)/VideoSink.cpp
 
-MOCK_SERVICE_INC_FLAGS += -I$(AV_BUFFER_AIDL_GEN_DIR)/h
-MOCK_SERVICE_INC_FLAGS += -I$(AUDIO_DECODER_AIDL_GEN_DIR)/h
-MOCK_SERVICE_INC_FLAGS += -I$(VIDEO_DECODER_AIDL_GEN_DIR)/h
-MOCK_SERVICE_INC_FLAGS += -I$(VIDEO_SINK_AIDL_GEN_DIR)/h
+# Headers/libraries come from the AIDL codegen output produced by
+# ./build.sh (rdk-halif-aidl/out/...).
+RDK_HAL_DIR ?= $(BUILD_DIR)/../rdk-halif-aidl
+HALIF_LIB_DIR ?= $(RDK_HAL_DIR)/out/target/lib/halif
+
+# Header directories are versioned (e.g. .../videosink/0.2.0.0/include)
+# with no "current" alias, so pick whichever version directory build.sh
+# produced.
+COMMON_HEADERS ?= $(firstword $(wildcard $(RDK_HAL_DIR)/out/build/include/common/*/include))
+AVBUFFER_HEADERS ?= $(firstword $(wildcard $(RDK_HAL_DIR)/out/build/include/avbuffer/*/include))
+VIDEOSINK_HEADERS ?= $(firstword $(wildcard $(RDK_HAL_DIR)/out/build/include/videosink/*/include))
+VIDEODECODER_HEADERS ?= $(firstword $(wildcard $(RDK_HAL_DIR)/out/build/include/videodecoder/*/include))
+AVCLOCK_HEADERS ?= $(firstword $(wildcard $(RDK_HAL_DIR)/out/build/include/avclock/*/include))
+
+MOCK_SERVICE_INC_FLAGS := -I$(COMMON_HEADERS)
+MOCK_SERVICE_INC_FLAGS += -I$(AVBUFFER_HEADERS)
+MOCK_SERVICE_INC_FLAGS += -I$(VIDEOSINK_HEADERS)
+MOCK_SERVICE_INC_FLAGS += -I$(VIDEODECODER_HEADERS)
+MOCK_SERVICE_INC_FLAGS += -I$(AVCLOCK_HEADERS)
 MOCK_SERVICE_INC_FLAGS += -I$(BUILD_DIR)/usr/include
 
-MOCK_SERVICE_LD_LIBS := -lbinder -lutils -llog
+MOCK_SERVICE_LD_LIBS := -lbinder -lutils -lbase
 
-MOCK_SERVICE_LDFLAGS := -L$(BUILD_DIR)/usr/lib
+MOCK_SERVICE_LDFLAGS := -L$(HALIF_LIB_DIR)
+MOCK_SERVICE_LDFLAGS += -Wl,-rpath-link=$(HALIF_LIB_DIR)
+MOCK_SERVICE_LDFLAGS += -L$(BUILD_DIR)/usr/lib
 MOCK_SERVICE_LDFLAGS += -Wl,-rpath-link=$(BUILD_DIR)/usr/lib
+MOCK_SERVICE_LDFLAGS += -Wl,--copy-dt-needed-entries
+# -rpath-link only helps the linker resolve symbols at build time; it is not
+# embedded in the binary. Embed a $ORIGIN-relative RUNPATH so the binary can
+# find its .so dependencies at runtime as long as they are copied alongside
+# it (portable across build host and any deployed target, e.g. QEMU).
+MOCK_SERVICE_LDFLAGS += -Wl,-rpath,'$$ORIGIN' -Wl,--disable-new-dtags
 
-MOCK_SERVICE_CFLAGS := -Wall -Wextra -std=c++17 -ggdb
+MOCK_SERVICE_BIN := $(BUILD_DIR)/bin/$(MOCK_SERVICE_BIN)
 
-AVBUFFER_AIDL_LIB := $(BUILD_DIR)/usr/lib/$(AVBUFFER_AIDL_LIB)
-AUDIODECODER_AIDL_LIB := $(BUILD_DIR)/usr/lib/$(AUDIODECODER_AIDL_LIB)
-VIDEODECODER_AIDL_LIB := $(BUILD_DIR)/usr/lib/$(VIDEODECODER_AIDL_LIB)
-VIDEOSINK_AIDL_LIB := $(BUILD_DIR)/usr/lib/$(VIDEOSINK_AIDL_LIB)
-MOCK_SERVICE_BIN := $(BUILD_DIR)/usr/lib/$(MOCK_SERVICE_BIN)
+all: $(MOCK_SERVICE_BIN)
 
-all: $(MOCK_SERVICE_BIN) $(AVBUFFER_AIDL_LIB) $(VIDEODECODER_AIDL_LIB) $(AUDIODECODER_AIDL_LIB) $(VIDEOSINK_AIDL_LIB)
+check-libs:
+	@echo "Checking required libraries..."
+	@test -e "$(HALIF_LIB_DIR)/libvideosink-cpp_vts.so" || { echo "ERROR: missing $(HALIF_LIB_DIR)/libvideosink-cpp_vts.so - run ./build.sh Target=linux (or arm) first"; exit 1; }
+	@test -e "$(HALIF_LIB_DIR)/libavbuffer-cpp_vts.so" || { echo "ERROR: missing $(HALIF_LIB_DIR)/libavbuffer-cpp_vts.so - run ./build.sh Target=linux (or arm) first"; exit 1; }
+	@test -e "$(HALIF_LIB_DIR)/libcommon-cpp_vts.so" || { echo "ERROR: missing $(HALIF_LIB_DIR)/libcommon-cpp_vts.so - run ./build.sh Target=linux (or arm) first"; exit 1; }
+	@test -e "$(BUILD_DIR)/usr/lib/libbinder.so" || { echo "ERROR: missing $(BUILD_DIR)/usr/lib/libbinder.so - run ./build.sh Target=linux (or arm) first"; exit 1; }
+	@test -e "$(BUILD_DIR)/usr/lib/libutils.so" || { echo "ERROR: missing $(BUILD_DIR)/usr/lib/libutils.so - run ./build.sh Target=linux (or arm) first"; exit 1; }
+	@test -e "$(BUILD_DIR)/usr/lib/libbase.so" || { echo "ERROR: missing $(BUILD_DIR)/usr/lib/libbase.so - run ./build.sh Target=linux (or arm) first"; exit 1; }
+	@echo "Library check passed"
 
-$(AUDIODECODER_AIDL_LIB): $(AUDIODECODER_AIDL_SRC:%.cpp=%.o)
-	g++ -shared $(MOCK_SERVICE_LDFLAGS) $^ -o $@ $(MOCK_SERVICE_LD_LIBS)
-
-$(VIDEODECODER_AIDL_LIB): $(VIDEODECODER_AIDL_SRC:%.cpp=%.o) $(COMMON_AIDL_GEN_SRC:%.cpp=%.o)
-	g++ -shared $(MOCK_SERVICE_LDFLAGS) $^ -o $@ $(MOCK_SERVICE_LD_LIBS)
-
-$(AVBUFFER_AIDL_LIB): $(AVBUFFER_AIDL_SRC:%.cpp=%.o) $(COMMON_AIDL_GEN_SRC:%.cpp=%.o)
-	g++ -shared $(MOCK_SERVICE_LDFLAGS) $^ -o $@ $(MOCK_SERVICE_LD_LIBS)
-
-$(VIDEOSINK_AIDL_LIB): $(VIDEOSINK_AIDL_SRC:%.cpp=%.o) $(COMMON_AIDL_GEN_SRC:%.cpp=%.o)
-	g++ -shared $(MOCK_SERVICE_LDFLAGS) $^ -o $@ $(MOCK_SERVICE_LD_LIBS)
-
-$(MOCK_SERVICE_BIN): $(VIDEODECODER_AIDL_LIB) $(AUDIODECODER_AIDL_LIB) $(AVBUFFER_AIDL_LIB) $(VIDEOSINK_AIDL_LIB)
-$(MOCK_SERVICE_BIN): $(MOCK_SERVICE_BIN_SRC:%.cpp=%.o)
-	g++ $(MOCK_SERVICE_LDFLAGS) \
+$(MOCK_SERVICE_BIN): check-libs $(MOCK_SERVICE_BIN_SRC:%.cpp=%.o)
+	@mkdir -p $(dir $@)
+	$(CXX) $(MOCK_SERVICE_CXXFLAGS) $(MOCK_SERVICE_LDFLAGS) \
 		$(MOCK_SERVICE_BIN_SRC:%.cpp=%.o) -o $@ \
 		$(MOCK_SERVICE_LD_LIBS) \
 		-lpthread \
-		-l$(VIDEOSINK_AIDL_LIB_NAME)\
-		-l$(VIDEODECODER_AIDL_LIB_NAME)
+		-lvideosink-cpp_vts \
+		-lcommon-cpp_vts \
+		-lavbuffer-cpp_vts
 
 %.o: %.cpp
-	g++ $(MOCK_SERVICE_CFLAGS) $(MOCK_SERVICE_INC_FLAGS) -fPIC -c $< -o $@
+	$(CXX) $(MOCK_SERVICE_CXXFLAGS) $(MOCK_SERVICE_INC_FLAGS) -fPIC -Wno-error -c $< -o $@
+
+
+clean:
+	rm -f $(MOCK_SERVICE_BIN_SRC:%.cpp=%.o)
+	rm -f $(MOCK_SERVICE_BIN)
