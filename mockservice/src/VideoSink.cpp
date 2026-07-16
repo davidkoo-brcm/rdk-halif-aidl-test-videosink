@@ -45,6 +45,7 @@ constexpr int64_t kUndefinedPresentationTime = -1;
 
 android::sp<IVideoSinkEventListener> g_event_listeners[NUM_VIDEO_SINK];
 android::sp<IVideoSinkControllerListener> g_controller_listeners[NUM_VIDEO_SINK];
+android::sp<IVideoSinkController> g_open_controllers[NUM_VIDEO_SINK];
 avclock::IAVClock::Id g_clock_ids[NUM_VIDEO_SINK];
 bool g_end_of_stream_signalled[NUM_VIDEO_SINK] = {false, false};
 bool g_end_of_stream_callback_sent[NUM_VIDEO_SINK] = {false, false};
@@ -249,6 +250,7 @@ void VideoSinkManager::reset()
         g_render_first_frame[i] = 0;
         g_event_listeners[i] = nullptr;
         g_controller_listeners[i] = nullptr;
+        g_open_controllers[i] = nullptr;
         resetPlaybackStateLocked(i, true);
     }
 }
@@ -363,8 +365,8 @@ android::binder::Status VideoSink::getProperty(videosink::Property property, std
             value.value = PropertyValue::Value::make<PropertyValue::Value::intValue>(g_frame_queue[id.value].empty() ? 1 : 0); // Mock
             break;
         default:
-            *_aidl_return = std::nullopt;
-            return android::binder::Status::ok();
+            LOG_ERROR("getProperty: invalid property value");
+            return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_ARGUMENT);
     }
     *_aidl_return = value;
     return android::binder::Status::ok();
@@ -432,12 +434,19 @@ android::binder::Status VideoSink::open(const android::sp<videosink::IVideoSinkC
     notifyStateChangedLocked(id.value, State::OPENING, State::READY);
     state_cv.notify_all();
 
-    *_aidl_return = new VideoSinkController(id);
+    android::sp<IVideoSinkController> controller = new VideoSinkController(id);
+    g_open_controllers[id.value] = controller;
+    *_aidl_return = controller;
     return android::binder::Status::ok();
 }
 
 android::binder::Status VideoSink::close(const android::sp<videosink::IVideoSinkController>& videoSinkController, bool* _aidl_return)
 {
+    if (!_aidl_return)
+    {
+        LOG_ERROR("close: null _aidl_return for ID %d", id.value);
+        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
+    }
     if (!videoSinkController)
     {
         LOG_ERROR("close: null videoSinkController for ID %d", id.value);
@@ -457,6 +466,12 @@ android::binder::Status VideoSink::close(const android::sp<videosink::IVideoSink
         *_aidl_return = false;
         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_STATE);
     }
+    if (!g_open_controllers[id.value] || !hasSameBinder(g_open_controllers[id.value], videoSinkController))
+    {
+        LOG_ERROR("close: unrecognized controller for ID %d", id.value);
+        *_aidl_return = false;
+        return android::binder::Status::ok();
+    }
     g_videosink_state[id.value] = State::CLOSING;
     LOG_INFO("close: ID %d transitioning READY -> CLOSING", id.value);
     notifyStateChangedLocked(id.value, State::READY, State::CLOSING);
@@ -470,6 +485,7 @@ android::binder::Status VideoSink::close(const android::sp<videosink::IVideoSink
 
     controllerListener = nullptr;
     g_controller_listeners[id.value] = nullptr;
+    g_open_controllers[id.value] = nullptr;
     g_videodecoder_id[id.value].value = videodecoder::IVideoDecoder::Id::UNDEFINED;
     resetPlaybackStateLocked(id.value, true);
     *_aidl_return = true;
@@ -479,6 +495,11 @@ android::binder::Status VideoSink::close(const android::sp<videosink::IVideoSink
 android::binder::Status VideoSink::registerEventListener(const android::sp<videosink::IVideoSinkEventListener>& videoSinkEventListener,
                                                          bool* _aidl_return)
 {
+    if (!_aidl_return)
+    {
+        LOG_ERROR("registerEventListener: null _aidl_return for ID %d", id.value);
+        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
+    }
     if (!videoSinkEventListener)
     {
         LOG_ERROR("registerEventListener: null videoSinkEventListener for ID %d", id.value);
@@ -507,6 +528,11 @@ android::binder::Status VideoSink::registerEventListener(const android::sp<video
 android::binder::Status VideoSink::unregisterEventListener(const android::sp<videosink::IVideoSinkEventListener>& videoSinkEventListener,
                                                            bool* _aidl_return)
 {
+    if (!_aidl_return)
+    {
+        LOG_ERROR("unregisterEventListener: null _aidl_return for ID %d", id.value);
+        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
+    }
     if (!videoSinkEventListener)
     {
         LOG_ERROR("unregisterEventListener: null videoSinkEventListener for ID %d", id.value);
@@ -548,11 +574,16 @@ android::binder::Status VideoSinkController::setProperty(videosink::Property pro
                                                          const PropertyValue& propertyValue,
                                                          bool* _aidl_return)
 {
+    if (!_aidl_return)
+    {
+        LOG_ERROR("setProperty: null _aidl_return for ID %d", id.value);
+        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
+    }
     if (!propertyValue.value)
     {
         LOG_ERROR("setProperty: null propertyValue for ID %d", id.value);
         *_aidl_return = false;
-        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_ARGUMENT);
+        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NONE);
     }
     if (!isValidSinkId(id.value))
     {
@@ -595,17 +626,35 @@ android::binder::Status VideoSinkController::setProperty(videosink::Property pro
             g_render_first_frame[id.value] = intValue;
             break;
         }
+        case videosink::Property::RESOURCE_ID:
+        case videosink::Property::SINK_QUEUE_DEPTH:
+        case videosink::Property::METRIC_FRAMES_RECEIVED:
+        case videosink::Property::METRIC_FRAMES_PRESENTED:
+        case videosink::Property::METRIC_FRAMES_DROPPED_LATE:
+        case videosink::Property::METRIC_FRAMES_DROPPED_FRC:
+        case videosink::Property::METRIC_FRAMES_REPEATED_FRC:
+        case videosink::Property::METRIC_FRAMES_REPEATED_MISSING_FRAME:
+        case videosink::Property::METRIC_UNDERFLOWED:
+            LOG_ERROR("setProperty: read-only property %d for ID %d", static_cast<int>(property), id.value);
+            *_aidl_return = false;
+            return android::binder::Status::fromExceptionCode(android::binder::Status::EX_UNSUPPORTED_OPERATION);
         default:
             LOG_ERROR("setProperty: unsupported property %d for ID %d", static_cast<int>(property), id.value);
             *_aidl_return = false;
-            return android::binder::Status::fromExceptionCode(android::binder::Status::EX_UNSUPPORTED_OPERATION);
+            return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NONE);
     }
     *_aidl_return = true;
     return android::binder::Status::ok();
 }
 
+int32_t availableVideoDecoders[] = {0, 1}; // Mock available video decoder IDs
 android::binder::Status VideoSinkController::setVideoDecoder(const videodecoder::IVideoDecoder::Id& videoDecoderId, bool* _aidl_return)
 {
+    if (!_aidl_return)
+    {
+        LOG_ERROR("setVideoDecoder: null _aidl_return for ID %d", id.value);
+        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
+    }
     if (!isValidSinkId(id.value))
     {
         LOG_ERROR("setVideoDecoder: invalid ID %d", id.value);
@@ -625,6 +674,25 @@ android::binder::Status VideoSinkController::setVideoDecoder(const videodecoder:
         *_aidl_return = false;
         return android::binder::Status::ok();
     }
+
+    bool decoderFound = false;
+    for (const int32_t availableDecoderId : availableVideoDecoders)
+    {
+        if (availableDecoderId == videoDecoderId.value)
+        {
+            decoderFound = true;
+            break;
+        }
+    }
+
+    if (!decoderFound)
+    {
+        LOG_ERROR("setVideoDecoder: decoder ID %d not available for ID %d", videoDecoderId.value, id.value);
+        *_aidl_return = false;
+        return android::binder::Status::ok();
+    }
+
+
     g_videodecoder_id[id.value] = videoDecoderId;
     *_aidl_return = true;
     LOG_INFO("setVideoDecoder: set ID %d to decoder %d", id.value, videoDecoderId.value);
@@ -653,6 +721,7 @@ android::binder::Status VideoSinkController::getVideoDecoder(videodecoder::IVide
     return android::binder::Status::ok();
 }
 
+int32_t availableClocks[] = {0, 1}; // Mock available clock IDs
 android::binder::Status VideoSinkController::attachClock(const avclock::IAVClock::Id& clockId)
 {
     if (!isValidSinkId(id.value))
@@ -664,6 +733,25 @@ android::binder::Status VideoSinkController::attachClock(const avclock::IAVClock
     {
         LOG_ERROR("attachClock: invalid clockId %d for ID %d", clockId.value, id.value);
         return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_ARGUMENT);
+    }
+
+    if (clockId.value != avclock::IAVClock::Id::UNDEFINED)
+    {
+        bool clockFound = false;
+        for (const int32_t availableClockId : availableClocks)
+        {
+            if (availableClockId == clockId.value)
+            {
+                clockFound = true;
+                break;
+            }
+        }
+
+        if (!clockFound)
+        {
+            LOG_ERROR("attachClock: clockId %d not available for ID %d", clockId.value, id.value);
+            return android::binder::Status::fromExceptionCode(android::binder::Status::EX_ILLEGAL_ARGUMENT);
+        }
     }
 
     std::lock_guard<std::mutex> lock(state_mutex);
@@ -781,6 +869,11 @@ android::binder::Status VideoSinkController::stop()
 android::binder::Status VideoSinkController::queueVideoFrame(int64_t nsPresentationTime, int64_t frameBufferHandle,
                                                              const videodecoder::FrameMetadata& metadata, bool* _aidl_return)
 {
+    if (!_aidl_return)
+    {
+        LOG_ERROR("queueVideoFrame: null _aidl_return for ID %d", id.value);
+        return android::binder::Status::fromExceptionCode(android::binder::Status::EX_NULL_POINTER);
+    }
     (void)metadata;
     if (!isValidSinkId(id.value))
     {

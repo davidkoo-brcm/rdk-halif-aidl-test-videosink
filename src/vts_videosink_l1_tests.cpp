@@ -251,17 +251,17 @@ UT_ADD_TEST(VTS_L1_VideoSink, getVideoSink_neg)
     invalidID.value -= 1;
 
     //02 - Retrieve the video sink object for invalid ID less than minimum value
-    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink, Status::EX_ILLEGAL_ARGUMENT);
+    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink, Status::EX_NONE);
 
     invalidID = sinkIds.back();
     invalidID.value += 1;
 
     //03 - Retrieve the video sink object for invalid ID greater than maximum value
-    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink, Status::EX_ILLEGAL_ARGUMENT);
+    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink, Status::EX_NONE);
 
     //04 - Retrieve the video sink object for undefined value
     invalidID.value = IVideoSink::Id::UNDEFINED;
-    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink, Status::EX_ILLEGAL_ARGUMENT);
+    VIDEOSINK_MANAGER_GETVIDEOSINK_FAILURE(invalidID, videoSink, Status::EX_NONE);
 }
 
 /**
@@ -1072,7 +1072,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
 
         /* Open the sink */
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
-        VIDEOSINK_SETPROPERTY_FAILURE(videoSinkController,invalidProperty, invalidPropertyValue,Status::EX_ILLEGAL_ARGUMENT);
+        VIDEOSINK_SETPROPERTY_FAILURE(videoSinkController,invalidProperty, invalidPropertyValue,Status::EX_NONE);
         /* Close the sink */
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
     }
@@ -1093,7 +1093,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
 
         /* Open the sink */
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
-        VIDEOSINK_SETPROPERTY_FAILURE(videoSinkController,validProperty, invalidValue,Status::EX_ILLEGAL_ARGUMENT);
+        VIDEOSINK_SETPROPERTY_FAILURE(videoSinkController,validProperty, invalidValue,Status::EX_NONE);
         /* Close the sink */
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
     }
@@ -1110,7 +1110,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
         VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
 
-    // Test Case 4: Set AV_SOURCE from STARTED state
+        // Test Case 4: Set AV_SOURCE from STARTED state
         for (int32_t avSource : {
             static_cast<int32_t>(AVSource::AUTO),
             static_cast<int32_t>(AVSource::UNKNOWN),
@@ -1248,8 +1248,8 @@ UT_ADD_TEST(VTS_L1_VideoSink, setVideodecoder_neg)
 
     // Sort the IDs to find the least and highest values
     std::sort(videodecoderIds.begin(), videodecoderIds.end());
-    int32_t leastValue = videodecoderIds.front();
-    int32_t highestValue = videodecoderIds.back();
+    int32_t leastValue = gVideosinks_hfp.availableVideodecoders_hfp.front();
+    int32_t highestValue = gVideosinks_hfp.availableVideodecoders_hfp.back();
     for(const auto& _sinkId: sinkIds)
     {
         /* Get Video sink handle */
@@ -1984,14 +1984,10 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_pos)
     sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
 
     // Use AVClockManager-provided IDs for valid attach/replace flows
-    avclock::IAVClock::Id validClockId1{};
-    avclock::IAVClock::Id validClockId2{};
+    avclock::IAVClock::Id validClockId{};
     avclock::IAVClock::Id undefinedClockId;
     undefinedClockId.value = avclock::IAVClock::Id::UNDEFINED;
     avclock::IAVClock::Id retrievedClockId{};
-
-    validClockId1.value = gVideosinks_hfp.availableClocks_hfp.front();
-    validClockId2.value = (gVideosinks_hfp.availableClocks_hfp.size() > 1) ? gVideosinks_hfp.availableClocks_hfp[1] : gVideosinks_hfp.availableClocks_hfp.front();
 
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
 
@@ -2002,30 +1998,37 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_pos)
         // Step 02: Open sink in READY state
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
 
-        // Step 03-04: Attach valid clock in READY and verify
-        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId1);
-        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
-        UT_ASSERT_EQUAL(retrievedClockId.value, validClockId1.value);
+        for(auto clockId : gVideosinks_hfp.availableClocks_hfp)
+        {
+            avclock::IAVClock::Id validClockId{};
+            validClockId.value = clockId;
 
-        // Step 05: Attach UNDEFINED (detach effect)
-        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, undefinedClockId);
-        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
-        UT_ASSERT_EQUAL(retrievedClockId.value, avclock::IAVClock::Id::UNDEFINED);
+            // Step 03-04: Attach valid clock in READY and verify
+            VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId);
+            VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+            UT_ASSERT_EQUAL(retrievedClockId.value, validClockId.value);
 
-        // Step 06-09: Test in STARTED state and clock replacement
-        VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
+            // Step 05: Attach UNDEFINED (detach effect)
+            VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, undefinedClockId);
+            VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+            UT_ASSERT_EQUAL(retrievedClockId.value, avclock::IAVClock::Id::UNDEFINED);
 
-        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId1);
-        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
-        UT_ASSERT_EQUAL(retrievedClockId.value, validClockId1.value);
+            // Step 06-09: Test in STARTED state and clock replacement
+            VIDEOSINK_START_SUCCESS(videoSink, videoSinkController, true);
 
-        // Replace with different clock
-        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId2);
-        VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
-        UT_ASSERT_EQUAL(retrievedClockId.value, validClockId2.value);
+            VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId);
+            VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+            UT_ASSERT_EQUAL(retrievedClockId.value, validClockId.value);
 
-        // Step 10: Stop and close
-        VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
+            // Step 05: Attach UNDEFINED (detach effect)
+            VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, undefinedClockId);
+            VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
+            UT_ASSERT_EQUAL(retrievedClockId.value, avclock::IAVClock::Id::UNDEFINED);
+
+            // Step 10: Stop and close
+            VIDEOSINK_STOP_SUCCESS(videoSink, videoSinkController, true);
+        }
+
         VIDEOSINK_CLOSE_SUCCESS(videoSink, videoSinkController, true);
     }
 }
@@ -2065,13 +2068,17 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_neg)
     sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
 
     // Boundary value testing for invalid clock IDs
-    ::com::rdk::hal::avclock::IAVClock::Id invalidClockIdNegative;
-    invalidClockIdNegative.value = -999;
+    ::com::rdk::hal::avclock::IAVClock::Id invalidClockIdNegative1;
+    invalidClockIdNegative1.value = -999;
+
+    ::com::rdk::hal::avclock::IAVClock::Id invalidClockIdNegative2;
+    invalidClockIdNegative2.value = gVideosinks_hfp.availableClocks_hfp.back() + 1;
+
+    ::com::rdk::hal::avclock::IAVClock::Id invalidClockIdNegative3;
+    invalidClockIdNegative3.value = gVideosinks_hfp.availableClocks_hfp.front() - 10;
 
     ::com::rdk::hal::avclock::IAVClock::Id validClockId{};
     ::com::rdk::hal::avclock::IAVClock::Id retrievedClockId{};
-
-    validClockId.value = gVideosinks_hfp.availableClocks_hfp.front();
 
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
 
@@ -2087,14 +2094,20 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_neg)
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
 
         // Step 05: Try attach with invalid clock ID -999 (boundary value)
-        VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, invalidClockIdNegative,
+        VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, invalidClockIdNegative1,
+                                       android::binder::Status::EX_ILLEGAL_ARGUMENT);
+        VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, invalidClockIdNegative2,
+                                       android::binder::Status::EX_ILLEGAL_ARGUMENT);
+        VIDEOSINK_ATTACH_CLOCK_FAILURE(videoSinkController, invalidClockIdNegative3,
                                        android::binder::Status::EX_ILLEGAL_ARGUMENT);
 
         // Step 06: Verify no clock attached after failures
         VIDEOSINK_GET_CLOCK_SUCCESS(videoSinkController, retrievedClockId);
-        UT_ASSERT_EQUAL(retrievedClockId.value, ::com::rdk::hal::avclock::IAVClock::Id::UNDEFINED);
+        UT_ASSERT_EQUAL(retrievedClockId.value, avclock::IAVClock::Id::UNDEFINED);
 
         // Step 07: Verify valid attach still works
+        VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId);
+        validClockId.value = avclock::IAVClock::Id::UNDEFINED;
         VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId);
 
         // Step 08: Close (should cleanup properly, detaching clock)

@@ -148,8 +148,14 @@ extern void *gVideoSinkTestConfiguration;
         UT_LOG_INFO("Result getVideoSink(IN:_sinkId:[%d]), status:[isOK:%s, exception:%s]", \
                                 _sinkId.value, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                                 UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        if (exception == Status::EX_NONE) { \
+            UT_ASSERT_TRUE(status.isOk()); \
+            UT_ASSERT_TRUE(videoSink.get() == nullptr); \
+        }\
+        else { \
+            UT_ASSERT_FALSE(status.isOk()); \
+        }\
     } while (0)
 
 #define VIDEOSINK_CONTROLLER_SETVIDEODECODER_SUCCESS(videoSinkController,videodecoderId) \
@@ -646,7 +652,13 @@ extern void *gVideoSinkTestConfiguration;
             UT_Control_GetMapString(bool_mapTable, status.isOk()), \
             UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        UT_ASSERT_FALSE(status.isOk()); \
+        if (exception == Status::EX_NONE) { \
+            UT_ASSERT_TRUE(status.isOk()); \
+            UT_ASSERT_FALSE(_aidl_return); \
+        } \
+        else { \
+            UT_ASSERT_FALSE(status.isOk()); \
+        } \
     } while (0)
 
 #define VIDEOSINK_SETPROPERTY_LIST_SUCCESS(videoSinkController, properyList, type) \

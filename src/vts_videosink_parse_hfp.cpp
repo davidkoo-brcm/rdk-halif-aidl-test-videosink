@@ -140,6 +140,10 @@ UT_status_t vts_videosink_parseVideoSinkHFP()
         gVideosinks_hfp.availableClocks_hfp.push_back(clockId);
     }
 
+    std::sort(gVideosinks_hfp.availableVideoSinks_hfp.begin(), gVideosinks_hfp.availableVideoSinks_hfp.end());
+    std::sort(gVideosinks_hfp.availableVideodecoders_hfp.begin(), gVideosinks_hfp.availableVideodecoders_hfp.end());
+    std::sort(gVideosinks_hfp.availableClocks_hfp.begin(), gVideosinks_hfp.availableClocks_hfp.end());
+
     return UT_STATUS_OK;
 }
 
