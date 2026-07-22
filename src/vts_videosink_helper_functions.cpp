@@ -71,6 +71,9 @@
 #include <binder/IPCThreadState.h>
 #include <binder/Status.h>
 
+using namespace com::rdk::hal;
+using namespace com::rdk::hal::videosink;
+
 void vts_videosink_helper_validateCapabilities(int sink_id, const videosink::Capabilities& capabilities)
 {
     bool sinkID = true;
@@ -125,7 +128,6 @@ bool vts_videosink_helper_validatePropertyValue(int sink_id, const std::optional
         static_cast<int32_t>(com::rdk::hal::AVSource::COMPOSITE_4),
         static_cast<int32_t>(com::rdk::hal::AVSource::COMPOSITE_5)
     };
-
 
     if (!propertyValue.has_value() || !propertyValue->value.has_value())
     {
@@ -199,6 +201,41 @@ bool vts_videosink_helper_validatePropertyValue(int sink_id, const std::optional
         default:
             return true;
     }
+}
+
+float getBytesPerPixelMultiplier(const std::string& basePixelFormat, int colorDepth)
+{
+    int bytesPerChannel = (colorDepth <= 8) ? 1 : 2;
+
+    if (basePixelFormat == "YCBCR420")
+        return 1.5f * bytesPerChannel;
+    if (basePixelFormat == "YCBCR422")
+        return 2.0f * bytesPerChannel;
+    if (basePixelFormat == "YCBCR444")
+        return 3.0f * bytesPerChannel;
+    if (basePixelFormat == "RGB")
+        return 3.0f * bytesPerChannel;
+    if (basePixelFormat == "NATIVE")
+        return 0.0f;
+
+    return 0.0f;
+}
+
+PixelFormat getPixelFormatEnum(const std::string& basePixelFormat)
+{
+    if (basePixelFormat == "YCBCR420")
+        return PixelFormat::YCBCR420;
+    if (basePixelFormat == "YCBCR422")
+        return PixelFormat::YCBCR422;
+    if (basePixelFormat == "YCBCR444")
+        return PixelFormat::YCBCR444;
+    if (basePixelFormat == "RGB")
+        return PixelFormat::RGB;
+    if (basePixelFormat == "NATIVE")
+        return PixelFormat::NATIVE;
+
+    // Default fallback, can throw or return a special value if needed
+    return PixelFormat::NATIVE;
 }
 
 /** @} */ // End of VIDEO_SINK_HALTEST_HELPER

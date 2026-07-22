@@ -65,6 +65,8 @@
 #ifndef __VTS_VIDEOSINK_INIT_H__
 #define __VTS_VIDEOSINK_INIT_H__
 
+#define VIDEO_SINK_TEST_CONFIG_PATH "./videosink_test_configuration/vts_l3_VideoSink_test_config.yaml"
+
 UT_status_t VTS_VideoSink_init();
 void VTS_VideoSink_destroy();
 
