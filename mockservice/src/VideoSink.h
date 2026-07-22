@@ -26,21 +26,27 @@
  #ifndef VIDEOSINK_H
  #define VIDEOSINK_H
 
- #include <com/rdk/hal/videosink/BnVideoSinkManager.h>
- #include <com/rdk/hal/videosink/BnVideoSinkController.h>
- #include <com/rdk/hal/videosink/BnVideoSink.h>
- #include <com/rdk/hal/videosink/IVideoSinkManager.h>
- #include <com/rdk/hal/videosink/IVideoSink.h> // Added explicit include
- #include <com/rdk/hal/videosink/BnVideoSinkEventListener.h>
  #include <binder/BinderService.h>
+ #include <com/rdk/hal/AVSource.h>
+ #include <com/rdk/hal/PropertyValue.h>
+ #include <com/rdk/hal/avclock/IAVClock.h>
+ #include <com/rdk/hal/videosink/BnVideoSink.h>
+ #include <com/rdk/hal/videosink/BnVideoSinkController.h>
+ #include <com/rdk/hal/videosink/BnVideoSinkManager.h>
+ #include <com/rdk/hal/videosink/IVideoSink.h>
+ #include <com/rdk/hal/videosink/IVideoSinkControllerListener.h>
+ #include <com/rdk/hal/videosink/IVideoSinkEventListener.h>
+ #include <com/rdk/hal/videosink/IVideoSinkManager.h>
+ #include <com/rdk/hal/videosink/State.h>
+ #include <condition_variable>
+ #include <cstdint>
+ #include <mutex>
  #include <optional>
+ #include <queue>
  #include <string>
+ #include <utility>
  #include <utils/StrongPointer.h>
  #include <vector>
- #include <mutex>
- #include <condition_variable>
- #include <queue>
- #include <android/log.h>
 
  namespace com {
  namespace rdk {
@@ -62,61 +68,64 @@
  extern std::condition_variable state_cv;
 
  class VideoSinkManager : public android::BinderService<VideoSinkManager>,
-                          public BnVideoSinkManager {
- public:
-     VideoSinkManager();
-     virtual ~VideoSinkManager();
+                          public BnVideoSinkManager
+{
+public:
+    VideoSinkManager();
+    virtual ~VideoSinkManager();
 
-     static char const* getServiceName() { return IVideoSinkManager::serviceName().c_str(); }
+    static char const* getServiceName() { return IVideoSinkManager::serviceName().c_str(); }
 
-     void reset();
+    void reset();
 
-     android::binder::Status getVideoSinkIds(std::vector<IVideoSink::Id>* _aidl_return) override;
-     android::binder::Status getVideoSink(const IVideoSink::Id& videoSinkId, android::sp<IVideoSink>* _aidl_return) override;
- };
+    android::binder::Status getVideoSinkIds(std::vector<IVideoSink::Id>* _aidl_return) override;
+    android::binder::Status getVideoSink(const IVideoSink::Id& videoSinkId, android::sp<IVideoSink>* _aidl_return) override;
+};
 
- class VideoSink : public android::BinderService<VideoSink>,
-                   public BnVideoSink {
- private:
-     IVideoSink::Id id;
-     android::sp<IVideoSinkEventListener> eventListener;
-     android::sp<IVideoSinkControllerListener> controllerListener;
+class VideoSink : public android::BinderService<VideoSink>,
+                public BnVideoSink
+{
+private:
+    IVideoSink::Id id;
+    android::sp<IVideoSinkEventListener> eventListener;
+    android::sp<IVideoSinkControllerListener> controllerListener;
 
- public:
-     VideoSink(IVideoSink::Id id);
-     virtual ~VideoSink();
+public:
+    VideoSink(IVideoSink::Id id);
+    virtual ~VideoSink();
 
-     android::binder::Status getCapabilities(videosink::Capabilities* _aidl_return) override;
-     android::binder::Status getProperty(videosink::Property property, std::optional<PropertyValue>* _aidl_return) override;
-     android::binder::Status getState(State* _aidl_return) override;
-     android::binder::Status open(const android::sp<videosink::IVideoSinkControllerListener>& videoSinkControllerListener, android::sp<videosink::IVideoSinkController>* _aidl_return) override;
-     android::binder::Status close(const android::sp<videosink::IVideoSinkController>& videoSinkController, bool* _aidl_return) override;
-     android::binder::Status registerEventListener(const android::sp<videosink::IVideoSinkEventListener>& videoSinkEventListener, bool* _aidl_return) override;
-     android::binder::Status unregisterEventListener(const android::sp<videosink::IVideoSinkEventListener>& videoSinkEventListener, bool* _aidl_return) override;
- };
+    android::binder::Status getCapabilities(videosink::Capabilities* _aidl_return) override;
+    android::binder::Status getProperty(videosink::Property property, std::optional<PropertyValue>* _aidl_return) override;
+    android::binder::Status getState(State* _aidl_return) override;
+    android::binder::Status open(const android::sp<videosink::IVideoSinkControllerListener>& videoSinkControllerListener, android::sp<videosink::IVideoSinkController>* _aidl_return) override;
+    android::binder::Status close(const android::sp<videosink::IVideoSinkController>& videoSinkController, bool* _aidl_return) override;
+    android::binder::Status registerEventListener(const android::sp<videosink::IVideoSinkEventListener>& videoSinkEventListener, bool* _aidl_return) override;
+    android::binder::Status unregisterEventListener(const android::sp<videosink::IVideoSinkEventListener>& videoSinkEventListener, bool* _aidl_return) override;
+};
 
- class VideoSinkController : public android::BinderService<VideoSinkController>,
-                            public BnVideoSinkController {
- private:
-     IVideoSink::Id id;
-     android::sp<IVideoSinkEventListener> eventListener;
-     android::sp<IVideoSinkControllerListener> controllerListener;
+class VideoSinkController : public android::BinderService<VideoSinkController>,
+                        public BnVideoSinkController
+{
+private:
+    IVideoSink::Id id;
 
- public:
-     VideoSinkController(IVideoSink::Id id,
-                         const android::sp<IVideoSinkEventListener>& eventListener,
-                         const android::sp<IVideoSinkControllerListener>& controllerListener);
-     virtual ~VideoSinkController();
+public:
+    explicit VideoSinkController(IVideoSink::Id id);
+    virtual ~VideoSinkController();
 
-     android::binder::Status setVideoDecoder(const ::com::rdk::hal::videodecoder::IVideoDecoder::Id& videoDecoderId, bool* _aidl_return) override;
-     android::binder::Status getVideoDecoder(::com::rdk::hal::videodecoder::IVideoDecoder::Id* _aidl_return) override;
-     android::binder::Status start() override;
-     android::binder::Status stop() override;
-     android::binder::Status queueVideoFrame(int64_t nsPresentationTime, int64_t frameBufferHandle, const ::com::rdk::hal::videodecoder::FrameMetadata& metadata, bool* _aidl_return) override;
-     android::binder::Status flush(bool holdLastFrame) override;
-     android::binder::Status discardFramesUntil(int64_t nsPresentationTime) override;
-     android::binder::Status setProperty(videosink::Property property, const PropertyValue& propertyValue, bool* _aidl_return) override;
- };
+    android::binder::Status setVideoDecoder(const ::com::rdk::hal::videodecoder::IVideoDecoder::Id& videoDecoderId, bool* _aidl_return) override;
+    android::binder::Status getVideoDecoder(::com::rdk::hal::videodecoder::IVideoDecoder::Id* _aidl_return) override;
+    android::binder::Status attachClock(const ::com::rdk::hal::avclock::IAVClock::Id& clockId) override;
+    android::binder::Status detachClock() override;
+    android::binder::Status getClock(::com::rdk::hal::avclock::IAVClock::Id* _aidl_return) override;
+    android::binder::Status start() override;
+    android::binder::Status stop() override;
+    android::binder::Status queueVideoFrame(int64_t nsPresentationTime, int64_t frameBufferHandle, const ::com::rdk::hal::videodecoder::FrameMetadata& metadata, bool* _aidl_return) override;
+    android::binder::Status signalEndOfStream() override;
+    android::binder::Status flush(bool holdLastFrame) override;
+    android::binder::Status discardFramesUntil(int64_t nsPresentationTime) override;
+    android::binder::Status setProperty(videosink::Property property, const PropertyValue& propertyValue, bool* _aidl_return) override;
+};
 
  } // namespace videosink
  } // namespace hal

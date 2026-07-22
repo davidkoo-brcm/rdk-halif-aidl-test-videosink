@@ -67,7 +67,6 @@
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
 #include "vts_videosink_init.h"
-#include "vts_videosink_parse_testconfig.h"
 #include "vts_videosink.h"
 
 sp<IVideoSinkManager> gVideoSinkManager;
