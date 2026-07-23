@@ -40,7 +40,7 @@ MOCK_SERVICE_BIN_SRC += $(MOCK_SERVICE_DIR)/VideoSink.cpp
 # Headers/libraries come from the AIDL codegen output produced by
 # ./build.sh (rdk-halif-aidl/out/...).
 RDK_HAL_DIR ?= $(BUILD_DIR)/../rdk-halif-aidl
-HALIF_LIB_DIR ?= $(RDK_HAL_DIR)/out/target/lib/halif
+HALIF_LIB_DIR ?= $(RDK_HAL_DIR)/out/target/lib/rdk-halif-aidl
 
 # Header directories are versioned (e.g. .../videosink/0.2.0.0/include)
 # with no "current" alias, so pick whichever version directory build.sh
