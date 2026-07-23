@@ -909,6 +909,8 @@ private:
 class VideoSinkEventListener : public BnVideoSinkEventListener
 {
 public:
+    static int32_t mUsedSinkID;
+
     VideoSinkEventListener();
     virtual ~VideoSinkEventListener();
 
@@ -920,6 +922,11 @@ public:
     android::binder::Status onVideoResumed() override;
     android::binder::Status onStateChanged(videosink::State oldState, videosink::State newState) override;
     android::binder::Status onFrameBufferAvailable();
+
+    static int32_t getUsedSink()
+    {
+        return VideoSinkEventListener::mUsedSinkID;
+    }
 
     // Utility functions: First frame rendered
     void resetFirstFrameRendered();
