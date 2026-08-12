@@ -1992,7 +1992,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_pos)
     /* Get the available AVClock IDs from the live AVClockManager */
     std::vector<avclock::IAVClock::Id> availableClockIds;
     AVCLOCK_MANAGER_GETAVCLOCKIDS(availableClockIds);
-    UT_ASSERT_FALSE(availableClockIds.empty());
+    UT_ASSERT_FALSE_FATAL(availableClockIds.empty());
 
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
 
@@ -2074,7 +2074,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_neg)
     /* Get the available AVClock IDs from the live AVClockManager */
     std::vector<avclock::IAVClock::Id> availableClockIds;
     AVCLOCK_MANAGER_GETAVCLOCKIDS(availableClockIds);
-    UT_ASSERT_FALSE(availableClockIds.empty());
+    UT_ASSERT_FALSE_FATAL(availableClockIds.empty());
     std::vector<int32_t> availableClockIdValues;
     for (const auto &clockId : availableClockIds)
     {

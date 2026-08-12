@@ -394,7 +394,7 @@ UT_ADD_TEST(VTS_L2_VideoSink, TestAttachDetachClock)
     /* Get the available AVClock IDs from the live AVClockManager */
     std::vector<avclock::IAVClock::Id> availableClockIds;
     AVCLOCK_MANAGER_GETAVCLOCKIDS(availableClockIds);
-    UT_ASSERT_FALSE(availableClockIds.empty());
+    UT_ASSERT_FALSE_FATAL(availableClockIds.empty());
     validClockId1 = availableClockIds.front();
 
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
