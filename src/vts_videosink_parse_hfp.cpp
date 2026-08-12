@@ -80,9 +80,6 @@ UT_status_t vts_videosink_parseVideoSinkHFP()
     }
 
     gVideosinks_hfp.videosinks_hfp.clear();
-    gVideosinks_hfp.availableVideoSinks_hfp.clear();
-    gVideosinks_hfp.availableVideodecoders_hfp.clear();
-    gVideosinks_hfp.availableClocks_hfp.clear();
 
     for (int32_t i = 0; i < videosinkCount; ++i)
     {
@@ -97,52 +94,6 @@ UT_status_t vts_videosink_parseVideoSinkHFP()
 
         gVideosinks_hfp.videosinks_hfp.push_back(sinkProperties);
     }
-
-    const std::string availableSinkPath = VIDEOSINKMGR_SINK_AVAILABLE;
-    const int32_t availableSinkCount = UT_KVP_PROFILE_GET_LIST_COUNT(availableSinkPath.c_str());
-    if (availableSinkCount <= 0)
-    {
-        UT_LOG_WARNING("No available sinks found in the HFP");
-    }
-
-    for (int32_t i = 0; i < availableSinkCount; ++i)
-    {
-        const std::string sinkIdPath = availableSinkPath + "." + std::to_string(i);
-        const int32_t sinkId = UT_KVP_PROFILE_GET_UINT32(sinkIdPath.c_str());
-        gVideosinks_hfp.availableVideoSinks_hfp.push_back(sinkId);
-    }
-
-    const std::string decoderListPath = VIDEOSINKMGR_IVIDEODECODER;
-    const int32_t decoderCount = UT_KVP_PROFILE_GET_LIST_COUNT(decoderListPath.c_str());
-    if (decoderCount <= 0)
-    {
-        UT_LOG_WARNING("No video decoders found in the HFP");
-    }
-
-    for (int32_t i = 0; i < decoderCount; ++i)
-    {
-        const std::string decoderIdPath = decoderListPath + "." + std::to_string(i);
-        const int32_t decoderId = UT_KVP_PROFILE_GET_UINT32(decoderIdPath.c_str());
-        gVideosinks_hfp.availableVideodecoders_hfp.push_back(decoderId);
-    }
-
-    const std::string clockListPath = VIDEOSINKMGR_CLOCK_AVAILABLE;
-    const int32_t clockCount = UT_KVP_PROFILE_GET_LIST_COUNT(clockListPath.c_str());
-    if (clockCount <= 0)
-    {
-        UT_LOG_WARNING("No available clocks found in the HFP");
-    }
-
-    for (int32_t i = 0; i < clockCount; ++i)
-    {
-        const std::string clockIdPath = clockListPath + "." + std::to_string(i);
-        const int32_t clockId = UT_KVP_PROFILE_GET_UINT32(clockIdPath.c_str());
-        gVideosinks_hfp.availableClocks_hfp.push_back(clockId);
-    }
-
-    std::sort(gVideosinks_hfp.availableVideoSinks_hfp.begin(), gVideosinks_hfp.availableVideoSinks_hfp.end());
-    std::sort(gVideosinks_hfp.availableVideodecoders_hfp.begin(), gVideosinks_hfp.availableVideodecoders_hfp.end());
-    std::sort(gVideosinks_hfp.availableClocks_hfp.begin(), gVideosinks_hfp.availableClocks_hfp.end());
 
     return UT_STATUS_OK;
 }

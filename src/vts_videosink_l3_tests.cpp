@@ -93,6 +93,7 @@ public:
 
     vector<tuple<IVideoSink::Id, sp<IVideoSink>, sp<VideoSinkControllerListener>, sp<VideoSinkEventListener>>> mVideoSinkList;
     vector<tuple<IVideoDecoder::Id, sp<IVideoDecoder>, sp<VideoDecoderControllerListener>, sp<VideoDecoderEventListener>, videodecoder::Capabilities*>> mVideoDecoderList;
+    vector<IAVClock::Id> mAvailableClockIds;
     sp<IAVBuffer> mAVBufferManager;
     IAVBufferHelper* mAVbufferHelper;
     bool mIsTunnelSupported = false;
@@ -274,11 +275,6 @@ public:
         return true;
     }
 
-    bool isVideoSinkUsable(const IVideoSink::Id& sinkId) const
-    {
-        return std::find(gVideosinks_hfp.availableVideoSinks_hfp.begin(), gVideosinks_hfp.availableVideoSinks_hfp.end(), sinkId.value) != gVideosinks_hfp.availableVideoSinks_hfp.end();
-    }
-
     void SetUp() override
     {
         mAVBufferManager = vts_avbuffer_getService();
@@ -294,6 +290,14 @@ public:
         if (gVideoSinkManager == nullptr) {
                 UT_FAIL_FATAL("VideoSink Service not available");
         }
+
+        if (gAVClockManagerService == nullptr) {
+                UT_FAIL_FATAL("AVClock Service not available");
+        }
+
+        /* Get the available AVClock IDs from the live AVClockManager */
+        AVCLOCK_MANAGER_GETAVCLOCKIDS(mAvailableClockIds);
+        UT_ASSERT_FALSE_FATAL(mAvailableClockIds.empty());
 
         vector<IVideoSink::Id> sinkIds;
         vector<IVideoDecoder::Id> videoDecoderIds;
@@ -426,14 +430,7 @@ public:
         {
             for (const auto& [_sinkId, sinkHandle, controlListener, eventListener] : mVideoSinkList)
             {
-                if (!isVideoSinkUsable(_sinkId))
-                {
-                    UT_LOG_INFO("[SinkID: %d] is not usable, skipping.", _sinkId.value);
-                    continue;
-                }
-
-                IAVClock::Id clockId;
-                clockId.value = gVideosinks_hfp.availableClocks_hfp[0];
+                IAVClock::Id clockId = mAvailableClockIds.front();
                 bool isSinkAttached = (sinkHandle != nullptr);
                 bool isClockInUse = false;
 
@@ -509,17 +506,12 @@ public:
                     availableDecoderList.push_back(entry);
             }
 
-            // Collect usable sinks
-            for (const auto& entry : mVideoSinkList)
-            {
-                const auto& [sinkId, sinkHandle, controlListener, eventListener] = entry;
-                if (isVideoSinkUsable(sinkId))
-                    availableSinkList.push_back(entry);
-            }
+            // All sinks in mVideoSinkList come from the live VideoSinkManager, so all are usable
+            availableSinkList = mVideoSinkList;
 
             int32_t availableDecoderCount = availableDecoderList.size();
             int32_t availableSinkCount = availableSinkList.size();
-            int32_t availableClockCount = gVideosinks_hfp.availableClocks_hfp.size();
+            int32_t availableClockCount = mAvailableClockIds.size();
             int32_t numInstances = std::min({availableDecoderCount, availableSinkCount, availableClockCount});
             if (availableDecoderCount == 0)
             {
@@ -545,8 +537,7 @@ public:
                 auto& [_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener] = availableSinkList[i];
                 auto& [decoderId, decoderHandle, decoderControlListener, decoderEventListener, capabilities] = availableDecoderList[i];
 
-                IAVClock::Id clockId;
-                clockId.value = gVideosinks_hfp.availableClocks_hfp[i];
+                IAVClock::Id clockId = mAvailableClockIds[i];
 
                 auto sinkTest = std::make_unique<VideoSinkTest>(_sinkId, videoSink,
                                     videoSinkControlListener, videoSinkEventListener,

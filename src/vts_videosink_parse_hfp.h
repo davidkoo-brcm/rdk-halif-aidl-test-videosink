@@ -83,17 +83,11 @@ typedef struct videoSinkHFP_t
         bool supportsSecure;
     };
     std::vector<videoSinkHFP_t::properties_t> videosinks_hfp;
-    std::vector<int32_t> availableVideodecoders_hfp;
-    std::vector<int32_t> availableVideoSinks_hfp;
-    std::vector<int32_t> availableClocks_hfp;
 } videoSinkHFP_t;
 
 extern videoSinkHFP_t gVideosinks_hfp;
 
 #define VIDEOSINKMGR_IVIDEOSINK "videosink.IVideoSink"
-#define VIDEOSINKMGR_SINK_AVAILABLE "videosink.availableVideoSinks"
-#define VIDEOSINKMGR_IVIDEODECODER "videosink.availableVideoDecoders"
-#define VIDEOSINKMGR_CLOCK_AVAILABLE "videosink.availableClocks"
 
 UT_status_t vts_videosink_parseVideoSinkHFP();
 
