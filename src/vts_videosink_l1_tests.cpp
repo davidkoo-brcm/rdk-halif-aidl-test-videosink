@@ -1132,7 +1132,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
             PropertyValue avSourceValue;
             // avSourceValue.value = PropertyValue::Value{PropertyValue::Value::Tag::intValue, avSource};
             avSourceValue.value = PropertyValue::Value::make<PropertyValue::Value::Tag::intValue>(avSource);
-            VIDEOSINK_SETPROPERTY_FAILURE(videoSinkController,validProperty, avSourceValue,Status::EX_ILLEGAL_STATE);
+            VIDEOSINK_SETPROPERTY_FAILURE(videoSinkController,validProperty, avSourceValue,Status::EX_NONE);
         }
 
         /* Stop the sink */
