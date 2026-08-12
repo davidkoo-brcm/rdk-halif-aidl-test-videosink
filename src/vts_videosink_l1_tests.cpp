@@ -1013,8 +1013,8 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_pos)
  * | 10 | Attempt to set an invalid property | property = -999, propertyValue = intValue:1 | aidl_return = false | Should Fail |
  * | 11 | Attempt to set a valid property with an invalid value | property = AV_SOURCE, propertyValue = intValue:10 | aidl_return = false | Should Fail |
  * | 12 | Transition controller to STARTED state |  | status.isOk() = true, started = true | Should be successful |
- * | 13 | Attempt to set AV_SOURCE from STARTED state | property = AV_SOURCE, propertyValue = intValue:AUTO | aidl_return = false | Should Fail |
- * | 14 | Attempt to set AV_SOURCE from STARTED state | property = AV_SOURCE, propertyValue = intValue:COMPOSITE_5 | aidl_return = false | Should Fail |
+ * | 13 | Attempt to set AV_SOURCE from STARTED state | property = AV_SOURCE, propertyValue = intValue:AUTO | status.exceptionCode() = EX_ILLEGAL_STATE | Should Fail |
+ * | 14 | Attempt to set AV_SOURCE from STARTED state | property = AV_SOURCE, propertyValue = intValue:COMPOSITE_5 | status.exceptionCode() = EX_ILLEGAL_STATE | Should Fail |
  * | 15 | Transition controller back to READY state |  | status.isOk() = true, stopped = true | Should be successful |
  */
 UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
@@ -1130,9 +1130,8 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
         {
 
             PropertyValue avSourceValue;
-            // avSourceValue.value = PropertyValue::Value{PropertyValue::Value::Tag::intValue, avSource};
             avSourceValue.value = PropertyValue::Value::make<PropertyValue::Value::Tag::intValue>(avSource);
-            VIDEOSINK_SETPROPERTY_FAILURE(videoSinkController,validProperty, avSourceValue,Status::EX_NONE);
+            VIDEOSINK_SETPROPERTY_FAILURE(videoSinkController,validProperty, avSourceValue,Status::EX_ILLEGAL_STATE);
         }
 
         /* Stop the sink */
