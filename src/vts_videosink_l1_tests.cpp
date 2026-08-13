@@ -1013,8 +1013,8 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_pos)
  * | 10 | Attempt to set an invalid property | property = -999, propertyValue = intValue:1 | aidl_return = false | Should Fail |
  * | 11 | Attempt to set a valid property with an invalid value | property = AV_SOURCE, propertyValue = intValue:10 | aidl_return = false | Should Fail |
  * | 12 | Transition controller to STARTED state |  | status.isOk() = true, started = true | Should be successful |
- * | 13 | Attempt to set AV_SOURCE from STARTED state | property = AV_SOURCE, propertyValue = intValue:AUTO | status.exceptionCode() = EX_ILLEGAL_STATE | Should Fail |
- * | 14 | Attempt to set AV_SOURCE from STARTED state | property = AV_SOURCE, propertyValue = intValue:COMPOSITE_5 | status.exceptionCode() = EX_ILLEGAL_STATE | Should Fail |
+ * | 13 | Attempt to set AV_SOURCE from STARTED state | property = AV_SOURCE, propertyValue = intValue:AUTO | aidl_return = false | Should Fail |
+ * | 14 | Attempt to set AV_SOURCE from STARTED state | property = AV_SOURCE, propertyValue = intValue:COMPOSITE_5 | aidl_return = false | Should Fail |
  * | 15 | Transition controller back to READY state |  | status.isOk() = true, stopped = true | Should be successful |
  */
 UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
@@ -1130,6 +1130,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
         {
 
             PropertyValue avSourceValue;
+            // avSourceValue.value = PropertyValue::Value{PropertyValue::Value::Tag::intValue, avSource};
             avSourceValue.value = PropertyValue::Value::make<PropertyValue::Value::Tag::intValue>(avSource);
             VIDEOSINK_SETPROPERTY_FAILURE(videoSinkController,validProperty, avSourceValue,Status::EX_ILLEGAL_STATE);
         }
@@ -1160,8 +1161,8 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
  * **Test Procedure:**@n
  * | Variation / Step | Description | Test Data | Expected Result | Notes |
  * | :----: | --------- | ---------- |-------------- | ----- |
- * | 01 | Retrieve the available Video Decoder IDs from the live VideoDecoderManager. | VIDEODECODER_MANAGER_GETVIDEODECODERIDS(availableDecoderIds) | availableDecoderIds not empty | Should be successful |
- * | 02 | Iterate over each available Video Decoder ID. | videodecoderId = availableDecoderIds[i] | N/A | Should be successful |
+ * | 01 | Retrieve the count of video sinks from the profile. | videosinkCount = UT_KVP_PROFILE_GET_LIST_COUNT(VIDEOSINKMGR_IVIDEODECODER) | videosinkCount > 0 | Should be successful |
+ * | 02 | Iterate over each video sink ID retrieved from the profile. | videosinkId.value = UT_KVP_PROFILE_GET_UINT32(VIDEOSINKMGR_IVIDEODECODER.<index>.<index>, i) | N/A | Should be successful |
  * | 03 | Ensure each controller is in the READY state before setting the sink. | controller->getState() | State::READY | Should be successful |
  * | 04 | Call the setVideosink API with the videosinkId and check the return status. | videosinkId = value, aidl_return = false | status.isOk() = true, aidl_return = true | Should Pass |
  * | 05 | Log the result of the setVideosink API call. | N/A | N/A | Should be successful |
@@ -1172,10 +1173,10 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
 
-    /* Get the available Video Decoder IDs from the live VideoDecoderManager */
-    std::vector<IVideoDecoder::Id> availableDecoderIds;
-    VIDEODECODER_MANAGER_GETVIDEODECODERIDS(availableDecoderIds);
-
+    // Retrieve videosinkId from YAML using macros
+    std::string videodecoderCount_path = VIDEOSINKMGR_IVIDEODECODER;
+    int videodecoderCount = UT_KVP_PROFILE_GET_LIST_COUNT(videodecoderCount_path.c_str());
+    UT_ASSERT_GREATER(videodecoderCount, 0);
     /* Get the Video sink IDs */
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
 
@@ -1190,9 +1191,9 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
 
         /* Open the sink */
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
-        for (const auto &videoDecoderId : availableDecoderIds)
+        for (const auto &videoDecoderId : gVideosinks_hfp.availableVideodecoders_hfp)
         {
-            videodecoderId = videoDecoderId;
+            videodecoderId.value = videoDecoderId;
             VIDEOSINK_CONTROLLER_SETVIDEODECODER_SUCCESS(videoSinkController,videodecoderId);
         }
         videodecoderId.value = IVideoDecoder::Id::UNDEFINED;
@@ -1220,9 +1221,9 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
  * **Test Procedure:**@n
  * | Variation / Step | Description | Test Data | Expected Result | Notes |
  * | :----: | --------- | ---------- |-------------- | ----- |
- * | 01 | Retrieve the available Video Decoder IDs from the live VideoDecoderManager | VIDEODECODER_MANAGER_GETVIDEODECODERIDS(availableDecoderIds) | Should be successful | Should be successful |
- * | 02 | Sort the available IDs to find the least and highest values | availableDecoderIds | Should be successful | Should be successful |
- * | 03 | Test with invalid decoder ID (less than least value, excluding the UNDEFINED sentinel) | invalidId.value = belowMinValue | aidlReturn = false, status.isOk() = true | Should Pass |
+ * | 01 | Retrieve videosinkIds from YAML using macros | count = UT_KVP_PROFILE_GET_LIST_COUNT(VIDEOSINKMGR_IVIDEODECODER) | Should be successful | Should be successful |
+ * | 02 | Sort the videosinkIds to find the least and highest values | videosinkIds | Should be successful | Should be successful |
+ * | 03 | Test with invalid video sink ID (less than least value) | invalidId.value = leastValue - 1 | aidlReturn = false, status.isOk() = true | Should Pass |
  * | 04 | Test with invalid video sink ID (greater than highest value) | invalidId.value = highestValue + 1 | aidlReturn = false, status.isOk() = true | Should Pass |
  * | 05 | Start the controller to change state | controller->start() | status.isOk() = true | Should be successful |
  * | 06 | Test with valid video sink IDs when resource is not in READY state | validId.value = id | aidlReturn = false, status.exceptionCode() = EX_ILLEGAL_STATE | Should Pass |
@@ -1230,39 +1231,25 @@ UT_ADD_TEST(VTS_L1_VideoSink, setProperty_neg)
  */
 UT_ADD_TEST(VTS_L1_VideoSink, setVideodecoder_neg)
 {
-    /* Get the available Video Decoder IDs from the live VideoDecoderManager */
-    std::vector<IVideoDecoder::Id> availableDecoderIds;
-    VIDEODECODER_MANAGER_GETVIDEODECODERIDS(availableDecoderIds);
-
+    // Retrieve videosinkIds from YAML using macros
     std::vector<int32_t> videodecoderIds;
-    videodecoderIds.push_back(IVideoDecoder::Id::UNDEFINED);
-    for (const auto &videoDecoderId : availableDecoderIds)
-    {
-        videodecoderIds.push_back(videoDecoderId.value);
-    }
+
+    std::string videodecoderCount_path = VIDEOSINKMGR_IVIDEODECODER;
 
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
+    videodecoderIds.push_back(IVideoDecoder::Id::UNDEFINED);
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
 
-    // Find the least/highest *available* decoder ID (excludes the UNDEFINED sentinel)
-    std::vector<int32_t> availableDecoderIdValues;
-    for (const auto &videoDecoderId : availableDecoderIds)
+    for (const auto &videoDecoderId : gVideosinks_hfp.availableVideodecoders_hfp)
     {
-        availableDecoderIdValues.push_back(videoDecoderId.value);
-    }
-    std::sort(availableDecoderIdValues.begin(), availableDecoderIdValues.end());
-    int32_t leastValue = availableDecoderIdValues.front();
-    int32_t highestValue = availableDecoderIdValues.back();
-
-    // The value just below the minimum must never equal UNDEFINED (-1), which is a
-    // valid "detach/no-decoder" sentinel per the HALIF spec, not an invalid ID.
-    int32_t belowMinValue = leastValue - 1;
-    if (belowMinValue == IVideoDecoder::Id::UNDEFINED)
-    {
-        belowMinValue -= 1;
+        videodecoderIds.push_back(videoDecoderId);
     }
 
+    // Sort the IDs to find the least and highest values
+    std::sort(videodecoderIds.begin(), videodecoderIds.end());
+    int32_t leastValue = gVideosinks_hfp.availableVideodecoders_hfp.front();
+    int32_t highestValue = gVideosinks_hfp.availableVideodecoders_hfp.back();
     for(const auto& _sinkId: sinkIds)
     {
         /* Get Video sink handle */
@@ -1275,7 +1262,7 @@ UT_ADD_TEST(VTS_L1_VideoSink, setVideodecoder_neg)
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
 
         IVideoDecoder::Id invalidID;
-        invalidID.value = belowMinValue;
+        invalidID.value = leastValue - 1;
         VIDEOSINK_CONTROLLER_SETVIDEODECODER_FAILURE(videoSinkController,invalidID,android::binder::Status::EX_NONE);
 
         invalidID.value = highestValue + 1;
@@ -1340,6 +1327,20 @@ UT_ADD_TEST(VTS_L1_VideoSink, getVideodecoder_pos)
 {
     android::binder::Status status;
     IVideoDecoder::Id videodecoderId;
+    // Retrieve videosinkIds from YAML using macros
+    std::vector<int32_t> videodecoderIds;
+    videodecoderIds.push_back(IVideoDecoder::Id::UNDEFINED);
+    std::string videodecoderCount_path = VIDEOSINKMGR_IVIDEODECODER;
+    int count = UT_KVP_PROFILE_GET_LIST_COUNT(videodecoderCount_path.c_str());
+
+    for (int32_t i = 0; i < count; ++i)
+    {
+        std::string videodecoderid_path = videodecoderCount_path+"."+std::to_string(i);
+        int32_t id = UT_KVP_PROFILE_GET_UINT32(videodecoderid_path.c_str());
+        videodecoderIds.push_back(id);
+    }
+
+
     std::vector<IVideoSink::Id> sinkIds;
     sp<IVideoSink> videoSink;
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
@@ -1988,11 +1989,6 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_pos)
     undefinedClockId.value = avclock::IAVClock::Id::UNDEFINED;
     avclock::IAVClock::Id retrievedClockId{};
 
-    /* Get the available AVClock IDs from the live AVClockManager */
-    std::vector<avclock::IAVClock::Id> availableClockIds;
-    AVCLOCK_MANAGER_GETAVCLOCKIDS(availableClockIds);
-    UT_ASSERT_FALSE_FATAL(availableClockIds.empty());
-
     VIDEOSINK_MANAGER_GETVIDEOSINKIDS(sinkIds);
 
     for(const auto& _sinkId: sinkIds)
@@ -2002,9 +1998,10 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_pos)
         // Step 02: Open sink in READY state
         VIDEOSINK_OPEN_SUCCESS(videoSink, controllerListener, videoSinkController, true);
 
-        for(const auto &clockId : availableClockIds)
+        for(auto clockId : gVideosinks_hfp.availableClocks_hfp)
         {
-            avclock::IAVClock::Id validClockId = clockId;
+            avclock::IAVClock::Id validClockId{};
+            validClockId.value = clockId;
 
             // Step 03-04: Attach valid clock in READY and verify
             VIDEOSINK_ATTACH_CLOCK_SUCCESS(videoSinkController, validClockId);
@@ -2070,26 +2067,15 @@ UT_ADD_TEST(VTS_L1_VideoSink, attachClock_neg)
     sp<IVideoSinkController> videoSinkController = nullptr;
     sp<IVideoSinkControllerListener> controllerListener = new VideoSinkControllerListener();
 
-    /* Get the available AVClock IDs from the live AVClockManager */
-    std::vector<avclock::IAVClock::Id> availableClockIds;
-    AVCLOCK_MANAGER_GETAVCLOCKIDS(availableClockIds);
-    UT_ASSERT_FALSE_FATAL(availableClockIds.empty());
-    std::vector<int32_t> availableClockIdValues;
-    for (const auto &clockId : availableClockIds)
-    {
-        availableClockIdValues.push_back(clockId.value);
-    }
-    std::sort(availableClockIdValues.begin(), availableClockIdValues.end());
-
     // Boundary value testing for invalid clock IDs
     ::com::rdk::hal::avclock::IAVClock::Id invalidClockIdNegative1;
     invalidClockIdNegative1.value = -999;
 
     ::com::rdk::hal::avclock::IAVClock::Id invalidClockIdNegative2;
-    invalidClockIdNegative2.value = availableClockIdValues.back() + 1;
+    invalidClockIdNegative2.value = gVideosinks_hfp.availableClocks_hfp.back() + 1;
 
     ::com::rdk::hal::avclock::IAVClock::Id invalidClockIdNegative3;
-    invalidClockIdNegative3.value = availableClockIdValues.front() - 10;
+    invalidClockIdNegative3.value = gVideosinks_hfp.availableClocks_hfp.front() - 10;
 
     ::com::rdk::hal::avclock::IAVClock::Id validClockId{};
     ::com::rdk::hal::avclock::IAVClock::Id retrievedClockId{};

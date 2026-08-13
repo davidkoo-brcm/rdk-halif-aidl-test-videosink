@@ -22,13 +22,18 @@
 
 # HAL Feature Profile for videosink
 
-videosink:
+videosink:          # Component object begins
   interfaceVersion: current
-
-  IVideoSink:
-    - id: 0
-      supportsAVSync: true
-      vsyncDisplayLatencyNs: 2000000
-      supportsHoldLastFrame: true
-      supportsSecure: true
+  IVideoSink:               # Resource list
+    - 0
+    - 1
+  IVideoDecoder:               # Resource list
+    - 0
+    - 1
+  availableSinks:           # Add this list for available sinks
+    - 0
+    - 1
+  availableClocks:           # Add this list for available clocks
+    - 0
+    - 1
 
