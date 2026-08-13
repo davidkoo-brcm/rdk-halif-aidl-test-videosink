@@ -1246,9 +1246,11 @@ UT_ADD_TEST(VTS_L1_VideoSink, setVideodecoder_neg)
         videodecoderIds.push_back(videoDecoderId);
     }
 
-    // Sort the IDs to find the least and highest values
+    // Sort the IDs (including UNDEFINED) to find the least and highest values.
+    // Using videodecoderIds.front() (not the raw HFP list) keeps leastValue - 1
+    // from ever colliding with UNDEFINED, regardless of its numeric value.
     std::sort(videodecoderIds.begin(), videodecoderIds.end());
-    int32_t leastValue = gVideosinks_hfp.availableVideodecoders_hfp.front();
+    int32_t leastValue = videodecoderIds.front();
     int32_t highestValue = gVideosinks_hfp.availableVideodecoders_hfp.back();
     for(const auto& _sinkId: sinkIds)
     {

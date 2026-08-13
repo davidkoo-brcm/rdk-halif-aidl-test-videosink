@@ -444,15 +444,15 @@ public:
                                            decoderEventListener, mAVBufferManager, secureDecode,
                                            isTunnel, decoderConfig, mAVbufferHelper, isSinkAttached);
 
-                VideoSinkTest *sinkTest = new VideoSinkTest(_sinkId, sinkHandle, controlListener, eventListener,
-                                                            decoderControlListener, mAVBufferManager, decoderId, clockId, decoderConfig,
-                                                            isClockInUse);
+                VideoSinkTest sinkTest(_sinkId, sinkHandle, controlListener, eventListener,
+                                       decoderControlListener, mAVBufferManager, decoderId, clockId, decoderConfig,
+                                       isClockInUse);
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
                 std::thread decodeThread(&videoDecoderTest::run, &decodeTest, true);
 
-                sinkTest->run(isTunnel);
+                sinkTest.run(isTunnel);
 
                 executedAtLeastOne = true;
 
