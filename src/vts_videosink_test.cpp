@@ -426,6 +426,7 @@ void VideoSinkTest::videoSinkNonTunnelMode()
         DecodedVideoFrame_t decodedFrame;
         uint32_t frameDurationMs = 50; // Default to 50 ms if frame rate is not available
         int32_t queuedFrames = 0;
+        bool underflowInjected = false;
 
         /*Reset the Flush, EOS, Underflow and Resume Counts*/
         mVideoSinkControlListener->resetFirstFrameRendered();
@@ -489,12 +490,13 @@ void VideoSinkTest::videoSinkNonTunnelMode()
             }
 
             // Simulate underflow
-            if (mTestConfiguration.sink_underflow_pts >= 0 &&
-                pts == static_cast<int64_t>(mTestConfiguration.sink_underflow_pts))
+            if (!underflowInjected && mTestConfiguration.sink_underflow_pts >= 0 &&
+                pts >= static_cast<int64_t>(mTestConfiguration.sink_underflow_pts))
             {
                 UT_LOG_DEBUG("[SinkID: %d] Injecting delay at PTS %lld to simulate underflow",
                              mSinkId.value, static_cast<long long>(pts));
                 std::this_thread::sleep_for(std::chrono::milliseconds(2 * frameDurationMs));
+                underflowInjected = true;
             }
 
             // Queue the frame to the video sink
@@ -568,6 +570,7 @@ void VideoSinkTest::videoSinkTunnelMode()
         UT_LOG_INFO("[SinkID: %d] Start of Testing Stream: %s", mSinkId.value, mTestConfiguration.input.c_str());
         DecodedVideoFrame_t decodedFrame;
         uint32_t frameDurationMs = 50; // Default to 50 ms if frame rate is not available
+        bool underflowInjected = false;
 
         /*Reset the Flush, EOS, Underflow and Resume Counts*/
         mVideoSinkControlListener->resetFirstFrameRendered();
@@ -619,12 +622,13 @@ void VideoSinkTest::videoSinkTunnelMode()
             }
 
             // Simulate underflow
-            if (mTestConfiguration.sink_underflow_pts >= 0 &&
-                pts == static_cast<int64_t>(mTestConfiguration.sink_underflow_pts))
+            if (!underflowInjected && mTestConfiguration.sink_underflow_pts >= 0 &&
+                pts >= static_cast<int64_t>(mTestConfiguration.sink_underflow_pts))
             {
                 UT_LOG_DEBUG("[SinkID: %d] Injecting delay at PTS %lld to simulate underflow",
                              mSinkId.value, static_cast<long long>(pts));
                 std::this_thread::sleep_for(std::chrono::milliseconds(2 * frameDurationMs));
+                underflowInjected = true;
             }
 
             mSignalEOSPTS = pts;
