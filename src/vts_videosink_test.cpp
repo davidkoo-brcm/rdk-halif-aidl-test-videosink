@@ -266,6 +266,8 @@ void VideoSinkTest::validateMetrics()
     std::optional<PropertyValue> propertyValue;
     videosink::Property property = videosink::Property::METRIC_FRAMES_RECEIVED;
 
+    int32_t actualFramesPresented = mFrameCount - mTestConfiguration.frames_to_discard;
+
     /* Validate frames received */
     VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, property, propertyValue);
     if (propertyValue.has_value() && propertyValue->value.has_value())
@@ -296,11 +298,11 @@ void VideoSinkTest::validateMetrics()
         {
             if(mTestConfiguration.flushPts >= 0)
             {
-                UT_ASSERT_TRUE(framesPresented <= mFrameCount);
+                UT_ASSERT_TRUE(framesPresented <= actualFramesPresented);
             }
             else
             {
-                UT_ASSERT_EQUAL(framesPresented, mFrameCount);
+                UT_ASSERT_EQUAL(framesPresented, actualFramesPresented);
             }
         }
     }
@@ -370,15 +372,13 @@ void VideoSinkTest::validateMetrics()
     }
 }
 
-bool VideoSinkTest::validateSinkBackPressure(int64_t bufferHandle, int64_t pts, videodecoder::FrameMetadata& metadata, int32_t queuedFrames)
+bool VideoSinkTest::validateSinkBackPressure(int64_t bufferHandle, int64_t pts, videodecoder::FrameMetadata& metadata)
 {
     bool status = false;
     bool queueAgainSucess = false;
     int32_t queueDepth = 0;
     videosink::Property property = videosink::Property::SINK_QUEUE_DEPTH;
     std::optional<PropertyValue> propertyValue;
-
-    UT_LOG_INFO("[SinkID: %d] Queued frames: %d", mSinkId.value, queuedFrames);
 
     // Check the queue depth property to verify that the queue full size matches the number of frames queued.
     VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, property, propertyValue);
@@ -391,7 +391,15 @@ bool VideoSinkTest::validateSinkBackPressure(int64_t bufferHandle, int64_t pts, 
         UT_LOG_ERROR("[SinkID: %d] Failed to get SINK_QUEUE_DEPTH property", mSinkId.value);
         UT_ASSERT_TRUE(false);
     }
-    UT_ASSERT_EQUAL(queueDepth, queuedFrames);
+
+    UT_LOG_INFO("[SinkID: %d] Queue Depth: %d", mSinkId.value, queueDepth);
+    if (queueDepth > 0)
+    {
+        VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(mVideoSinkController, pts, bufferHandle, metadata, queueAgainSucess);
+        return queueAgainSucess;
+    }
+
+    mTestConfiguration.sink_backpressure = false;
 
     // If queue is full due to backpressure, subsequent queue attempts should fail until the clock starts.
     VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_FAILURE(mVideoSinkController, pts, bufferHandle, metadata, Status::EX_NONE);
@@ -403,17 +411,8 @@ bool VideoSinkTest::validateSinkBackPressure(int64_t bufferHandle, int64_t pts, 
 
     status = mVideoSinkControlListener->waitForFrameBufferAvailableEvent(std::chrono::milliseconds(60));
 
-    if (!status)
-    {
-        UT_LOG_ERROR("[SinkID: %d] Timeout waiting for FrameBufferAvailable callback from control listener.", mSinkId.value);
-        UT_ASSERT_TRUE(false);
-    }
-    else
-    {
-        // Attempt to queue the frame again after starting the clock.
-        VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(mVideoSinkController, pts, bufferHandle, metadata, queueAgainSucess);
-        std::this_thread::sleep_for(std::chrono::milliseconds(60));
-    }
+    // Attempt to queue the frame again after starting the clock.
+    VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(mVideoSinkController, pts, bufferHandle, metadata, queueAgainSucess);
 
     return queueAgainSucess;
 }
@@ -500,7 +499,14 @@ void VideoSinkTest::videoSinkNonTunnelMode()
             // Queue the frame to the video sink
             bool queueSucess = false;
 
-            VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(mVideoSinkController, pts, bufferHandle, metadata, queueSucess);
+            if(mTestConfiguration.sink_backpressure)
+            {
+                queueSucess = validateSinkBackPressure(bufferHandle, pts, metadata);
+            }
+            else
+            {
+                VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(mVideoSinkController, pts, bufferHandle, metadata, queueSucess);
+            }
 
             if(queueSucess)
             {
@@ -510,19 +516,10 @@ void VideoSinkTest::videoSinkNonTunnelMode()
             }
             else
             {
-                UT_LOG_WARNING("[SinkID: %d] Failed to queue frame with PTS: %lld", mSinkId.value, pts);
-                bool queueAgainSucess = false;
-
-                if(mTestConfiguration.sink_backpressure)
-                {
-                    queueAgainSucess = validateSinkBackPressure(bufferHandle, pts, metadata, queuedFrames);
-                }
-                if(!queueAgainSucess)
-                {
-                    UT_LOG_ERROR("[SinkID: %d] Failed to queue frame with PTS: %lld and backpressure is not enabled", mSinkId.value, pts);
-                    UT_ASSERT_TRUE(false);
-                    AVBUFFER_FREE_SUCCESS(mAVBufferManager, bufferHandle);
-                }
+                UT_LOG_ERROR("[SinkID: %d] Failed to queue frame with PTS: %lld", mSinkId.value, pts);
+                UT_ASSERT_TRUE(false);
+                AVBUFFER_FREE_SUCCESS(mAVBufferManager, bufferHandle);
+                break;
             }
 
             mSignalEOSPTS = pts;

@@ -590,8 +590,8 @@ extern void *gVideoSinkTestConfiguration;
         bool _aidl_return=false; \
         UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...])", nsPresentationTime, frameBufferHandle); \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
-        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
-                    nsPresentationTime, frameBufferHandle,\
+        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                    nsPresentationTime, frameBufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
         if (exception == Status::EX_NONE) { \
@@ -616,8 +616,8 @@ extern void *gVideoSinkTestConfiguration;
         \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &result); \
         \
-        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
-                    nsPresentationTime, ms, frameBufferHandle, \
+        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...], OUT:result:[%s]), status:[isOK:%s, exception:%s]", \
+                    nsPresentationTime, ms, frameBufferHandle, UT_Control_GetMapString(bool_mapTable, result), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         \
