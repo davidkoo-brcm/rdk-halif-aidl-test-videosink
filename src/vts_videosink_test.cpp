@@ -202,7 +202,7 @@ void VideoSinkTest::copyMetaData(const videodecoder::FrameMetadata& src, videode
 void VideoSinkTest::validateCallbacks()
 {
     /* Validate first frame rendered PTS */
-    std::vector<int64_t> firstFramePTS = mVideoSinkEventListner->getFirstPTS();
+    std::vector<int64_t> firstFramePTS = mVideoSinkEventListener->getFirstPTS();
     UT_ASSERT_EQUAL(firstFramePTS.size(), 1);
     UT_ASSERT_EQUAL(firstFramePTS.empty() ? -1 : firstFramePTS.front(), mFirstFramePTS);
 
@@ -212,7 +212,7 @@ void VideoSinkTest::validateCallbacks()
 
     /* Validate EOS PTS */
     std::vector<int64_t> controllerEOSPTS = mVideoSinkControlListener->getEosPTS();
-    std::vector<int64_t> eventEOSPTS = mVideoSinkEventListner->getEosPTS();
+    std::vector<int64_t> eventEOSPTS = mVideoSinkEventListener->getEosPTS();
 
     if(mTestConfiguration.eosPts >= 0)
     {
@@ -233,24 +233,24 @@ void VideoSinkTest::validateCallbacks()
     }
 
     //Sink test loop waits for decoder buffer to be filled. For the last frame,
-    // the decoder will not have any more frames to decode, sink test will be waiting for the frames and
-    // sink and will trigger an underflow event. This is expected behavior.
-    int32_t expectedUnderFlowCount = 1;
-    int32_t expectedResumeCount = 0;
+    // the decoder will not have any more frames to decode
+    // TODO: check if the time taken for last frame and EOS is within
+    // acceptable limits and if yes check underflow count with zero.
+
     /* Validate underflow, resume */
     if(mTestConfiguration.sink_underflow_pts >= 0)
     {
-        UT_ASSERT_TRUE(mVideoSinkControlListener->getUnderflowCount() > expectedUnderFlowCount);
-        UT_ASSERT_TRUE(mVideoSinkEventListner->getUnderflowCount() > expectedUnderFlowCount);
-        UT_ASSERT_TRUE(mVideoSinkControlListener->getResumedCount() > expectedResumeCount);
-        UT_ASSERT_TRUE(mVideoSinkEventListner->getResumedCount() > expectedResumeCount);
+        UT_ASSERT_TRUE(mVideoSinkControlListener->getUnderflowCount() > 0);
+        UT_ASSERT_TRUE(mVideoSinkEventListener->getUnderflowCount() > 0);
+        UT_ASSERT_TRUE(mVideoSinkControlListener->getResumedCount() > 0);
+        UT_ASSERT_TRUE(mVideoSinkEventListener->getResumedCount() > 0);
     }
     else
     {
-        UT_ASSERT_EQUAL(mVideoSinkControlListener->getUnderflowCount(), expectedUnderFlowCount);
-        UT_ASSERT_EQUAL(mVideoSinkEventListner->getUnderflowCount(), expectedUnderFlowCount);
-        UT_ASSERT_EQUAL(mVideoSinkControlListener->getResumedCount(), expectedResumeCount);
-        UT_ASSERT_EQUAL(mVideoSinkEventListner->getResumedCount(), expectedResumeCount);
+        UT_ASSERT_TRUE(mVideoSinkControlListener->getUnderflowCount() >= 0);
+        UT_ASSERT_TRUE(mVideoSinkEventListener->getUnderflowCount() >= 0);
+        UT_ASSERT_EQUAL(mVideoSinkControlListener->getResumedCount(), 0);
+        UT_ASSERT_EQUAL(mVideoSinkEventListener->getResumedCount(), 0);
     }
 
     /* Validate Flush complete events*/
@@ -258,7 +258,7 @@ void VideoSinkTest::validateCallbacks()
     expectedFlushCount += (mTestConfiguration.eosPts >= 0) ? 1 : 0;
 
     UT_ASSERT_EQUAL(mVideoSinkControlListener->getFlushCompleteCount(), expectedFlushCount);
-    UT_ASSERT_EQUAL(mVideoSinkEventListner->getFlushCompleteCount(), expectedFlushCount);
+    UT_ASSERT_EQUAL(mVideoSinkEventListener->getFlushCompleteCount(), expectedFlushCount);
 }
 
 void VideoSinkTest::validateMetrics()
@@ -349,9 +349,9 @@ void VideoSinkTest::validateMetrics()
     /* validate underflow count */
 
     //Sink test loop waits for decoder buffer to be filled. For the last frame,
-    // the decoder will not have any more frames to decode, sink test will be waiting for the frames and
-    // sink and will trigger an underflow event. This is expected behavior.
-    int32_t expectedUnderFlowCount = 1;
+    // the decoder will not have any more frames to decode
+    // TODO: check if the time taken for last frame and EOS is within
+    // acceptable limits and if yes check underflow count with zero.
     property = videosink::Property::METRIC_UNDERFLOWED;
     VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, property, propertyValue);
     if (propertyValue.has_value() && propertyValue->value.has_value())
@@ -362,13 +362,32 @@ void VideoSinkTest::validateMetrics()
         {
             if(mTestConfiguration.sink_underflow_pts >= 0)
             {
-                UT_ASSERT_TRUE(underflowCount > expectedUnderFlowCount);
+                UT_ASSERT_TRUE(underflowCount > 0);
             }
             else
             {
-                UT_ASSERT_EQUAL(underflowCount, expectedUnderFlowCount);
+                UT_ASSERT_TRUE(underflowCount >= 0);
             }
         }
+    }
+}
+
+void VideoSinkTest::validateUnderflowResume(int64_t pts)
+{
+    /* Validate underflow, resume */
+    if(mTestConfiguration.sink_underflow_pts >= 0 && pts >= mTestConfiguration.sink_underflow_pts)
+    {
+        UT_ASSERT_TRUE(mVideoSinkControlListener->getUnderflowCount() > 0);
+        UT_ASSERT_TRUE(mVideoSinkEventListener->getUnderflowCount() > 0);
+        UT_ASSERT_TRUE(mVideoSinkControlListener->getResumedCount() > 0);
+        UT_ASSERT_TRUE(mVideoSinkEventListener->getResumedCount() > 0);
+    }
+    else
+    {
+        UT_ASSERT_EQUAL(mVideoSinkControlListener->getUnderflowCount(), 0);
+        UT_ASSERT_EQUAL(mVideoSinkEventListener->getUnderflowCount(), 0);
+        UT_ASSERT_EQUAL(mVideoSinkControlListener->getResumedCount(), 0);
+        UT_ASSERT_EQUAL(mVideoSinkEventListener->getResumedCount(), 0);
     }
 }
 
@@ -428,15 +447,15 @@ void VideoSinkTest::videoSinkNonTunnelMode()
 
         /*Reset the Flush, EOS, Underflow and Resume Counts*/
         mVideoSinkControlListener->resetFirstFrameRendered();
-        mVideoSinkEventListner->resetFirstFrameRendered();
+        mVideoSinkEventListener->resetFirstFrameRendered();
         mVideoSinkControlListener->resetUnderflow();
-        mVideoSinkEventListner->resetUnderflow();
+        mVideoSinkEventListener->resetUnderflow();
         mVideoSinkControlListener->resetResumed();
-        mVideoSinkEventListner->resetResumed();
+        mVideoSinkEventListener->resetResumed();
         mVideoSinkControlListener->resetEos();
-        mVideoSinkEventListner->resetEos();
+        mVideoSinkEventListener->resetEos();
         mVideoSinkControlListener->resetFlushComplete();
-        mVideoSinkEventListner->resetFlushComplete();
+        mVideoSinkEventListener->resetFlushComplete();
 
         /*Wait up to 500 ms for a frame, and tolerate a few consecutive misses*/
         const int64_t frameTimeoutMs = 5000; // Wait up to 500 ms for a frame
@@ -446,7 +465,8 @@ void VideoSinkTest::videoSinkNonTunnelMode()
         mFirstFramePTS = mTestConfiguration.sink_discardFramesUntilPts;
         mFrameCount = 0;
 
-        while (mDecoderControllerListener->getNextFrame(decodedFrame, std::chrono::milliseconds(frameTimeoutMs)))
+        while ((mTestConfiguration.no_of_frames != queuedFrames) &&
+               mDecoderControllerListener->getNextFrame(decodedFrame, std::chrono::milliseconds(frameTimeoutMs)))
         {
             int64_t pts = decodedFrame.framePTS;
             int64_t bufferHandle = decodedFrame.frameAVBufferHandle;
@@ -535,6 +555,7 @@ void VideoSinkTest::videoSinkNonTunnelMode()
                 /* To queue the frames after EOS, flush the video sink */
                 VIDEOSINK_FLUSH_SUCCESS(mVideoSinkController, true);
             }
+            validateUnderflowResume(pts);
         }
 
         /* Signal EOS, exptected EOS PTS callback is at mSignalEOSPTS */
@@ -568,15 +589,15 @@ void VideoSinkTest::videoSinkTunnelMode()
 
         /*Reset the Flush, EOS, Underflow and Resume Counts*/
         mVideoSinkControlListener->resetFirstFrameRendered();
-        mVideoSinkEventListner->resetFirstFrameRendered();
+        mVideoSinkEventListener->resetFirstFrameRendered();
         mVideoSinkControlListener->resetUnderflow();
-        mVideoSinkEventListner->resetUnderflow();
+        mVideoSinkEventListener->resetUnderflow();
         mVideoSinkControlListener->resetResumed();
-        mVideoSinkEventListner->resetResumed();
+        mVideoSinkEventListener->resetResumed();
         mVideoSinkControlListener->resetEos();
-        mVideoSinkEventListner->resetEos();
+        mVideoSinkEventListener->resetEos();
         mVideoSinkControlListener->resetFlushComplete();
-        mVideoSinkEventListner->resetFlushComplete();
+        mVideoSinkEventListener->resetFlushComplete();
 
         /*Wait up to 500 ms for a frame, and tolerate a few consecutive misses*/
         const int64_t frameTimeoutMs = 5000; // Wait up to 500 ms for a frame

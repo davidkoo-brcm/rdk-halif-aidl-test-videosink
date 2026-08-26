@@ -104,7 +104,7 @@ public:
         mSinkId = sinkId;
         mSinkHandle = sinkHandle;
         mVideoSinkControlListener = VideoSinkControllerListener;
-        mVideoSinkEventListner = VideoSinkEventListner;
+        mVideoSinkEventListener = VideoSinkEventListner;
         mDecoderControllerListener = decoderControllerListener;
         mDecoderId = decoderId;
         mTestConfiguration = config;
@@ -124,7 +124,7 @@ private:
     IVideoSink::Id mSinkId;
     sp<IVideoSink> mSinkHandle;
     sp<VideoSinkControllerListener> mVideoSinkControlListener;
-    sp<VideoSinkEventListener> mVideoSinkEventListner;
+    sp<VideoSinkEventListener> mVideoSinkEventListener;
     sp<VideoDecoderControllerListener> mDecoderControllerListener;
     IVideoDecoder::Id mDecoderId;
     IAVClock::Id mClockId;
@@ -149,11 +149,11 @@ private:
     void tearDownClock();
     void validateCallbacks();
     void validateMetrics();
+    void validateUnderflowResume(int64_t pts);
     void setupVideoSink();
     void tearDownVideoSink();
     void copyMetaData(const videodecoder::FrameMetadata& src, videodecoder::FrameMetadata& dst);
     bool validateSinkBackPressure(int64_t bufferHandle, int64_t pts, videodecoder::FrameMetadata& metadata);
-
 };
 
 #endif //__VTS_VIDEOSINK_TEST_H__
