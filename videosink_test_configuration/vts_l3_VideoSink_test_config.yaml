@@ -151,6 +151,7 @@ videosink:
             decode_time_threshold: 10000000
             sink_backpressure: false # Enable backpressure to the sink
             sink_discardFramesUntilPts: 83333000
+            frames_to_discard: 5
             sink_underflow_pts: -1
     Sink_BackPressure:
       Controls:
