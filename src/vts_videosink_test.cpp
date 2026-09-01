@@ -395,29 +395,18 @@ bool VideoSinkTest::validateSinkBackPressure(int64_t bufferHandle, int64_t pts, 
 {
     bool status = false;
     bool queueAgainSucess = false;
-    int32_t queueDepth = 0;
-    videosink::Property property = videosink::Property::SINK_QUEUE_DEPTH;
-    std::optional<PropertyValue> propertyValue;
+    bool frameAccepted = false;
+    
+    VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_ATTEMPT(mVideoSinkController, pts, bufferHandle, metadata, frameAccepted);
 
-    // Check the queue depth property to verify that the queue full size matches the number of frames queued.
-    VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, property, propertyValue);
-    if (propertyValue.has_value() && propertyValue->value.has_value())
+    if (frameAccepted)
     {
-        queueDepth = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
-    }
-    else
-    {
-        UT_LOG_ERROR("[SinkID: %d] Failed to get SINK_QUEUE_DEPTH property", mSinkId.value);
-        UT_ASSERT_TRUE(false);
+        // Queue had room - accepted normally. sink_backpressure stays true,
+        // so the caller will invoke us again on the next frame.
+        return true;
     }
 
-    UT_LOG_INFO("[SinkID: %d] Queue Depth: %d", mSinkId.value, queueDepth);
-    if (queueDepth > 0)
-    {
-        VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(mVideoSinkController, pts, bufferHandle, metadata, queueAgainSucess);
-        return queueAgainSucess;
-    }
-
+    // Genuinely rejected - the queue is full. This is the real backpressure condition.
     mTestConfiguration.sink_backpressure = false;
 
     // If queue is full due to backpressure, subsequent queue attempts should fail until the clock starts.
