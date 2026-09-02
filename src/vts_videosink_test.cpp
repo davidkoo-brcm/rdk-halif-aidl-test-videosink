@@ -139,12 +139,6 @@ void VideoSinkTest::setupVideoSink()
     /*Associate sink with decoder before starting queue operations.*/
     VIDEOSINK_CONTROLLER_SETVIDEODECODER_SUCCESS(mVideoSinkController, mDecoderId);
 
-    // Open the clock before attaching the sink, so attachClock() targets a live session.
-    if(!mIsClockInUse)
-    {
-        setupClock();
-    }
-
     VIDEOSINK_ATTACH_CLOCK_SUCCESS(mVideoSinkController, mClockId);
 
     /*Start the Video Sink*/
@@ -155,6 +149,11 @@ void VideoSinkTest::setupVideoSink()
     {
         mFirstFramePTS = static_cast<int64_t>(mTestConfiguration.sink_discardFramesUntilPts);
         VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(mVideoSinkController, static_cast<uint64_t>(mTestConfiguration.sink_discardFramesUntilPts));
+    }
+
+    if(!mIsClockInUse)
+    {
+        setupClock();
     }
 }
 
@@ -202,6 +201,13 @@ void VideoSinkTest::copyMetaData(const videodecoder::FrameMetadata& src, videode
 
 void VideoSinkTest::validateCallbacks()
 {
+    if (!mIsClockInUse)
+    {
+        UT_LOG_INFO("Waiting for AVClock onPrimed event");
+        bool primedStatus = mClockCtrlListener->waitForPrimedEvent(std::chrono::seconds(5));
+        UT_ASSERT_TRUE(primedStatus);
+    }
+
     /* Validate first frame rendered PTS */
     std::vector<int64_t> firstFramePTS = mVideoSinkEventListener->getFirstPTS();
     UT_ASSERT_EQUAL(firstFramePTS.size(), 1);
