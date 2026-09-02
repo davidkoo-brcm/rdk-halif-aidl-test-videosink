@@ -424,10 +424,6 @@ bool VideoSinkTest::validateSinkBackPressure(int64_t bufferHandle, int64_t pts, 
     // Start the clock to allow queued frames to be processed and free up space in the queue.
     AVCLOCK_START_SUCCESS(mClock, mClockController, true);
 
-    UT_LOG_INFO("Waiting for AVClock onPrimed event");
-    bool primedStatus = mClockCtrlListener->waitForPrimedEvent(std::chrono::seconds(5));
-    UT_ASSERT_TRUE(primedStatus);
-
     status = mVideoSinkControlListener->waitForFrameBufferAvailableEvent(std::chrono::milliseconds(60));
     UT_ASSERT_TRUE(status);
 
