@@ -139,6 +139,12 @@ void VideoSinkTest::setupVideoSink()
     /*Associate sink with decoder before starting queue operations.*/
     VIDEOSINK_CONTROLLER_SETVIDEODECODER_SUCCESS(mVideoSinkController, mDecoderId);
 
+    // Open the clock before attaching the sink, so attachClock() targets a live session.
+    if(!mIsClockInUse)
+    {
+        setupClock();
+    }
+
     VIDEOSINK_ATTACH_CLOCK_SUCCESS(mVideoSinkController, mClockId);
 
     /*Start the Video Sink*/
@@ -149,11 +155,6 @@ void VideoSinkTest::setupVideoSink()
     {
         mFirstFramePTS = static_cast<int64_t>(mTestConfiguration.sink_discardFramesUntilPts);
         VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(mVideoSinkController, static_cast<uint64_t>(mTestConfiguration.sink_discardFramesUntilPts));
-    }
-
-    if(!mIsClockInUse)
-    {
-        setupClock();
     }
 }
 
@@ -417,7 +418,12 @@ bool VideoSinkTest::validateSinkBackPressure(int64_t bufferHandle, int64_t pts, 
     // Start the clock to allow queued frames to be processed and free up space in the queue.
     AVCLOCK_START_SUCCESS(mClock, mClockController, true);
 
+    UT_LOG_INFO("Waiting for AVClock onPrimed event");
+    bool primedStatus = mClockCtrlListener->waitForPrimedEvent(std::chrono::seconds(5));
+    UT_ASSERT_TRUE(primedStatus);
+
     status = mVideoSinkControlListener->waitForFrameBufferAvailableEvent(std::chrono::milliseconds(60));
+    UT_ASSERT_TRUE(status);
 
     // Attempt to queue the frame again after starting the clock.
     VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(mVideoSinkController, pts, bufferHandle, metadata, queueAgainSucess);
