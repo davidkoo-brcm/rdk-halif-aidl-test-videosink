@@ -201,6 +201,13 @@ void VideoSinkTest::copyMetaData(const videodecoder::FrameMetadata& src, videode
 
 void VideoSinkTest::validateCallbacks()
 {
+    if (!mIsClockInUse)
+    {
+        UT_LOG_INFO("Waiting for AVClock onPrimed event");
+        bool primedStatus = mClockCtrlListener->waitForPrimedEvent(std::chrono::seconds(5));
+        UT_ASSERT_TRUE(primedStatus);
+    }
+
     /* Validate first frame rendered PTS */
     std::vector<int64_t> firstFramePTS = mVideoSinkEventListener->getFirstPTS();
     UT_ASSERT_EQUAL(firstFramePTS.size(), 1);
@@ -395,29 +402,18 @@ bool VideoSinkTest::validateSinkBackPressure(int64_t bufferHandle, int64_t pts, 
 {
     bool status = false;
     bool queueAgainSucess = false;
-    int32_t queueDepth = 0;
-    videosink::Property property = videosink::Property::SINK_QUEUE_DEPTH;
-    std::optional<PropertyValue> propertyValue;
+    bool frameAccepted = false;
+    
+    VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_ATTEMPT(mVideoSinkController, pts, bufferHandle, metadata, frameAccepted);
 
-    // Check the queue depth property to verify that the queue full size matches the number of frames queued.
-    VIDEOSINK_GET_PROPERTY_SUCCESS(mSinkHandle, property, propertyValue);
-    if (propertyValue.has_value() && propertyValue->value.has_value())
+    if (frameAccepted)
     {
-        queueDepth = propertyValue->value->get<PropertyValue::Value::Tag::intValue>();
-    }
-    else
-    {
-        UT_LOG_ERROR("[SinkID: %d] Failed to get SINK_QUEUE_DEPTH property", mSinkId.value);
-        UT_ASSERT_TRUE(false);
+        // Queue had room - accepted normally. sink_backpressure stays true,
+        // so the caller will invoke us again on the next frame.
+        return true;
     }
 
-    UT_LOG_INFO("[SinkID: %d] Queue Depth: %d", mSinkId.value, queueDepth);
-    if (queueDepth > 0)
-    {
-        VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(mVideoSinkController, pts, bufferHandle, metadata, queueAgainSucess);
-        return queueAgainSucess;
-    }
-
+    // Genuinely rejected - the queue is full. This is the real backpressure condition.
     mTestConfiguration.sink_backpressure = false;
 
     // If queue is full due to backpressure, subsequent queue attempts should fail until the clock starts.
@@ -429,6 +425,7 @@ bool VideoSinkTest::validateSinkBackPressure(int64_t bufferHandle, int64_t pts, 
     AVCLOCK_START_SUCCESS(mClock, mClockController, true);
 
     status = mVideoSinkControlListener->waitForFrameBufferAvailableEvent(std::chrono::milliseconds(60));
+    UT_ASSERT_TRUE(status);
 
     // Attempt to queue the frame again after starting the clock.
     VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(mVideoSinkController, pts, bufferHandle, metadata, queueAgainSucess);
