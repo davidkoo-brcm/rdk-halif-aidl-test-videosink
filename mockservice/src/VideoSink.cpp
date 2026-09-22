@@ -647,7 +647,6 @@ android::binder::Status VideoSinkController::setProperty(videosink::Property pro
     return android::binder::Status::ok();
 }
 
-int32_t availableVideoDecoders[] = {0, 1}; // Mock available video decoder IDs
 android::binder::Status VideoSinkController::setVideoDecoder(const videodecoder::IVideoDecoder::Id& videoDecoderId, bool* _aidl_return)
 {
     if (!_aidl_return)
@@ -674,24 +673,6 @@ android::binder::Status VideoSinkController::setVideoDecoder(const videodecoder:
         *_aidl_return = false;
         return android::binder::Status::ok();
     }
-
-    bool decoderFound = false;
-    for (const int32_t availableDecoderId : availableVideoDecoders)
-    {
-        if (availableDecoderId == videoDecoderId.value)
-        {
-            decoderFound = true;
-            break;
-        }
-    }
-
-    if (!decoderFound)
-    {
-        LOG_ERROR("setVideoDecoder: decoder ID %d not available for ID %d", videoDecoderId.value, id.value);
-        *_aidl_return = false;
-        return android::binder::Status::ok();
-    }
-
 
     g_videodecoder_id[id.value] = videoDecoderId;
     *_aidl_return = true;

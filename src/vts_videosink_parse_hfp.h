@@ -92,10 +92,10 @@ extern videoSinkHFP_t gVideosinks_hfp;
 
 #define VIDEOSINKMGR_IVIDEOSINK "videosink.IVideoSink"
 #define VIDEOSINKMGR_SINK_AVAILABLE "videosink.availableVideoSinks"
-#define VIDEOSINKMGR_IVIDEODECODER "videosink.availableVideoDecoders"
 #define VIDEOSINKMGR_CLOCK_AVAILABLE "videosink.availableClocks"
 
 UT_status_t vts_videosink_parseVideoSinkHFP();
+void vts_videosink_get_available_id(std::vector<int32_t> &availableIds);
 
 #endif //__VTS_VIDEOSINK_PARSE_HFP_H__
 

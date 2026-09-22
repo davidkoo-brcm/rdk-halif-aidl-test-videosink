@@ -35,13 +35,5 @@ videosink:
       vsyncDisplayLatencyNs: 16000000
       supportsHoldLastFrame: true
       supportsSecure: false
-  availableVideoDecoders:   # Resource list
-    - 0
-    - 1
-  availableVideoSinks:           # Add this list for available sinks
-    - 0
-    - 1
-  availableClocks:           # Add this list for available clocks
-    - 0
-    - 1
+
 
