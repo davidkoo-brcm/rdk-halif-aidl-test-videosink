@@ -204,7 +204,8 @@ void VideoSinkTest::validateCallbacks()
     if (!mIsClockInUse)
     {
         UT_LOG_INFO("Waiting for AVClock onPrimed event");
-        bool primedStatus = mClockCtrlListener->waitForPrimedEvent(std::chrono::seconds(5));
+        bool primedStatus = mClockCtrlListener->waitForPrimedEvent(
+            std::chrono::seconds(5), threadtype::video);
         UT_ASSERT_TRUE(primedStatus);
     }
 
