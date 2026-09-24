@@ -64,9 +64,22 @@
 #include "ut_kvp_profile.h"
 #include "vts_videosink_helper_functions.h"
 #include "vts_videosink_parse_hfp.h"
+#include "vts_avclock_parse_hfp.h"
+#include "vts_videodecoder.h"
 #include "vts_videosink.h"
 
 videoSinkHFP_t gVideosinks_hfp;
+
+void vts_videosink_get_available_id(std::vector<int32_t> &availableIds)
+{
+    string videosinkpath = VIDEOSINKMGR_IVIDEOSINK;
+    int32_t number_of_videosinks = UT_KVP_PROFILE_GET_LIST_COUNT(videosinkpath.c_str());
+    availableIds.clear();
+    for (int32_t i = 0; i < number_of_videosinks; ++i)
+    {
+        availableIds.push_back(i);
+    }
+}
 
 UT_status_t vts_videosink_parseVideoSinkHFP()
 {
@@ -96,49 +109,16 @@ UT_status_t vts_videosink_parseVideoSinkHFP()
         sinkProperties.supportsSecure = UT_KVP_PROFILE_GET_BOOL((videosinkPropertyPath + ".supportsSecure").c_str());
 
         gVideosinks_hfp.videosinks_hfp.push_back(sinkProperties);
+
+        gVideosinks_hfp.availableVideoSinks_hfp.push_back(sinkProperties.sinkId);
     }
 
-    const std::string availableSinkPath = VIDEOSINKMGR_SINK_AVAILABLE;
-    const int32_t availableSinkCount = UT_KVP_PROFILE_GET_LIST_COUNT(availableSinkPath.c_str());
-    if (availableSinkCount <= 0)
-    {
-        UT_LOG_WARNING("No available sinks found in the HFP");
-    }
+    vts_videodecoder_get_available_id(gVideosinks_hfp.availableVideodecoders_hfp);
+    vts_avclock_get_available_id(gVideosinks_hfp.availableClocks_hfp);
 
-    for (int32_t i = 0; i < availableSinkCount; ++i)
-    {
-        const std::string sinkIdPath = availableSinkPath + "." + std::to_string(i);
-        const int32_t sinkId = UT_KVP_PROFILE_GET_UINT32(sinkIdPath.c_str());
-        gVideosinks_hfp.availableVideoSinks_hfp.push_back(sinkId);
-    }
-
-    const std::string decoderListPath = VIDEOSINKMGR_IVIDEODECODER;
-    const int32_t decoderCount = UT_KVP_PROFILE_GET_LIST_COUNT(decoderListPath.c_str());
-    if (decoderCount <= 0)
-    {
-        UT_LOG_WARNING("No video decoders found in the HFP");
-    }
-
-    for (int32_t i = 0; i < decoderCount; ++i)
-    {
-        const std::string decoderIdPath = decoderListPath + "." + std::to_string(i);
-        const int32_t decoderId = UT_KVP_PROFILE_GET_UINT32(decoderIdPath.c_str());
-        gVideosinks_hfp.availableVideodecoders_hfp.push_back(decoderId);
-    }
-
-    const std::string clockListPath = VIDEOSINKMGR_CLOCK_AVAILABLE;
-    const int32_t clockCount = UT_KVP_PROFILE_GET_LIST_COUNT(clockListPath.c_str());
-    if (clockCount <= 0)
-    {
-        UT_LOG_WARNING("No available clocks found in the HFP");
-    }
-
-    for (int32_t i = 0; i < clockCount; ++i)
-    {
-        const std::string clockIdPath = clockListPath + "." + std::to_string(i);
-        const int32_t clockId = UT_KVP_PROFILE_GET_UINT32(clockIdPath.c_str());
-        gVideosinks_hfp.availableClocks_hfp.push_back(clockId);
-    }
+    UT_ASSERT_TRUE(gVideosinks_hfp.availableVideoSinks_hfp.size() > 0);
+    UT_ASSERT_TRUE(gVideosinks_hfp.availableVideodecoders_hfp.size() > 0);
+    UT_ASSERT_TRUE(gVideosinks_hfp.availableClocks_hfp.size() > 0);
 
     std::sort(gVideosinks_hfp.availableVideoSinks_hfp.begin(), gVideosinks_hfp.availableVideoSinks_hfp.end());
     std::sort(gVideosinks_hfp.availableVideodecoders_hfp.begin(), gVideosinks_hfp.availableVideodecoders_hfp.end());

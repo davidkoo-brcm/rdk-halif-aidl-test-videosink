@@ -444,15 +444,15 @@ public:
                                            decoderEventListener, mAVBufferManager, secureDecode,
                                            isTunnel, decoderConfig, mAVbufferHelper, isSinkAttached);
 
-                VideoSinkTest *sinkTest = new VideoSinkTest(_sinkId, sinkHandle, controlListener, eventListener,
-                                                            decoderControlListener, mAVBufferManager, decoderId, clockId, decoderConfig,
-                                                            isClockInUse);
+                VideoSinkTest sinkTest(_sinkId, sinkHandle, controlListener, eventListener,
+                                       decoderControlListener, mAVBufferManager, decoderId, clockId, decoderConfig,
+                                       isClockInUse);
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
                 std::thread decodeThread(&videoDecoderTest::run, &decodeTest, true);
 
-                sinkTest->run(isTunnel);
+                sinkTest.run(isTunnel);
 
                 executedAtLeastOne = true;
 
@@ -685,7 +685,7 @@ public:
  * **Test Group ID:** 003@n
  * **Test Case ID:** 001@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_NonSecure)
 {
     const char *testName = "Sink_Decode";
     bool secureMode = false;
@@ -703,7 +703,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 002@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_EOS)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_NonSecure_EOS)
 {
     const char *testName = "Sink_EOS";
     bool secureMode = false;
@@ -721,7 +721,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_EOS)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 003@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_Underflow)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_NonSecure_Underflow)
 {
     const char *testName = "Sink_Underflow";
     bool secureMode = false;
@@ -738,7 +738,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_Underflow)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 004@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_Flush)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_NonSecure_Flush)
 {
     const char *testName = "Sink_Flush";
     bool secureMode = false;
@@ -756,7 +756,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_Flush)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 005@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_DiscardFramesUntil)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_NonSecure_DiscardFramesUntil)
 {
     const char *testName = "Sink_DiscardFramesUntil";
     bool secureMode = false;
@@ -773,7 +773,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_DiscardFramesU
  * **Test Group ID:** 003@n
  * **Test Case ID:** 006@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_BackPressure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_NonSecure_BackPressure)
 {
     const char *testName = "Sink_BackPressure";
     bool secureMode = false;
@@ -793,7 +793,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_NonSecure_BackPressure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 007@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_NonSecure)
 {
     const char *testName = "Sink_Decode";
     bool secureMode = false;
@@ -811,7 +811,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 008@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure_EOS)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_NonSecure_EOS)
 {
     const char *testName = "Sink_EOS";
     bool secureMode = false;
@@ -829,7 +829,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure_EOS)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 009@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure_Underflow)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_NonSecure_Underflow)
 {
     const char *testName = "Sink_Underflow";
     bool secureMode = false;
@@ -846,7 +846,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure_Underflow)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 010@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure_Flush)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_NonSecure_Flush)
 {
     const char *testName = "Sink_Flush";
     bool secureMode = false;
@@ -864,7 +864,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure_Flush)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 011@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure_DiscardFramesUntil)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_NonSecure_DiscardFramesUntil)
 {
     const char *testName = "Sink_DiscardFramesUntil";
     bool secureMode = false;
@@ -881,7 +881,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure_DiscardFramesUnti
  * **Test Group ID:** 003@n
  * **Test Case ID:** 012@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure_BackPressure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_NonSecure_BackPressure)
 {
     const char *testName = "Sink_BackPressure";
     bool secureMode = false;
@@ -901,7 +901,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_NonSecure_BackPressure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 013@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_Secure)
 {
     const char *testName = "Sink_Decode";
     bool secureMode = true;
@@ -919,7 +919,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 014@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure_EOS)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_Secure_EOS)
 {
     const char *testName = "Sink_EOS";
     bool secureMode = true;
@@ -937,7 +937,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure_EOS)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 015@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure_Underflow)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_Secure_Underflow)
 {
     const char *testName = "Sink_Underflow";
     bool secureMode = true;
@@ -954,7 +954,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure_Underflow)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 016@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure_Flush)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_Secure_Flush)
 {
     const char *testName = "Sink_Flush";
     bool secureMode = true;
@@ -972,7 +972,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure_Flush)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 017@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure_DiscardFramesUntil)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_Secure_DiscardFramesUntil)
 {
     const char *testName = "Sink_DiscardFramesUntil";
     bool secureMode = true;
@@ -989,7 +989,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure_DiscardFramesUnti
  * **Test Group ID:** 003@n
  * **Test Case ID:** 018@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure_BackPressure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_NonTunnel_Secure_BackPressure)
 {
     const char *testName = "Sink_BackPressure";
     bool secureMode = true;
@@ -1009,7 +1009,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_NonTunnel_Secure_BackPressure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 019@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_Secure)
 {
     const char *testName = "Sink_Decode";
     bool secureMode = true;
@@ -1027,7 +1027,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 020@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure_EOS)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_Secure_EOS)
 {
     const char *testName = "Sink_EOS";
     bool secureMode = true;
@@ -1045,7 +1045,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure_EOS)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 021@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure_Underflow)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_Secure_Underflow)
 {
     const char *testName = "Sink_Underflow";
     bool secureMode = true;
@@ -1062,7 +1062,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure_Underflow)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 022@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure_Flush)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_Secure_Flush)
 {
     const char *testName = "Sink_Flush";
     bool secureMode = true;
@@ -1080,7 +1080,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure_Flush)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 023@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure_DiscardFramesUntil)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_Secure_DiscardFramesUntil)
 {
     const char *testName = "Sink_DiscardFramesUntil";
     bool secureMode = true;
@@ -1097,7 +1097,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure_DiscardFramesUntil)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 024@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure_BackPressure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Sequential_Tunnel_Secure_BackPressure)
 {
     const char *testName = "Sink_BackPressure";
     bool secureMode = true;
@@ -1117,7 +1117,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Sequential_Tunnel_Secure_BackPressure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 001@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_NonSecure)
 {
     const char *testName = "Sink_Decode";
     bool secureMode = false;
@@ -1135,7 +1135,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 002@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_EOS)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_NonSecure_EOS)
 {
     const char *testName = "Sink_EOS";
     bool secureMode = false;
@@ -1153,7 +1153,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_EOS)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 003@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_Underflow)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_NonSecure_Underflow)
 {
     const char *testName = "Sink_Underflow";
     bool secureMode = false;
@@ -1170,7 +1170,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_Underflow)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 004@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_Flush)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_NonSecure_Flush)
 {
     const char *testName = "Sink_Flush";
     bool secureMode = false;
@@ -1188,7 +1188,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_Flush)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 005@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_DiscardFramesUntil)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_NonSecure_DiscardFramesUntil)
 {
     const char *testName = "Sink_DiscardFramesUntil";
     bool secureMode = false;
@@ -1205,7 +1205,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_DiscardFramesU
  * **Test Group ID:** 003@n
  * **Test Case ID:** 006@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_BackPressure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_NonSecure_BackPressure)
 {
     const char *testName = "Sink_BackPressure";
     bool secureMode = false;
@@ -1225,7 +1225,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_NonSecure_BackPressure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 007@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_NonSecure)
 {
     const char *testName = "Sink_Decode";
     bool secureMode = false;
@@ -1243,7 +1243,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 008@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure_EOS)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_NonSecure_EOS)
 {
     const char *testName = "Sink_EOS";
     bool secureMode = false;
@@ -1261,7 +1261,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure_EOS)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 009@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure_Underflow)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_NonSecure_Underflow)
 {
     const char *testName = "Sink_Underflow";
     bool secureMode = false;
@@ -1278,7 +1278,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure_Underflow)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 010@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure_Flush)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_NonSecure_Flush)
 {
     const char *testName = "Sink_Flush";
     bool secureMode = false;
@@ -1296,7 +1296,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure_Flush)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 011@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure_DiscardFramesUntil)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_NonSecure_DiscardFramesUntil)
 {
     const char *testName = "Sink_DiscardFramesUntil";
     bool secureMode = false;
@@ -1313,7 +1313,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure_DiscardFramesUnti
  * **Test Group ID:** 003@n
  * **Test Case ID:** 012@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure_BackPressure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_NonSecure_BackPressure)
 {
     const char *testName = "Sink_BackPressure";
     bool secureMode = false;
@@ -1333,7 +1333,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_NonSecure_BackPressure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 013@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_Secure)
 {
     const char *testName = "Sink_Decode";
     bool secureMode = true;
@@ -1351,7 +1351,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 014@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure_EOS)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_Secure_EOS)
 {
     const char *testName = "Sink_EOS";
     bool secureMode = true;
@@ -1369,7 +1369,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure_EOS)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 015@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure_Underflow)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_Secure_Underflow)
 {
     const char *testName = "Sink_Underflow";
     bool secureMode = true;
@@ -1386,7 +1386,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure_Underflow)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 016@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure_Flush)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_Secure_Flush)
 {
     const char *testName = "Sink_Flush";
     bool secureMode = true;
@@ -1404,7 +1404,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure_Flush)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 017@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure_DiscardFramesUntil)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_Secure_DiscardFramesUntil)
 {
     const char *testName = "Sink_DiscardFramesUntil";
     bool secureMode = true;
@@ -1421,7 +1421,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure_DiscardFramesUnti
  * **Test Group ID:** 003@n
  * **Test Case ID:** 018@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure_BackPressure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_NonTunnel_Secure_BackPressure)
 {
     const char *testName = "Sink_BackPressure";
     bool secureMode = true;
@@ -1441,7 +1441,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_NonTunnel_Secure_BackPressure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 019@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_Secure)
 {
     const char *testName = "Sink_Decode";
     bool secureMode = true;
@@ -1459,7 +1459,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 020@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_EOS)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_Secure_EOS)
 {
     const char *testName = "Sink_EOS";
     bool secureMode = true;
@@ -1477,7 +1477,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_EOS)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 021@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_Underflow)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_Secure_Underflow)
 {
     const char *testName = "Sink_Underflow";
     bool secureMode = true;
@@ -1494,7 +1494,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_Underflow)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 022@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_Flush)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_Secure_Flush)
 {
     const char *testName = "Sink_Flush";
     bool secureMode = true;
@@ -1512,7 +1512,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_Flush)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 023@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_DiscardFramesUntil)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_Secure_DiscardFramesUntil)
 {
     const char *testName = "Sink_DiscardFramesUntil";
     bool secureMode = true;
@@ -1529,7 +1529,7 @@ UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_DiscardFramesUntil)
  * **Test Group ID:** 003@n
  * **Test Case ID:** 024@n
  */
-UT_ADD_TEST(VTS_L3_VideoSink, Sink_Concurrent_Tunnel_Secure_BackPressure)
+UT_ADD_TEST(VTS_L3_VideoSink, VSink_Concurrent_Tunnel_Secure_BackPressure)
 {
     const char *testName = "Sink_BackPressure";
     bool secureMode = true;

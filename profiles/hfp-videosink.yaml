@@ -30,10 +30,3 @@ videosink:
       vsyncDisplayLatencyNs: 0
       supportsHoldLastFrame: false
       supportsSecure: false
-  availableVideoDecoders:   # Resource list
-    - 0
-  availableVideoSinks:           # Add this list for available sinks
-    - 0
-  availableClocks:           # Add this list for available clocks
-    - 0
-

@@ -588,10 +588,10 @@ extern void *gVideoSinkTestConfiguration;
     do { \
         ::android::binder::Status status; \
         bool _aidl_return=false; \
-        UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...])", nsPresentationTime, frameBufferHandle); \
+        UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime:[%" PRId64 "], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...])", nsPresentationTime, static_cast<uint64_t>(frameBufferHandle)); \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &_aidl_return); \
-        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%lld], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
-                    nsPresentationTime, frameBufferHandle,\
+        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%" PRId64 "], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                    nsPresentationTime, static_cast<uint64_t>(frameBufferHandle), UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
         if (exception == Status::EX_NONE) { \
@@ -603,6 +603,18 @@ extern void *gVideoSinkTestConfiguration;
         } \
     } while (0)
 
+#define VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_ATTEMPT(videoSinkController, nsPresentationTime, frameBufferHandle, metadata, frameAccepted) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime:[%" PRId64 "], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...])", nsPresentationTime, static_cast<uint64_t>(frameBufferHandle)); \
+        status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &frameAccepted); \
+        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%" PRId64 "], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...], OUT:frameAccepted:[%s]), status:[isOK:%s, exception:%s]", \
+                    nsPresentationTime, static_cast<uint64_t>(frameBufferHandle), UT_Control_GetMapString(bool_mapTable, frameAccepted), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
 #define VIDEOSINK_SIGNAL_QUEUEVIDEOFRAME_SUCCESS(videoSinkController, nsPresentationTime, frameBufferHandle, metadata, result) \
     do { \
         ::android::binder::Status status; \
@@ -611,13 +623,13 @@ extern void *gVideoSinkTestConfiguration;
         auto epoch = now_ms.time_since_epoch(); \
         long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count(); \
         \
-        UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...])", \
-                    nsPresentationTime, ms, frameBufferHandle); \
+        UT_LOG_INFO("Calling queueVideoFrame(IN:nsPresentationTime:[%" PRId64 " ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...])", \
+                    nsPresentationTime, ms, static_cast<uint64_t>(frameBufferHandle)); \
         \
         status = videoSinkController->queueVideoFrame(nsPresentationTime, frameBufferHandle, metadata, &result); \
         \
-        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%lld ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...]), status:[isOK:%s, exception:%s]", \
-                    nsPresentationTime, ms, frameBufferHandle, \
+        UT_LOG_INFO("Result queueVideoFrame(IN:nsPresentationTime:[%" PRId64 " ns], RealTime:[%lld ms], IN:frameBufferHandle:[0x%016" PRIx64 "], IN:metadata:[...], OUT:result:[%s]), status:[isOK:%s, exception:%s]", \
+                    nsPresentationTime, ms, static_cast<uint64_t>(frameBufferHandle), UT_Control_GetMapString(bool_mapTable, result), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         \
