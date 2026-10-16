@@ -542,7 +542,7 @@ void VideoSinkTest::videoSinkNonTunnelMode()
             mSignalEOSPTS = pts;
 
             /* Check for end-of-stream */
-            if(mTestConfiguration.eosPts >= 0 && pts >= static_cast<int64_t>(mTestConfiguration.eosPts))
+            if(mTestConfiguration.eosPts >= 0 && pts == static_cast<int64_t>(mTestConfiguration.eosPts))
             {
                 VIDEOSINK_SIGNAL_EOS_SUCCESS(mVideoSinkController);
 
