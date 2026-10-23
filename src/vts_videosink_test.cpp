@@ -599,6 +599,12 @@ void VideoSinkTest::videoSinkTunnelMode()
         /*Wait up to 500 ms for a frame, and tolerate a few consecutive misses*/
         const int64_t frameTimeoutMs = 5000; // Wait up to 500 ms for a frame
 
+        // Tunnel mode has no frame queue (the decoder feeds the sink directly), so
+        // there is no backpressure to provoke. Leaving sink_backpressure set would
+        // keep the clock from starting, so it would never prime and could not be
+        // stopped at teardown.
+        mTestConfiguration.sink_backpressure = false;
+
         setupVideoSink();
 
         mFirstFramePTS = -1;
