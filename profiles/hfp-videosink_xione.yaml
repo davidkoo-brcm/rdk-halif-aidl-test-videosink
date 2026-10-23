@@ -36,14 +36,162 @@ videosink:
       supportsHoldLastFrame: false
       supportsSecure: false
 
-# Decoder and clock IDs the sink can be wired to (read by vts_videodecoder_get_available_id
-# and vts_avclock_get_available_id from this same profile).
-videodecoder:
+# Video decoder section (copied from hfp-videodecoder_xione.yaml): the L3 sink tests read
+# the decoder IDs and per-decoder capabilities from here.
+videodecoder:           # Component object begins
   interfaceVersion: current
-  IVideoDecoder:
-    - 0
-    - 1
+  supportedOperationalModes:
+    - TUNNELLED
+  IVideoDecoder:                # Resource list
+    - 0:                        # Resource object begins
+      supportedCodecs:
+        - MPEG2_VIDEO:
+            profiles:
+              - profile: MPEG2_MAIN
+                maxLevel: MPEG2_LEVEL_HIGH
+                maxBitrateInBps: 0
+            maxFrameRate: 60
+            maxFrameWidth: 1920
+            maxFrameHeight: 1080
+            supportedOutputPixelFormats:
+              - YCBCR420
+        - H264_AVC:
+            profiles:
+              - profile: H264_HIGH
+                maxLevel: H264_LEVEL_4_1
+                maxBitrateInBps: 0
+            maxFrameRate: 60
+            maxFrameWidth: 1920
+            maxFrameHeight: 1088
+            supportedOutputPixelFormats:
+              - YCBCR420
+        - H265_HEVC:
+            profiles:
+              - profile: H265_MAIN_10
+                maxLevel: H265_LEVEL_5_1
+                maxBitrateInBps: 0
+            maxFrameRate: 60
+            maxFrameWidth: 3840
+            maxFrameHeight: 2160
+            supportedOutputPixelFormats:
+              - YCBCR420
+        - VP9:
+            profiles:
+              - profile: VP9_PROFILE_2
+                maxLevel: VP9_LEVEL_5_1
+                maxBitrateInBps: 0
+            maxFrameRate: 60
+            maxFrameWidth: 3840
+            maxFrameHeight: 2160
+            supportedOutputPixelFormats:
+              - YCBCR420
+        - AV1:
+            profiles:
+              - profile: AV1_MAIN
+                maxLevel: AV1_LEVEL_5_1
+                maxBitrateInBps: 0
+            maxFrameRate: 60
+            maxFrameWidth: 3840
+            maxFrameHeight: 2160
+            supportedOutputPixelFormats:
+              - YCBCR420
+      supportedDynamicRanges:
+        - SDR
+        - HLG
+        - HDR10
+        - DOLBY_VISION
+      supportedColorimetries:
+        - range: LIMITED
+          matrix: BT601_525
+          transfer: SMPTE170M
+          primaries: BT601_525
+        - range: LIMITED
+          matrix: BT601_625
+          transfer: BT470BG_GAMMA28
+          primaries: BT470BG
+        - range: LIMITED
+          matrix: BT709
+          transfer: BT709
+          primaries: BT709
+        - range: LIMITED
+          matrix: BT2020_NCL
+          transfer: ARIB_STD_B67_HLG
+          primaries: BT2020
+        - range: LIMITED
+          matrix: BT2020_NCL
+          transfer: SMPTE2084_PQ
+          primaries: BT2020
+      supportsSecure: true
+    - 1:
+      supportedCodecs:
+        - MPEG2_VIDEO:
+            profiles:
+              - profile: MPEG2_MAIN
+                maxLevel: MPEG2_LEVEL_HIGH
+                maxBitrateInBps: 0
+            maxFrameRate: 60
+            maxFrameWidth: 1920
+            maxFrameHeight: 1080
+            supportedOutputPixelFormats:
+              - YCBCR420
+        - H264_AVC:
+            profiles:
+              - profile: H264_HIGH
+                maxLevel: H264_LEVEL_4_1
+                maxBitrateInBps: 0
+            maxFrameRate: 60
+            maxFrameWidth: 1920
+            maxFrameHeight: 1088
+            supportedOutputPixelFormats:
+              - YCBCR420
+        - H265_HEVC:
+            profiles:
+              - profile: H265_MAIN
+                maxLevel: H265_LEVEL_4_1
+                maxBitrateInBps: 0
+            maxFrameRate: 60
+            maxFrameWidth: 1920
+            maxFrameHeight: 1080
+            supportedOutputPixelFormats:
+              - YCBCR420
+        - VP9:
+            profiles:
+              - profile: VP9_PROFILE_0
+                maxLevel: VP9_LEVEL_4_1
+                maxBitrateInBps: 0
+            maxFrameRate: 60
+            maxFrameWidth: 1920
+            maxFrameHeight: 1080
+            supportedOutputPixelFormats:
+              - YCBCR420
+        - AV1:
+            profiles:
+              - profile: AV1_MAIN
+                maxLevel: AV1_LEVEL_4_1
+                maxBitrateInBps: 0
+            maxFrameRate: 60
+            maxFrameWidth: 1920
+            maxFrameHeight: 1080
+            supportedOutputPixelFormats:
+              - YCBCR420
+      supportedDynamicRanges:
+        - SDR
+      supportedColorimetries:
+        - range: LIMITED
+          matrix: BT601_525
+          transfer: SMPTE170M
+          primaries: BT601_525
+        - range: LIMITED
+          matrix: BT601_625
+          transfer: BT470BG_GAMMA28
+          primaries: BT470BG
+        - range: LIMITED
+          matrix: BT709
+          transfer: BT709
+          primaries: BT709
+      supportsSecure: true
 
+# AV clock IDs (read by vts_avclock_get_available_id).
 avclock:
   interfaceVersion: current
   IAVClock:
