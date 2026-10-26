@@ -121,7 +121,7 @@ videodecoder:           # Component object begins
           matrix: BT2020_NCL
           transfer: SMPTE2084_PQ
           primaries: BT2020
-      supportsSecure: true
+      supportsSecure: false
     - 1:
       supportedCodecs:
         - MPEG2_VIDEO:
@@ -189,7 +189,7 @@ videodecoder:           # Component object begins
           matrix: BT709
           transfer: BT709
           primaries: BT709
-      supportsSecure: true
+      supportsSecure: false
 
 # AV clock IDs (read by vts_avclock_get_available_id).
 avclock:
