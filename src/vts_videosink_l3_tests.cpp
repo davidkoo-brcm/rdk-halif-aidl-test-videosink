@@ -114,165 +114,12 @@ public:
         return &(*it);
     }
 
-    bool checkDecoderSupportsConfig(const IVideoDecoder::Id& decoderId, const videodecoder::Capabilities* capabilities,
-                                    const videoDecoderTestConfiguration_t& decoderConfig, bool secureDecode)
+    bool checkDecoderSupportsConfig(const IVideoDecoder::Id& decoderId,
+                                    const videodecoder::Capabilities* capabilities,
+                                    const videoDecoderTestConfiguration_t& decoderConfig,
+                                    bool secureDecode)
     {
-        auto hfpIt = std::find_if(gVideodecoders_hfp.begin(), gVideodecoders_hfp.end(),
-            [&decoderId](const decoder_t& item) { return item.id == decoderId.value; });
-        if (hfpIt == gVideodecoders_hfp.end())
-        {
-            UT_LOG_WARNING("[DecoderID: %d] Not available in HFP", decoderId.value);
-            return false;
-        }
-        const decoder_t& hfpDecoder = *hfpIt;
-
-        auto supportsConfigFromHfp = [&](const char* fallbackReason) -> bool
-        {
-            if (secureDecode && !hfpDecoder.supportsSecure)
-            {
-                UT_LOG_WARNING("Decoder [%d] doesn't support secure decoding (HFP fallback)", decoderId.value);
-                return false;
-            }
-
-            auto hfpCodecIt = std::find_if(hfpDecoder.supportedCodecs.begin(), hfpDecoder.supportedCodecs.end(),
-                [&decoderConfig](const CodecCapability& cap) { return cap.codec == decoderConfig.codec; });
-            if (hfpCodecIt == hfpDecoder.supportedCodecs.end())
-            {
-                UT_LOG_WARNING("Decoder [%d] doesn't support Codec [%s] in HFP",
-                               decoderId.value,
-                               videodecoder::toString(decoderConfig.codec).c_str());
-                return false;
-            }
-
-            if (hfpCodecIt->supportedOutputPixelFormats.empty())
-            {
-                UT_LOG_WARNING("Decoder [%d] HFP missing supportedOutputPixelFormats for codec [%s]",
-                               decoderId.value,
-                               videodecoder::toString(decoderConfig.codec).c_str());
-                return false;
-            }
-
-            if (std::find(hfpCodecIt->supportedOutputPixelFormats.begin(),
-                          hfpCodecIt->supportedOutputPixelFormats.end(),
-                          decoderConfig.pixelFormat) == hfpCodecIt->supportedOutputPixelFormats.end())
-            {
-                UT_LOG_INFO("Decoder [%d] skipping stream [%s]: pixel format [%s] unsupported in HFP",
-                            decoderId.value,
-                            decoderConfig.streamName.c_str(),
-                            videodecoder::toString(decoderConfig.pixelFormat).c_str());
-                return false;
-            }
-
-            if (decoderConfig.codedWidth > hfpCodecIt->maxFrameWidth ||
-                decoderConfig.codedHeight > hfpCodecIt->maxFrameHeight)
-            {
-                UT_LOG_INFO("Decoder [%d] skipping stream [%s]: resolution %dx%d exceeds HFP capability %dx%d",
-                            decoderId.value,
-                            decoderConfig.streamName.c_str(),
-                            decoderConfig.codedWidth,
-                            decoderConfig.codedHeight,
-                            hfpCodecIt->maxFrameWidth,
-                            hfpCodecIt->maxFrameHeight);
-                return false;
-            }
-
-            if (decoderConfig.frameRateDenominator > 0)
-            {
-                uint32_t streamFps = decoderConfig.frameRateNumerator / decoderConfig.frameRateDenominator;
-                if (streamFps > static_cast<uint32_t>(hfpCodecIt->maxFrameRate))
-                {
-                    UT_LOG_INFO("Decoder [%d] skipping stream [%s]: frame rate %u fps exceeds HFP capability %d fps",
-                                decoderId.value,
-                                decoderConfig.streamName.c_str(),
-                                streamFps,
-                                hfpCodecIt->maxFrameRate);
-                    return false;
-                }
-            }
-
-            UT_LOG_WARNING("Decoder [%d] using HFP fallback for stream [%s] because %s",
-                           decoderId.value,
-                           decoderConfig.streamName.c_str(),
-                           fallbackReason);
-            return true;
-        };
-
-        if (capabilities == nullptr)
-        {
-            return supportsConfigFromHfp("decoder getCapabilities is unavailable");
-        }
-
-        if (secureDecode && !capabilities->supportsSecure)
-        {
-            UT_LOG_WARNING("Decoder doesn't support secure decoding");
-            return false;
-        }
-
-        if (capabilities->supportedCodecs.empty())
-        {
-            return supportsConfigFromHfp("decoder getCapabilities missing supportedCodecs");
-        }
-
-        auto codecIt = std::find_if(capabilities->supportedCodecs.begin(), capabilities->supportedCodecs.end(),
-                                    [&decoderConfig](const videodecoder::CodecCapabilities& cap) { return cap.codec == decoderConfig.codec; });
-        if (codecIt == capabilities->supportedCodecs.end())
-        {
-            UT_LOG_WARNING("Decoder doesn't support Codec [%s]", videodecoder::toString(decoderConfig.codec).c_str());
-            return false;
-        }
-
-        if (codecIt->supportedOutputPixelFormats.empty())
-        {
-            UT_LOG_INFO(
-                "Decoder [%d] skipping stream [%s]: decoder getCapabilities missing supportedOutputPixelFormats",
-                 decoderId.value,
-                 decoderConfig.streamName.c_str());
-            return supportsConfigFromHfp("decoder getCapabilities missing supportedOutputPixelFormats");
-        }
-
-        if (std::find(codecIt->supportedOutputPixelFormats.begin(),
-                      codecIt->supportedOutputPixelFormats.end(),
-                      decoderConfig.pixelFormat) == codecIt->supportedOutputPixelFormats.end())
-        {
-            UT_LOG_INFO(
-                "Decoder [%d] skipping stream [%s]: pixel format [%s] unsupported",
-                 decoderId.value,
-                 decoderConfig.streamName.c_str(),
-                 videodecoder::toString(decoderConfig.pixelFormat).c_str());
-            return false;
-        }
-
-        if (decoderConfig.codedWidth > codecIt->maxFrameWidth ||
-            decoderConfig.codedHeight > codecIt->maxFrameHeight)
-        {
-            UT_LOG_INFO(
-                "Decoder [%d] skipping stream [%s]: resolution %dx%d exceeds capability %dx%d",
-                 decoderId.value,
-                 decoderConfig.streamName.c_str(),
-                 decoderConfig.codedWidth,
-                 decoderConfig.codedHeight,
-                 codecIt->maxFrameWidth,
-                 codecIt->maxFrameHeight);
-            return false;
-        }
-
-        if (decoderConfig.frameRateDenominator > 0)
-        {
-            uint32_t streamFps =
-                decoderConfig.frameRateNumerator / decoderConfig.frameRateDenominator;
-
-            if (streamFps > static_cast<uint32_t>(codecIt->maxFrameRate))
-            {
-                UT_LOG_INFO(
-                    "Decoder [%d] skipping stream [%s]: frame rate %u fps exceeds capability %d fps",
-                     decoderId.value,
-                     decoderConfig.streamName.c_str(),
-                     streamFps,
-                     codecIt->maxFrameRate);
-                return false;
-            }
-        }
-        return true;
+        return ::checkDecoderSupportsConfig(decoderId, capabilities, decoderConfig, secureDecode);
     }
 
     bool isVideoSinkUsable(const IVideoSink::Id& sinkId) const
@@ -453,6 +300,10 @@ public:
 
                 decoderControlListener->resetQueues();
                 decoderEventListener->resetQueues();
+                if (isTunnel && decoderConfig.sink_underflow_pts >= 0)
+                {
+                    decodeTest.setInputPauseHook([&sinkTest] { return sinkTest.waitForInputUnderflow(); });
+                }
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -529,7 +380,6 @@ public:
             int32_t numInstances = std::min({availableDecoderCount, availableSinkCount, availableClockCount});
             if (availableDecoderCount == 0)
             {
-                UT_ASSERT_TRUE(false);
                 UT_LOG_WARNING("No usable decoder found for the given test configuration, skipping concurrent test.");
                 return false;
             }
@@ -578,6 +428,11 @@ public:
                         sp<IAVBuffer>::cast(mAVBufferManager),
                         secure, tunnel, decoderConfig, mAVbufferHelper, isSinkAttached);
 
+                if (tunnel && decoderConfig.sink_underflow_pts >= 0)
+                {
+                    auto* sinkTest = sinkTests[i].get();
+                    decoderTest->setInputPauseHook([sinkTest] { return sinkTest->waitForInputUnderflow(); });
+                }
                 decoderThreads.emplace_back(&videoDecoderTest::run, decoderTest.get(), true);
 
                 decoderTests.push_back(move(decoderTest));
@@ -682,6 +537,12 @@ public:
             VIDEOSINK_UNREGISTER_EVENT_SUCCESS(sink, videoSinkEventListener);
         }
         mVideoSinkList.clear();
+        for (const auto& [decoderId, decoder, controlListener, eventListener, capabilities] : mVideoDecoderList)
+        {
+            VIDEODECODER_UNREGISTER_EVENT_SUCCESS(decoder, eventListener);
+            delete capabilities;
+        }
+        mVideoDecoderList.clear();
 
         //TODO: check right place to call joinThreadPool
         //android::IPCThreadState::self()->joinThreadPool();

@@ -199,8 +199,37 @@ void VideoSinkTest::copyMetaData(const videodecoder::FrameMetadata& src, videode
     dst.source = src.source;
 }
 
+bool VideoSinkTest::waitForInputUnderflow()
+{
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(4);
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        if (mVideoSinkControlListener->getUnderflowCount() > 0 &&
+            mVideoSinkEventListener->getUnderflowCount() > 0)
+            return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return false;
+}
+
 void VideoSinkTest::validateCallbacks()
 {
+    const size_t expectedEosCount = mTestConfiguration.eosPts >= 0 ? 2 : 1;
+    const int expectedFlushCount = (mTestConfiguration.flushPts >= 0 ? 1 : 0) +
+                                   (mTestConfiguration.eosPts >= 0 ? 1 : 0);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        const bool resumeReady = mTestConfiguration.sink_underflow_pts < 0 ||
+            (mVideoSinkControlListener->getResumedCount() > 0 &&
+             mVideoSinkEventListener->getResumedCount() > 0);
+        if (mVideoSinkControlListener->getEosPTS().size() >= expectedEosCount &&
+            mVideoSinkEventListener->getEosPTS().size() >= expectedEosCount &&
+            mVideoSinkControlListener->getFlushCompleteCount() >= expectedFlushCount &&
+            mVideoSinkEventListener->getFlushCompleteCount() >= expectedFlushCount && resumeReady)
+            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
     if (!mIsClockInUse)
     {
         UT_LOG_INFO("Waiting for AVClock onPrimed event");
@@ -212,11 +241,27 @@ void VideoSinkTest::validateCallbacks()
     /* Validate first frame rendered PTS */
     std::vector<int64_t> firstFramePTS = mVideoSinkEventListener->getFirstPTS();
     UT_ASSERT_EQUAL(firstFramePTS.size(), 1);
-    UT_ASSERT_EQUAL(firstFramePTS.empty() ? -1 : firstFramePTS.front(), mFirstFramePTS);
+    if (mTestConfiguration.sink_discardFramesUntilPts >= 0)
+    {
+        UT_ASSERT_TRUE(!firstFramePTS.empty() &&
+            firstFramePTS.front() >= mTestConfiguration.sink_discardFramesUntilPts);
+    }
+    else
+    {
+        UT_ASSERT_EQUAL(firstFramePTS.empty() ? -1 : firstFramePTS.front(), mFirstFramePTS);
+    }
 
     firstFramePTS = mVideoSinkControlListener->getFirstPTS();
     UT_ASSERT_EQUAL(firstFramePTS.size(), 1);
-    UT_ASSERT_EQUAL(firstFramePTS.empty() ? -1 : firstFramePTS.front(), mFirstFramePTS);
+    if (mTestConfiguration.sink_discardFramesUntilPts >= 0)
+    {
+        UT_ASSERT_TRUE(!firstFramePTS.empty() &&
+            firstFramePTS.front() >= mTestConfiguration.sink_discardFramesUntilPts);
+    }
+    else
+    {
+        UT_ASSERT_EQUAL(firstFramePTS.empty() ? -1 : firstFramePTS.front(), mFirstFramePTS);
+    }
 
     /* Validate EOS PTS */
     std::vector<int64_t> controllerEOSPTS = mVideoSinkControlListener->getEosPTS();
@@ -262,9 +307,6 @@ void VideoSinkTest::validateCallbacks()
     }
 
     /* Validate Flush complete events*/
-    int32_t expectedFlushCount = (mTestConfiguration.flushPts >= 0) ? 1 : 0;
-    expectedFlushCount += (mTestConfiguration.eosPts >= 0) ? 1 : 0;
-
     UT_ASSERT_EQUAL(mVideoSinkControlListener->getFlushCompleteCount(), expectedFlushCount);
     UT_ASSERT_EQUAL(mVideoSinkEventListener->getFlushCompleteCount(), expectedFlushCount);
 }
@@ -616,7 +658,6 @@ void VideoSinkTest::videoSinkTunnelMode()
     {
         UT_LOG_INFO("[SinkID: %d] Start of Testing Stream: %s", mSinkId.value, mTestConfiguration.input.c_str());
         DecodedVideoFrame_t decodedFrame;
-        uint32_t frameDurationMs = 50; // Default to 50 ms if frame rate is not available
 
         /*Reset the Flush, EOS, Underflow and Resume Counts*/
         mVideoSinkControlListener->resetFirstFrameRendered();
@@ -641,7 +682,7 @@ void VideoSinkTest::videoSinkTunnelMode()
 
         setupVideoSink();
 
-        mFirstFramePTS = -1;
+        mFirstFramePTS = mTestConfiguration.sink_discardFramesUntilPts;
         mFrameCount = 0;
 
         while (true)
@@ -688,16 +729,17 @@ void VideoSinkTest::videoSinkTunnelMode()
                 mTestConfiguration.flushPts = 0;
             }
 
-            // Simulate underflow
-            if (mTestConfiguration.sink_underflow_pts >= 0 &&
-                pts == static_cast<int64_t>(mTestConfiguration.sink_underflow_pts))
-            {
-                UT_LOG_DEBUG("[SinkID: %d] Injecting delay at PTS %lld to simulate underflow",
-                             mSinkId.value, static_cast<long long>(pts));
-                std::this_thread::sleep_for(std::chrono::milliseconds(2 * frameDurationMs));
-            }
 
             mSignalEOSPTS = pts;
+            if (mTestConfiguration.eosPts >= 0 && pts == mTestConfiguration.eosPts)
+            {
+                const bool decoderEos = mDecoderControllerListener->waitForEndOfStream(
+                    1, std::chrono::milliseconds(5000));
+                UT_ASSERT_TRUE(decoderEos);
+                if (!decoderEos) { tearDownVideoSink(); return; }
+                VIDEOSINK_SIGNAL_EOS_SUCCESS(mVideoSinkController);
+                VIDEOSINK_FLUSH_SUCCESS(mVideoSinkController, true);
+            }
         }
 
         /* Signal EOS, exptected EOS PTS callback is at mSignalEOSPTS */

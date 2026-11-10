@@ -119,6 +119,7 @@ public:
 
     void run ( bool isTunnel );
     bool getSinkPropertyInt(videosink::Property property, int32_t& outValue);
+    bool waitForInputUnderflow();
 
 private:
     IVideoSink::Id mSinkId;
