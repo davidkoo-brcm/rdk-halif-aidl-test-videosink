@@ -2,38 +2,42 @@
 
 ## Latest test results
 
-VideoSink L3 full run on **2026-11-10, 15:44–15:49 UTC**
+Platform: Broadcom Xione. Profile: `profiles/hfp-unified_xione.yaml`.
 
-Platform: Broadcom Xione, xione-bcm-flex2
+| Check | Latest result |
+| --- | --- |
+| AVClock regression with DSOLA off | PASS — confirmed by the user |
+| `seq_tun_nonsec_AutoAudioBeforeVideo` (2026-11-12) | PASS — 81.119 s |
 
-Profile: `profiles/hfp-unified_xione.yaml`
+An AVClock PASS verifies priming and clock progression, not simultaneous audible output or pitch-corrected trick playback.
 
-| Total | Passed | Failed | Skipped | Duration |
-| ---: | ---: | ---: | ---: | ---: |
-| 48 | **12** | **0** | 36 | 295.090 s |
+## Prepare the sink once before media starts
 
-| Tunnel NonSecure test | Sequential | Concurrent |
-| --- | --- | --- |
-| Basic playback | PASS | PASS |
-| EOS | PASS | PASS |
-| Underflow | PASS | PASS |
-| Flush | PASS | PASS |
-| DiscardFramesUntil | PASS | PASS |
-| BackPressure | PASS | PASS |
+Expose idempotent preparation for AVClock. An existing controller is reused. Otherwise reset first-frame, underflow/resume, EOS and flush counters once and configure the sink. Both tunnel and non-tunnel execution reuse preparation, preserving callbacks that arrive after AVClock pre-connects the sink.
 
-Twenty-four NonTunnel tests and twelve Tunnel Secure tests skip because
-of decoder capabilities. These execution modes are outside the validated
-coverage. No crash was observed.
+[`src/vts_videosink_test.cpp:202`](../../src/vts_videosink_test.cpp#L202)
 
-The four discard sessions report 100,000,000 ns against the requested
-83,333,000 ns boundary. HAL logs confirm underflow followed by resumed
-output in both sequential and concurrent tests.
+```cpp
+bool VideoSinkTest::prepare()
+{
+    if (mVideoSinkController != nullptr)
+        return true;
+    /*Reset the Flush, EOS, Underflow and Resume Counts*/
+    mVideoSinkControlListener->resetFirstFrameRendered();
+    mVideoSinkEventListener->resetFirstFrameRendered();
+    mVideoSinkControlListener->resetUnderflow();
+    mVideoSinkEventListener->resetUnderflow();
+    mVideoSinkControlListener->resetResumed();
+    mVideoSinkEventListener->resetResumed();
+    mVideoSinkControlListener->resetEos();
+    mVideoSinkEventListener->resetEos();
+    mVideoSinkControlListener->resetFlushComplete();
+    mVideoSinkEventListener->resetFlushComplete();
 
-Remaining observations: VTS records 20 `onDecodeError(errorCode=1,
-vendorErrorCode=1)` notifications. HAL teardown reports `stop()` state
-errors with actual=8, required=5. These messages do not cause assertion
-failures in this run; their causes remain unresolved.
-
+    setupVideoSink();
+    return mVideoSinkController != nullptr;
+}
+```
 
 ## Current change scope
 
@@ -62,7 +66,7 @@ objects, and clears their list.
 
 ### Shared capability checker
 
-Location: [videosink/src/vts_videosink_l3_tests.cpp:117–123](../../src/vts_videosink_l3_tests.cpp#L117) · `checkDecoderSupportsConfig()`
+Location: [videosink/src/vts_videosink_l3_tests.cpp:117](../../src/vts_videosink_l3_tests.cpp#L117) · `checkDecoderSupportsConfig()`
 
 ```cpp
 bool checkDecoderSupportsConfig(const IVideoDecoder::Id& decoderId,
@@ -78,7 +82,7 @@ The explicit global qualifier selects the shared helper, so dynamic range and fr
 
 ### Unsupported decoder selection
 
-Location: [videosink/src/vts_videosink_l3_tests.cpp:377–385](../../src/vts_videosink_l3_tests.cpp#L377) · `runConcurrentSink()`
+Location: [videosink/src/vts_videosink_l3_tests.cpp:377](../../src/vts_videosink_l3_tests.cpp#L377) · `runConcurrentSink()`
 
 ```cpp
 int32_t availableDecoderCount = availableDecoderList.size();
@@ -96,7 +100,7 @@ No usable decoder returns false for this configuration. The enclosing runner ski
 
 ### Decoder listener and capability cleanup
 
-Location: [videosink/src/vts_videosink_l3_tests.cpp:540–545](../../src/vts_videosink_l3_tests.cpp#L540) · `TearDown()`
+Location: [videosink/src/vts_videosink_l3_tests.cpp:540](../../src/vts_videosink_l3_tests.cpp#L540) · `TearDown()`
 
 ```cpp
 for (const auto& [decoderId, decoder, controlListener, eventListener, capabilities] : mVideoDecoderList)
@@ -129,7 +133,7 @@ first-PTS equality check.
 
 ### EOS control point and final EOS
 
-Location: [videosink/src/vts_videosink_test.cpp:733–746](../../src/vts_videosink_test.cpp#L733) · `VideoSinkTest::videoSinkTunnelMode()`
+Location: [videosink/src/vts_videosink_test.cpp:729](../../src/vts_videosink_test.cpp#L729) · `VideoSinkTest::videoSinkTunnelMode()`
 
 ```cpp
     mSignalEOSPTS = pts;
@@ -152,7 +156,7 @@ At the control point, wait up to five seconds for decoder EOS before notifying a
 
 ### Attached decoder session lifetime
 
-Location: [videodecoder/src/vts_videodecoder_test.cpp:451–461](../../../videodecoder/src/vts_videodecoder_test.cpp#L451) · `videoDecoderTest::startDecoding()`
+Location: [videodecoder/src/vts_videodecoder_test.cpp:451](../../../videodecoder/src/vts_videodecoder_test.cpp#L451) · `videoDecoderTest::startDecoding()`
 
 ```cpp
     // Preserve the completed decoder session until the attached sink
@@ -172,7 +176,7 @@ Stop/start is performed only for decoder-only tests. An attached sink can consum
 
 ### Idempotent HAL EOS
 
-Location: [hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp:720–728](../../../../../../git/hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp#L720) · `VideoSinkControllerImpl::signalEndOfStream()`
+Location: [hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp:741](../../../../../../git/hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp#L741) · `VideoSinkControllerImpl::signalEndOfStream()`
 
 ```cpp
 ::android::binder::Status VideoSinkControllerImpl::signalEndOfStream() {
@@ -190,7 +194,7 @@ State validation precedes the atomic exchange. The first call continues to emit 
 
 ### Callback completion deadline
 
-Location: [videosink/src/vts_videosink_test.cpp:217–232](../../src/vts_videosink_test.cpp#L217) · `VideoSinkTest::validateCallbacks()`
+Location: [videosink/src/vts_videosink_test.cpp:237](../../src/vts_videosink_test.cpp#L237) · `VideoSinkTest::validateCallbacks()`
 
 ```cpp
 const size_t expectedEosCount = mTestConfiguration.eosPts >= 0 ? 2 : 1;
@@ -215,7 +219,7 @@ Wait up to two seconds for both listeners to reach expected EOS/flush counts and
 
 ### Discard request and listener assertions
 
-Location: [videosink/src/vts_videosink_test.cpp:148–152](../../src/vts_videosink_test.cpp#L148) · `VideoSinkTest::setupVideoSink()`
+Location: [videosink/src/vts_videosink_test.cpp:148](../../src/vts_videosink_test.cpp#L148) · `VideoSinkTest::setupVideoSink()`
 
 ```cpp
 if (mTestConfiguration.sink_discardFramesUntilPts >= 0)
@@ -229,7 +233,7 @@ Keep the requested threshold as the expected first-PTS lower bound and send that
 
 ### First-render lower-bound check
 
-Location: [videosink/src/vts_videosink_test.cpp:241–260](../../src/vts_videosink_test.cpp#L241) · `VideoSinkTest::validateCallbacks()`
+Location: [videosink/src/vts_videosink_test.cpp:261](../../src/vts_videosink_test.cpp#L261) · `VideoSinkTest::validateCallbacks()`
 
 ```cpp
 /* Validate first frame rendered PTS */
@@ -267,7 +271,7 @@ failure. Decoder tests without the hook have no additional pause.
 
 ### Public pause-hook interface
 
-Location: [videosink/src/vts_videosink_test.h:120–122](../../src/vts_videosink_test.h#L120) · `VideoSinkTest public methods`
+Location: [videosink/src/vts_videosink_test.h:120](../../src/vts_videosink_test.h#L120) · `VideoSinkTest public methods`
 
 ```cpp
 void run ( bool isTunnel );
@@ -279,7 +283,7 @@ Expose the wait operation to the producer hook installed by the L3 fixture.
 
 ### Shared producer hook setter
 
-Location: [videodecoder/src/vts_videodecoder.h:1760–1760](../../../videodecoder/src/vts_videodecoder.h#L1760) · `videoDecoderTest::setInputPauseHook()`
+Location: [videodecoder/src/vts_videodecoder.h:1761](../../../videodecoder/src/vts_videodecoder.h#L1761) · `videoDecoderTest::setInputPauseHook()`
 
 ```cpp
 void setInputPauseHook(std::function<bool()> hook) { mInputPauseHook = std::move(hook); }
@@ -289,7 +293,7 @@ Store an optional callback returning whether sink underflow was observed. The ma
 
 ### Sequential and concurrent hook wiring
 
-Location: [videosink/src/vts_videosink_l3_tests.cpp:303–306](../../src/vts_videosink_l3_tests.cpp#L303) · `runSequentialSink()`
+Location: [videosink/src/vts_videosink_l3_tests.cpp:303](../../src/vts_videosink_l3_tests.cpp#L303) · `runSequentialSink()`
 
 ```cpp
 if (isTunnel && decoderConfig.sink_underflow_pts >= 0)
@@ -302,7 +306,7 @@ Sequential tunnel underflow tests install this callback. The concurrent path ins
 
 ### Producer pause point
 
-Location: [videodecoder/src/vts_videodecoder_test.cpp:463–469](../../../videodecoder/src/vts_videodecoder_test.cpp#L463) · `videoDecoderTest::startDecoding()`
+Location: [videodecoder/src/vts_videodecoder_test.cpp:463](../../../videodecoder/src/vts_videodecoder_test.cpp#L463) · `videoDecoderTest::startDecoding()`
 
 ```cpp
 if (mIsSinkAttached && mTunnelMode &&
@@ -318,7 +322,7 @@ Invoke the hook at the configured submitted PTS only for an attached tunnel sink
 
 ### Wait for both sink listeners
 
-Location: [videosink/src/vts_videosink_test.cpp:202–214](../../src/vts_videosink_test.cpp#L202) · `VideoSinkTest::waitForInputUnderflow()`
+Location: [videosink/src/vts_videosink_test.cpp:222](../../src/vts_videosink_test.cpp#L222) · `VideoSinkTest::waitForInputUnderflow()`
 
 ```cpp
 bool VideoSinkTest::waitForInputUnderflow()
@@ -366,7 +370,7 @@ discard does not repeat it. Sink start resets the local threshold.
 
 ### Nanoseconds to clipping ticks
 
-Location: [hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp:58–64](../../../../../../git/hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp#L58) · `discardPts45k()`
+Location: [hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp:58](../../../../../../git/hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp#L58) · `discardPts45k()`
 
 ```cpp
 // Round up so a hardware tick below the requested ns boundary is excluded.
@@ -382,7 +386,7 @@ Use 45 kHz hardware ticks and upward rounding to exclude ticks earlier than the 
 
 ### Hardware clipping and error propagation
 
-Location: [hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp:834–843](../../../../../../git/hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp#L834) · `VideoSinkControllerImpl::discardFramesUntil()`
+Location: [hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp:855](../../../../../../git/hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp#L855) · `VideoSinkControllerImpl::discardFramesUntil()`
 
 ```cpp
 const auto pts = static_cast<uint32_t>(discardPts45k(nsPresentationTime));
@@ -401,7 +405,7 @@ Program the vendor display clipping point. Store the local threshold only after 
 
 ### Display-status first-frame observation
 
-Location: [hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp:264–289](../../../../../../git/hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp#L264) · `VideoSinkControllerImpl::pollDiscardFirstFrame()`
+Location: [hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp:283](../../../../../../git/hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp#L283) · `VideoSinkControllerImpl::pollDiscardFirstFrame()`
 
 ```cpp
 void VideoSinkControllerImpl::pollDiscardFirstFrame() {
@@ -436,7 +440,7 @@ Require active display status, reject a PTS before the boundary using modular co
 
 ### Decode observer gating
 
-Location: [hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp:254–262](../../../../../../git/hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp#L254) · `VideoSinkControllerImpl::onDecoderFirstFrame()`
+Location: [hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp:273](../../../../../../git/hal/video-sink-soc-broadcom/src/VideoSinkControllerImpl.cpp#L273) · `VideoSinkControllerImpl::onDecoderFirstFrame()`
 
 ```cpp
 void VideoSinkControllerImpl::onDecoderFirstFrame(int64_t nsPresentationTime) {

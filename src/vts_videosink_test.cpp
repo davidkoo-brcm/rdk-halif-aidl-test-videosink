@@ -199,6 +199,26 @@ void VideoSinkTest::copyMetaData(const videodecoder::FrameMetadata& src, videode
     dst.source = src.source;
 }
 
+bool VideoSinkTest::prepare()
+{
+    if (mVideoSinkController != nullptr)
+        return true;
+    /*Reset the Flush, EOS, Underflow and Resume Counts*/
+    mVideoSinkControlListener->resetFirstFrameRendered();
+    mVideoSinkEventListener->resetFirstFrameRendered();
+    mVideoSinkControlListener->resetUnderflow();
+    mVideoSinkEventListener->resetUnderflow();
+    mVideoSinkControlListener->resetResumed();
+    mVideoSinkEventListener->resetResumed();
+    mVideoSinkControlListener->resetEos();
+    mVideoSinkEventListener->resetEos();
+    mVideoSinkControlListener->resetFlushComplete();
+    mVideoSinkEventListener->resetFlushComplete();
+
+    setupVideoSink();
+    return mVideoSinkController != nullptr;
+}
+
 bool VideoSinkTest::waitForInputUnderflow()
 {
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(4);
@@ -497,22 +517,10 @@ void VideoSinkTest::videoSinkNonTunnelMode()
         DecodedVideoFrame_t decodedFrame;
         uint32_t frameDurationMs = 50; // Default to 50 ms if frame rate is not available
 
-        /*Reset the Flush, EOS, Underflow and Resume Counts*/
-        mVideoSinkControlListener->resetFirstFrameRendered();
-        mVideoSinkEventListener->resetFirstFrameRendered();
-        mVideoSinkControlListener->resetUnderflow();
-        mVideoSinkEventListener->resetUnderflow();
-        mVideoSinkControlListener->resetResumed();
-        mVideoSinkEventListener->resetResumed();
-        mVideoSinkControlListener->resetEos();
-        mVideoSinkEventListener->resetEos();
-        mVideoSinkControlListener->resetFlushComplete();
-        mVideoSinkEventListener->resetFlushComplete();
-
         /*Wait up to 500 ms for a frame, and tolerate a few consecutive misses*/
         const int64_t frameTimeoutMs = 5000; // Wait up to 500 ms for a frame
 
-        setupVideoSink();
+        if (!prepare()) return;
 
         mFirstFramePTS = mTestConfiguration.sink_discardFramesUntilPts;
         mFrameCount = 0;
@@ -659,18 +667,6 @@ void VideoSinkTest::videoSinkTunnelMode()
         UT_LOG_INFO("[SinkID: %d] Start of Testing Stream: %s", mSinkId.value, mTestConfiguration.input.c_str());
         DecodedVideoFrame_t decodedFrame;
 
-        /*Reset the Flush, EOS, Underflow and Resume Counts*/
-        mVideoSinkControlListener->resetFirstFrameRendered();
-        mVideoSinkEventListener->resetFirstFrameRendered();
-        mVideoSinkControlListener->resetUnderflow();
-        mVideoSinkEventListener->resetUnderflow();
-        mVideoSinkControlListener->resetResumed();
-        mVideoSinkEventListener->resetResumed();
-        mVideoSinkControlListener->resetEos();
-        mVideoSinkEventListener->resetEos();
-        mVideoSinkControlListener->resetFlushComplete();
-        mVideoSinkEventListener->resetFlushComplete();
-
         /*Wait up to 500 ms for a frame, and tolerate a few consecutive misses*/
         const int64_t frameTimeoutMs = 5000; // Wait up to 500 ms for a frame
 
@@ -680,7 +676,7 @@ void VideoSinkTest::videoSinkTunnelMode()
         // stopped at teardown.
         mTestConfiguration.sink_backpressure = false;
 
-        setupVideoSink();
+        if (!prepare()) return;
 
         mFirstFramePTS = mTestConfiguration.sink_discardFramesUntilPts;
         mFrameCount = 0;
