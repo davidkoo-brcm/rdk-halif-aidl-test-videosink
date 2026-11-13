@@ -117,10 +117,13 @@ public:
         mFrameCount = 0;
     }
 
+    ~VideoSinkTest();
+    void close();
     void run ( bool isTunnel );
     bool getSinkPropertyInt(videosink::Property property, int32_t& outValue);
     bool waitForInputUnderflow();
     bool prepare();
+    bool prepare(bool isTunnel);
 
 private:
     IVideoSink::Id mSinkId;
@@ -141,6 +144,7 @@ private:
     sp<IAVBuffer> mAVBufferManager;
     int64_t mFirstFramePTS;
     int64_t mSignalEOSPTS;
+    int64_t mFirstSignalEOSPTS{-1};
     int32_t mFrameCount;
 
     float getBytesPerPixelMultiplier(const std::string& basePixelFormat, int colorDepth) const;

@@ -305,7 +305,19 @@ public:
                     decodeTest.setInputPauseHook([&sinkTest] { return sinkTest.waitForInputUnderflow(); });
                 }
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                if (!decodeTest.openDecoderSession())
+                {
+                    UT_ASSERT_TRUE(false) << "Failed to open decoder before sink preparation";
+                    decodeTest.closeDecoderSession();
+                    return executedAtLeastOne;
+                }
+                if (!sinkTest.prepare(isTunnel))
+                {
+                    UT_ASSERT_TRUE(false) << "Failed to prepare sink before decoder start";
+                    sinkTest.close();
+                    decodeTest.closeDecoderSession();
+                    return executedAtLeastOne;
+                }
 
                 std::thread decodeThread(&videoDecoderTest::run, &decodeTest, true);
 
@@ -344,11 +356,10 @@ public:
         bool executedAtLeastOne = false;
         try
         {
-            std::vector<std::thread> threads;
             std::vector<std::thread> decoderThreads;
-            std::vector<std::unique_ptr<VideoSinkTest>> sinkTests;
             std::vector<std::thread> sinkThreads;
             std::vector<std::unique_ptr<videoDecoderTest>> decoderTests;
+            std::vector<std::unique_ptr<VideoSinkTest>> sinkTests;
             HeapMetrics beforeHeapMetrics, afterHeapMetrics;
             vector<std::tuple<IVideoDecoder::Id, sp<IVideoDecoder>, sp<VideoDecoderControllerListener>, sp<VideoDecoderEventListener>, videodecoder::Capabilities*>> availableDecoderList;
             vector<std::tuple<IVideoSink::Id, sp<IVideoSink>, sp<VideoSinkControllerListener>, sp<VideoSinkEventListener>>> availableSinkList;
@@ -396,47 +407,63 @@ public:
                 return false;
             }
 
-            for(int32_t i = 0; i < numInstances; ++i)
+            auto closePreparedSessions = [&]()
             {
-                auto& [_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener] = availableSinkList[i];
-                auto& [decoderId, decoderHandle, decoderControlListener, decoderEventListener, capabilities] = availableDecoderList[i];
+                sinkTests.clear();
+                for (auto& decoderTest : decoderTests)
+                    decoderTest->closeDecoderSession();
+                decoderTests.clear();
+            };
 
-                IAVClock::Id clockId;
-                clockId.value = gVideosinks_hfp.availableClocks_hfp[i];
-
-                auto sinkTest = std::make_unique<VideoSinkTest>(_sinkId, videoSink,
-                                    videoSinkControlListener, videoSinkEventListener,
-                                    decoderControlListener, mAVBufferManager, decoderId, clockId,
-                                    decoderConfig, isClockInUse);
-
-                decoderControlListener->resetQueues();
-                decoderEventListener->resetQueues();
-
-                sinkThreads.emplace_back(&VideoSinkTest::run, sinkTest.get(), tunnel);
-                sinkTests.push_back(std::move(sinkTest));
-            }
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
+            // Open every decoder before connecting sinks; no playback starts here.
             for (int32_t i = 0; i < numInstances; ++i)
             {
                 auto& [decoderId, decoderHandle, decoderControlListener, decoderEventListener, capabilities] = availableDecoderList[i];
-
+                decoderControlListener->resetQueues();
+                decoderEventListener->resetQueues();
                 auto decoderTest = make_unique<videoDecoderTest>(decoderId, decoderHandle,
                         sp<VideoDecoderControllerListener>::cast(decoderControlListener),
                         sp<VideoDecoderEventListener>::cast(decoderEventListener),
                         sp<IAVBuffer>::cast(mAVBufferManager),
                         secure, tunnel, decoderConfig, mAVbufferHelper, isSinkAttached);
+                decoderTests.push_back(move(decoderTest));
+                if (!decoderTests.back()->openDecoderSession())
+                {
+                    UT_ASSERT_TRUE(false) << "Failed to open decoder before sink preparation";
+                    closePreparedSessions();
+                    return false;
+                }
+            }
 
+            // Prepare all clocks and output routes before any decoder starts.
+            for (int32_t i = 0; i < numInstances; ++i)
+            {
+                auto& [_sinkId, videoSink, videoSinkControlListener, videoSinkEventListener] = availableSinkList[i];
+                auto& [decoderId, decoderHandle, decoderControlListener, decoderEventListener, capabilities] = availableDecoderList[i];
+                IAVClock::Id clockId;
+                clockId.value = gVideosinks_hfp.availableClocks_hfp[i];
+                auto sinkTest = std::make_unique<VideoSinkTest>(_sinkId, videoSink,
+                                    videoSinkControlListener, videoSinkEventListener,
+                                    decoderControlListener, mAVBufferManager, decoderId, clockId,
+                                    decoderConfig, isClockInUse);
+                sinkTests.push_back(std::move(sinkTest));
+                if (!sinkTests.back()->prepare(tunnel))
+                {
+                    UT_ASSERT_TRUE(false) << "Failed to prepare sink before decoder start";
+                    closePreparedSessions();
+                    return false;
+                }
                 if (tunnel && decoderConfig.sink_underflow_pts >= 0)
                 {
-                    auto* sinkTest = sinkTests[i].get();
-                    decoderTest->setInputPauseHook([sinkTest] { return sinkTest->waitForInputUnderflow(); });
+                    auto* preparedSink = sinkTests.back().get();
+                    decoderTests[i]->setInputPauseHook([preparedSink] { return preparedSink->waitForInputUnderflow(); });
                 }
-                decoderThreads.emplace_back(&videoDecoderTest::run, decoderTest.get(), true);
-
-                decoderTests.push_back(move(decoderTest));
             }
+
+            for (int32_t i = 0; i < numInstances; ++i)
+                sinkThreads.emplace_back(&VideoSinkTest::run, sinkTests[i].get(), tunnel);
+            for (int32_t i = 0; i < numInstances; ++i)
+                decoderThreads.emplace_back(&videoDecoderTest::run, decoderTests[i].get(), true);
 
             for (auto& t : decoderThreads)
             {
@@ -451,13 +478,7 @@ public:
 
             executedAtLeastOne = true;
 
-            for (auto& decoderTest : decoderTests)
-            {
-                decoderTest->closeDecoderSession();
-            }
-
-            decoderTests.clear();
-            sinkTests.clear();
+            closePreparedSessions();
 
             /* Get heap metrics */
             AVBUFFER_GETMETRICS(mAVBufferManager, secure, afterHeapMetrics);

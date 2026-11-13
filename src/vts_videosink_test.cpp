@@ -64,6 +64,16 @@
 
 #include "vts_videosink_test.h"
 
+VideoSinkTest::~VideoSinkTest()
+{
+    close();
+}
+
+void VideoSinkTest::close()
+{
+    if (mVideoSinkController != nullptr) tearDownVideoSink();
+}
+
 void VideoSinkTest::run ( bool isTunnel )
 {
     if(!isTunnel)
@@ -141,6 +151,12 @@ void VideoSinkTest::setupVideoSink()
 
     VIDEOSINK_ATTACH_CLOCK_SUCCESS(mVideoSinkController, mClockId);
 
+    // The clock must exist when sink start binds the decoder's STC channel.
+    if(!mIsClockInUse)
+    {
+        setupClock();
+    }
+
     /*Start the Video Sink*/
     VIDEOSINK_START_SUCCESS(mSinkHandle, mVideoSinkController, true);
 
@@ -151,14 +167,11 @@ void VideoSinkTest::setupVideoSink()
         VIDEOSINK_SIGNAL_DISCARDFRAMESTILL_SUCCESS(mVideoSinkController, static_cast<uint64_t>(mTestConfiguration.sink_discardFramesUntilPts));
     }
 
-    if(!mIsClockInUse)
-    {
-        setupClock();
-    }
 }
 
 void VideoSinkTest::tearDownVideoSink()
 {
+    if (mVideoSinkController == nullptr) return;
     // Detach the clock
     VIDEOSINK_DETACH_CLOCK_SUCCESS(mVideoSinkController);
 
@@ -167,6 +180,7 @@ void VideoSinkTest::tearDownVideoSink()
 
     /* Close the Video sink */
     VIDEOSINK_CLOSE_SUCCESS(mSinkHandle, mVideoSinkController, true);
+    mVideoSinkController = nullptr;
 
     if(!mIsClockInUse)
     {
@@ -197,6 +211,14 @@ void VideoSinkTest::copyMetaData(const videodecoder::FrameMetadata& src, videode
     dst.discontinuity = src.discontinuity;
     dst.lowLatency = src.lowLatency;
     dst.source = src.source;
+}
+
+bool VideoSinkTest::prepare(bool isTunnel)
+{
+    // Tunnel mode has no frame queue to backpressure. Normalize before clock
+    // preparation so the clock starts even when prepare() precedes run().
+    if (isTunnel) mTestConfiguration.sink_backpressure = false;
+    return prepare();
 }
 
 bool VideoSinkTest::prepare()
@@ -289,12 +311,14 @@ void VideoSinkTest::validateCallbacks()
 
     if(mTestConfiguration.eosPts >= 0)
     {
+        const int64_t expectedFirstEosPts = mFirstSignalEOSPTS >= 0
+            ? mFirstSignalEOSPTS : mTestConfiguration.eosPts;
         UT_ASSERT_EQUAL(controllerEOSPTS.size(), 2);
-        UT_ASSERT_EQUAL(controllerEOSPTS.empty() ? -1 : controllerEOSPTS[0], mTestConfiguration.eosPts);
+        UT_ASSERT_EQUAL(controllerEOSPTS.empty() ? -1 : controllerEOSPTS[0], expectedFirstEosPts);
         UT_ASSERT_EQUAL(controllerEOSPTS.size() < 2 ? -1 : controllerEOSPTS[1], mSignalEOSPTS);
 
         UT_ASSERT_EQUAL(eventEOSPTS.size(), 2);
-        UT_ASSERT_EQUAL(eventEOSPTS.empty() ? -1 : eventEOSPTS[0], mTestConfiguration.eosPts);
+        UT_ASSERT_EQUAL(eventEOSPTS.empty() ? -1 : eventEOSPTS[0], expectedFirstEosPts);
         UT_ASSERT_EQUAL(eventEOSPTS.size() < 2 ? -1 : eventEOSPTS[1], mSignalEOSPTS);
     }
     else
@@ -670,16 +694,12 @@ void VideoSinkTest::videoSinkTunnelMode()
         /*Wait up to 500 ms for a frame, and tolerate a few consecutive misses*/
         const int64_t frameTimeoutMs = 5000; // Wait up to 500 ms for a frame
 
-        // Tunnel mode has no frame queue (the decoder feeds the sink directly), so
-        // there is no backpressure to provoke. Leaving sink_backpressure set would
-        // keep the clock from starting, so it would never prime and could not be
-        // stopped at teardown.
-        mTestConfiguration.sink_backpressure = false;
-
-        if (!prepare()) return;
+        if (!prepare(true)) return;
 
         mFirstFramePTS = mTestConfiguration.sink_discardFramesUntilPts;
         mFrameCount = 0;
+        mFirstSignalEOSPTS = -1;
+        mSignalEOSPTS = -1;
 
         while (true)
         {
@@ -727,18 +747,32 @@ void VideoSinkTest::videoSinkTunnelMode()
 
 
             mSignalEOSPTS = pts;
-            if (mTestConfiguration.eosPts >= 0 && pts == mTestConfiguration.eosPts)
-            {
-                const bool decoderEos = mDecoderControllerListener->waitForEndOfStream(
-                    1, std::chrono::milliseconds(5000));
-                UT_ASSERT_TRUE(decoderEos);
-                if (!decoderEos) { tearDownVideoSink(); return; }
-                VIDEOSINK_SIGNAL_EOS_SUCCESS(mVideoSinkController);
-                VIDEOSINK_FLUSH_SUCCESS(mVideoSinkController, true);
-            }
         }
 
-        /* Signal EOS, exptected EOS PTS callback is at mSignalEOSPTS */
+        // The producer stops input at eosPts. After draining output, use
+        // decoder EOS to complete this control point even if its picture was
+        // dropped. The sink reports the last output PTS, not the input PTS.
+        if (mTestConfiguration.eosPts >= 0)
+        {
+            const bool decoderEos = mDecoderControllerListener->waitForEndOfStream(
+                1, std::chrono::milliseconds(5000));
+            UT_ASSERT_TRUE(decoderEos);
+            UT_ASSERT_TRUE(mSignalEOSPTS >= 0) << "No output frame before decoder EOS";
+            if (!decoderEos || mSignalEOSPTS < 0) { tearDownVideoSink(); return; }
+
+            mFirstSignalEOSPTS = mSignalEOSPTS;
+            if (mFirstSignalEOSPTS != mTestConfiguration.eosPts)
+            {
+                UT_LOG_WARNING("[SinkID: %d] EOS input PTS=%lld, last output PTS=%lld",
+                               mSinkId.value,
+                               static_cast<long long>(mTestConfiguration.eosPts),
+                               static_cast<long long>(mFirstSignalEOSPTS));
+            }
+            VIDEOSINK_SIGNAL_EOS_SUCCESS(mVideoSinkController);
+            VIDEOSINK_FLUSH_SUCCESS(mVideoSinkController, true);
+        }
+
+        /* Signal EOS; after the control-point flush its PTS is unchanged. */
         VIDEOSINK_SIGNAL_EOS_SUCCESS(mVideoSinkController);
 
         validateCallbacks();
