@@ -4,14 +4,14 @@
 
 Platform: Broadcom Xione. Profile: `profiles/hfp-unified_xione.yaml`. Run date: 2026-11-13.
 
-| Level | Total | PASS | FAIL | SKIP |
-| --- | ---: | ---: | ---: | ---: |
-| L1 | 35 | 35 | 0 | 0 |
-| L2 | 5 | 5 | 0 | 0 |
-| L3 | 48 | 12 | 0 | 36 |
-| Total | 88 | 52 | 0 | 36 |
+| Level | Total | PASS | FAIL | SKIP | Duration (s) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| L1 | 35 | 35 | 0 | 0 | 9.730 |
+| L2 | 5 | 5 | 0 | 0 | 0.643 |
+| L3 | 48 | 12 | 0 | 36 | 296.774 |
+| Total | 88 | 52 | 0 | 36 | 307.147 |
 
-Sequential and concurrent Tunnel NonSecure basic, EOS, Underflow, Flush, DiscardFramesUntil and BackPressure tests all pass. The 36 Secure and NonTunnel tests skip according to capabilities.
+Sequential and concurrent Tunnel NonSecure basic, EOS, Underflow, Flush, DiscardFramesUntil and BackPressure tests all pass. Secure and NonTunnel cases skip according to capabilities.
 
 ## Prepare output routes before decoder startup
 
@@ -119,6 +119,18 @@ The shared decoder producer ends input at the configured eosPts and retains the 
     const size_t expectedEosCount = mTestConfiguration.eosPts >= 0 ? 2 : 1;
     const int expectedFlushCount = (mTestConfiguration.flushPts >= 0 ? 1 : 0) +
                                    (mTestConfiguration.eosPts >= 0 ? 1 : 0);
+```
+
+Compare both first and final EOS PTS with the corresponding output expectations.
+
+[src/vts_videosink_test.cpp:314](../../src/vts_videosink_test.cpp#L314)
+
+```cpp
+        const int64_t expectedFirstEosPts = mFirstSignalEOSPTS >= 0
+            ? mFirstSignalEOSPTS : mTestConfiguration.eosPts;
+        UT_ASSERT_EQUAL(controllerEOSPTS.size(), 2);
+        UT_ASSERT_EQUAL(controllerEOSPTS.empty() ? -1 : controllerEOSPTS[0], expectedFirstEosPts);
+        UT_ASSERT_EQUAL(controllerEOSPTS.size() < 2 ? -1 : controllerEOSPTS[1], mSignalEOSPTS);
 ```
 
 ## Session cleanup
